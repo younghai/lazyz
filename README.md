@@ -13,6 +13,122 @@ installable ZCode plugin.
 > Not affiliated with Sisyphus Labs. All credit for the underlying harness
 > belongs to the OmO maintainers.
 
+## Why LazyZ exists
+
+LazyCodex proved that a disciplined agent harness — memory, planning,
+evidence-bound execution, verified completion — turns a coding agent from a
+"write some code" assistant into a "ship a complete, reviewed change" teammate.
+That discipline lived only inside the Codex client.
+
+**LazyZ brings that same discipline to ZCode.** The goal is not to clone
+LazyCodex feature-for-feature — it is to give ZCode users the same
+end-to-end workflow (understand → plan → execute → prove) so that ZCode
+becomes a first-class home for serious agent-driven development, not just a
+chat-based code editor.
+
+The broader intent: **grow the ZCode ecosystem.** Today ZCode's plugin
+marketplace is thin compared to its potential. LazyZ is a reference for what
+a full-workflow plugin looks like — not a single skill or MCP server, but a
+layered system of memory, planning, execution, and verification that
+composes with ZCode's own capabilities. The more users install it and the
+more plugin authors study it, the richer the ecosystem becomes.
+
+## What changed from LazyCodex (and what stayed)
+
+LazyZ is a **port**, not a rewrite. The core workflow, directives, and
+evidence contracts are the same. What changed is everything that touched
+Codex-specific internals:
+
+| Area | LazyCodex (Codex) | LazyZ (ZCode) |
+| --- | --- | --- |
+| **Plugin manifest** | `.codex-plugin/plugin.json` | `.zcode-plugin/plugin.json` |
+| **Hook events** | 7 events incl. `SubagentStop`, `PostCompact` | 5 ZCode events; the two missing ones are best-effort proxied (see below) |
+| **Agent runtime** | Codex `multi_agent_v1.spawn_agent` + TOML role files | ZCode `Agent` tool + `.md` subagent definitions installed to `~/.zcode/agents/` |
+| **Models** | GPT-5.5 / GPT-5.4-mini with per-agent reasoning effort | Mapped to the ZCode provider (GLM-5.2 today); reasoning-effort control is unavailable |
+| **Hook launcher** | Direct `node` call | `scripts/run-hook.sh` wrapper that gates on Node + dist presence, degrades to `exit 0` so a missing build never blocks your session |
+| **Config** | `~/.codex/config.toml` rewriting + marketplace cache | None — ZCode manages its own plugin lifecycle |
+| **Identifier** | `omo-codex` / `omo_codex_daily_active` | `lazyz` / `lazyz_daily_active` (legacy env aliases retained) |
+
+**What is intentionally NOT ported** (ZCode has no equivalent):
+
+- `SubagentStop` hook → the executor-verify evidence gate is wired to
+  `PostToolUse` on `Agent`/`Task` as a best-effort proxy. It is advisory, not
+  session-blocking.
+- `PostCompact` hook → cache resets that fired on compaction now fire on
+  `SessionStart` instead (slightly more overhead, no functional loss).
+- `teammode` skill → depends on Codex's thread API; left in vendor for a
+  future ZCode equivalent.
+- `create_goal` / `create_thread` / `codex_app.*` tools → no ZCode analog;
+  `ulw-loop` uses its own file-based state (`.omo/ulw-loop/`) instead.
+
+## The workflow — how a task flows through LazyZ
+
+LazyZ gives ZCode the same four-stage discipline loop that made LazyCodex
+effective. Each stage is a skill + (optionally) a command, and each hands
+off durable state through `.omo/` so nothing is lost across sessions or
+context compaction.
+
+```
+ ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+ │  1. Memory  │ ──▶ │  2. Plan     │ ──▶ │  3. Execute  │ ──▶ │  4. Verify   │
+ │  init-deep  │     │  ulw-plan    │     │  start-work  │     │  ulw-loop    │
+ └─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+        │                   │                    │                     │
+        ▼                   ▼                    ▼                     ▼
+   AGENTS.md          .omo/plans/          .omo/boulder.json      evidence ledger
+   hierarchy          decision-complete     checkbox progress      (artifacts,
+   (read every        plan + approval       + Stop-hook            not claims)
+   session)           gate before code      continuation
+```
+
+### Stage 1 — Project memory (`init-deep`)
+
+Before any work, `init-deep` walks the repository, scores directories by
+complexity, and generates a hierarchical `AGENTS.md` knowledge base. Every
+subsequent session reads this memory, so the agent starts grounded in *your*
+codebase, not a blank slate. `ulw-plan` quality drops measurably without it.
+
+### Stage 2 — Planning (`ulw-plan`)
+
+`ulw-plan` (the "Prometheus" consultant) is an **explore-first planner**:
+it spawns parallel read-only subagents (explorer, librarian, metis, momus)
+to ground the plan in the actual codebase, surfaces only the forks it
+cannot resolve itself, waits for explicit approval, and only then writes a
+single decision-complete plan to `.omo/plans/<slug>.md`. Each task in the
+plan carries acceptance criteria, QA scenarios, and a commit instruction —
+so the executor never needs to ask a follow-up question.
+
+### Stage 3 — Execution (`start-work`)
+
+`start-work` reads the plan, tracks progress in `.omo/boulder.json`, and
+executes checkboxes one by one. The ZCode `Stop` hook re-injects the
+continuation directive (with the next checkbox and remaining count) so the
+agent resumes automatically after each turn — durable across compaction.
+Each checkbox runs the **PIN → RED → GREEN → SURFACE → CLEAN** loop
+(characterize current behavior, fail-first, smallest fix, real manual-QA
+evidence, cleanup receipt). Sprint 2 added cycle/failure caps (5 cycles, 3
+same-failure type) and a debugging budget so a stuck checkbox escalates
+instead of looping forever.
+
+### Stage 4 — Verified completion (`ulw-loop`)
+
+For open-ended, multi-goal work, `ulw-loop` runs the full loop: decompose
+into goals with success criteria, execute each through start-work, capture
+real evidence (HTTP transcripts, tmux captures, browser screenshots — not
+"dry-run" claims), and gate completion on artifact-backed proof. The
+quality gate (code review + manual QA + gate review + scope fidelity) must
+all APPROVE before a goal is marked complete.
+
+### The agent team
+
+The four stages are powered by 10 specialist subagents — planner,
+pre-planning analyst, plan reviewer, codebase explorer, external librarian,
+implementation executor, QA executor, code reviewer, gate reviewer, and
+clone-fidelity reviewer — each with scoped tools (read-only reviewers vs.
+write-enabled executors). They run as parallel ZCode `Agent` calls, and a
+`lazycodex-executor-verify` hook checks that every executor claim carries
+real evidence before it is accepted.
+
 ## Install and run your first workflow
 
 ### Before you install
@@ -53,13 +169,14 @@ Full install and build instructions live in [`plugins/lazyz/README.md`](plugins/
 
 ```
 lazyz/
-├── .agents/plugins/marketplace.json   → ZCode marketplace manifest
+├── marketplace.json                   → ZCode marketplace manifest (root)
 └── plugins/lazyz/                     → the plugin itself
     ├── .zcode-plugin/plugin.json      → ZCode plugin manifest
     ├── .mcp.json                      → MCP servers (grep_app, context7 remote + codegraph, git_bash, lsp local)
-    ├── hooks/hooks.json               → 13 hooks across 5 ZCode events
+    ├── hooks/hooks.json               → 16 hooks across 5 ZCode events
     ├── skills/                        → 25 skills (init-deep, ulw-plan, start-work, ulw-loop, ...)
     ├── commands/                      → 4 commands (/init-deep, /ulw-plan, /start-work, /ulw-loop)
+    ├── agents/                        → 10 ZCode subagent definitions (explorer, planner, reviewers, ...)
     ├── components/                    → TypeScript sources for hooks/MCP (built with bun)
     ├── vendor/                        → vendored shared packages (utils, lsp-daemon, telemetry-core, ...)
     ├── scripts/                       → build & sync scripts + run-hook.sh (hook diagnostics wrapper)
@@ -68,7 +185,7 @@ lazyz/
 
 ## Build
 
-**No build required to install.** The plugin ships prebuilt `dist/` for all 13
+**No build required to install.** The plugin ships prebuilt `dist/` for all 16
 hooks and the three local MCP servers (`codegraph`, `git_bash`, `lsp`). After
 `zcode plugin add lazyz@lazyz`, everything works out of the box — you only
 need Node.js 20+ on your `PATH` (the hooks call `node` at runtime).
