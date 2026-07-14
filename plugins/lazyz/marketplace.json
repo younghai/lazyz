@@ -1,0 +1,9 @@
+{
+  "name": "lazyz",
+  "plugins": [
+    {
+      "name": "lazyz",
+      "source": "."
+    }
+  ]
+}

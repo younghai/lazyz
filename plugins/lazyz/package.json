@@ -1,0 +1,45 @@
+{
+	"name": "@lazyz/plugin",
+	"version": "0.1.1",
+	"description": "LazyZ — ZCode plugin distribution of the OmO agent harness (project memory, planning, execution, verified completion).",
+	"type": "module",
+	"packageManager": "npm@11.12.1",
+	"private": true,
+	"workspaces": [
+		"components/bootstrap",
+		"components/codegraph",
+		"components/comment-checker",
+		"components/git-bash",
+		"components/lazycodex-executor-verify",
+		"components/rules",
+		"components/lsp",
+		"components/telemetry",
+		"components/start-work-continuation",
+		"components/ulw-loop",
+		"components/ultrawork",
+		"vendor/utils",
+		"vendor/comment-checker-core",
+		"vendor/prompts-core",
+		"vendor/rules-engine",
+		"vendor/telemetry-core",
+		"vendor/lsp-daemon",
+		"vendor/mcp-stdio-core",
+		"vendor/lsp-core",
+		"vendor/model-core",
+		"vendor/lsp-tools-mcp",
+		"vendor/git-bash-mcp",
+		"vendor/omo-codex",
+		"vendor/shared-skills"
+	],
+	"dependencies": {
+		"@oh-my-opencode/shared-skills": "file:./vendor/shared-skills"
+	},
+	"scripts": {
+		"build": "node scripts/sync-version.mjs && node scripts/sync-hook-status-messages.mjs && node scripts/build-bundled-mcp-runtimes.mjs && node scripts/materialize-shared-upstreams.mjs --strict && node scripts/sync-skills.mjs && node scripts/build-components.mjs",
+		"sync:version": "node scripts/sync-version.mjs",
+		"check": "npm run build && npm test",
+		"sync:hooks": "node scripts/sync-hook-status-messages.mjs",
+		"sync:skills": "node scripts/sync-skills.mjs",
+		"test": "node --test test/*.test.mjs"
+	}
+}

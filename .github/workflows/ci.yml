@@ -1,0 +1,70 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.os }} · node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["20", "22"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        working-directory: plugins/lazyz
+        run: npm install
+
+      - name: Build
+        working-directory: plugins/lazyz
+        run: npm run build
+
+      - name: Verify hook outputs exist
+        working-directory: plugins/lazyz
+        run: |
+          set -e
+          for c in bootstrap codegraph comment-checker git-bash lazycodex-executor-verify lsp rules start-work-continuation telemetry ultrawork ulw-loop work-status; do
+            test -f "components/$c/dist/cli.js" || { echo "Missing components/$c/dist/cli.js"; exit 1; }
+          done
+          test -f vendor/git-bash-mcp/dist/cli.js
+          test -f vendor/lsp-daemon/dist/cli.js
+          test -f vendor/lsp-tools-mcp/dist/cli.js
+          echo "All hook outputs and MCP runtimes built successfully."
+
+      - name: Verify manifest consistency
+        working-directory: plugins/lazyz
+        run: |
+          set -e
+          # Every path referenced in hooks.json and .mcp.json must exist after build
+          grep -oE '(components|vendor)/[a-z-]+/dist/[a-z.-]+' hooks/hooks.json .mcp.json \
+            | cut -d: -f2 | sort -u | while read -r ref; do
+              test -f "$ref" || { echo "Broken reference: $ref"; exit 1; }
+            done
+          echo "All manifest references resolve to built files."

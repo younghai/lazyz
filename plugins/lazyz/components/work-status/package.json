@@ -1,0 +1,49 @@
+{
+	"name": "@code-yeongyu/lazyz-work-status",
+	"version": "0.1.1",
+	"description": "LazyZ component that reports in-progress start-work / ulw-loop state: resume prompts on SessionStart, progress counts on demand, init-deep suggestions, and local MCP build-missing warnings.",
+	"type": "module",
+	"packageManager": "npm@11.12.1",
+	"license": "MIT",
+	"homepage": "https://github.com/code-yeongyu/lazycodex",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/code-yeongyu/lazycodex.git"
+	},
+	"bugs": {
+		"url": "https://github.com/code-yeongyu/lazycodex/issues"
+	},
+	"keywords": [
+		"zcode",
+		"zcode-plugin",
+		"lazyz",
+		"work-status",
+		"resume",
+		"progress",
+		"boulder",
+		"hooks"
+	],
+	"bin": {
+		"lazyz-work-status": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && bun build src/cli.ts --target node --format esm --outfile dist/cli.js",
+		"test": "npm run build --silent && vitest --run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"check": "tsc --noEmit && npm run build"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"devDependencies": {
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

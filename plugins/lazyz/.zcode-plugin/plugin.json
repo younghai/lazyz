@@ -1,0 +1,38 @@
+{
+	"name": "lazyz",
+	"version": "0.1.1",
+	"description": "LazyZ — ZCode plugin distribution of the OmO agent harness. Project memory, planning, execution, and verified completion inside ZCode.",
+	"author": {
+		"name": "LazyZ contributors",
+		"url": "https://github.com/code-yeongyu/lazycodex"
+	},
+	"license": "MIT",
+	"keywords": [
+		"zcode",
+		"zcode-plugin",
+		"lazyz",
+		"omo",
+		"hooks",
+		"mcp",
+		"skills",
+		"planning",
+		"agent-harness"
+	],
+	"skills": "./skills/",
+	"commands": "./commands/",
+	"mcpServers": "./.mcp.json",
+	"interface": {
+		"displayName": "LazyZ",
+		"shortDescription": "OmO agent harness packaged for ZCode",
+		"longDescription": "LazyZ ports the OmO agent harness to ZCode: project memory (init-deep), decision-complete planning (ulw-plan), durable plan execution (start-work), verified completion (ulw-loop), and discipline skills — all as a single ZCode plugin.",
+		"category": "Developer Tools",
+		"capabilities": [
+			"Hooks",
+			"MCP Tools",
+			"Code Intelligence",
+			"Workflow",
+			"Context Injection"
+		],
+		"brandColor": "#7C3AED"
+	}
+}

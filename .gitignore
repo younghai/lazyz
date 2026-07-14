@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output — kept out of source control except for the plugin's own
+# prebuilt dist, which is shipped so users don't need Node/Bun to install.
+**/dist/
+**/*.tsbuildinfo
+
+# Ship the plugin's prebuilt hook components and MCP runtimes so that
+# `zcode plugin add lazyz@lazyz` works without a build step.
+!plugins/lazyz/components/*/dist/
+!plugins/lazyz/components/*/dist/**
+!plugins/lazyz/vendor/*/dist/
+!plugins/lazyz/vendor/*/dist/**
+
+# omo internal runtime artifacts
+.omo/
+plugins/lazyz/.omo/
+
+# Materialized shared-skills upstream (fetched at build time)
+shared-skills/
+
+# Recovery artifacts from the upstream OmO monorepo checkout.
+# These sibling packages are development-time only; the plugin uses the
+# vendored copies under plugins/lazyz/vendor/ instead.
+/agents-md-core/
+/ast-grep-core/
+/boulder-state/
+/claude-code-compat-core/
+/comment-checker-core/
+/delegate-core/
+/git-bash-mcp/
+/hashline-core/
+/lsp-core/
+/lsp-daemon/
+/lsp-tools-mcp/
+/mcp-client-core/
+/mcp-stdio-core/
+/model-core/
+/omo-codex/
+/omo-opencode/
+/omo-senpi/
+/openclaw-core/
+/prompts-core/
+/rules-engine/
+/skills-loader-core/
+/team-core/
+/telemetry-core/
+/tmux-core/
+/utils/
+/web/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lockfiles (file: workspace deps are environment-specific)
+package-lock.json
+**/package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ZCode local session/plan files (never ship)
+.zcode/
+
+# Environment files
+.env
+.env.*

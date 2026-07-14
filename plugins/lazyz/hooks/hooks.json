@@ -1,0 +1,180 @@
+{
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/bootstrap/dist/cli.js\" hook session-start",
+						"timeout": 30,
+						"statusMessage": "(LazyZ 0.1.1) Checking Bootstrap Provisioning"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/codegraph/dist/cli.js\" hook session-start",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking CodeGraph Bootstrap"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js\" hook session-start",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.1.1) Loading Project Rules"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/telemetry/dist/cli.js\" hook session-start",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Recording Session Telemetry"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/work-status/dist/cli.js\" hook session-start",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.1.1) Resuming Work Status"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${ZCODE_PLUGIN_ROOT}/scripts/migrate-codex-config.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(LazyZ) Migrating Codex Config"
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/ultrawork/dist/cli.js\" hook user-prompt-submit",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking Ultrawork Trigger"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/ulw-loop/dist/cli.js\" hook user-prompt-submit",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking Ulw-Loop Steering"
+					}
+				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js\" hook user-prompt-submit",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.1.1) Loading Project Rules"
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "^Bash$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/git-bash/dist/cli.js\" hook pre-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Recommending Git Bash MCP"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "^(Edit|Write|ApplyPatch)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/comment-checker/dist/cli.js\" hook post-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking Comments"
+					}
+				]
+			},
+			{
+				"matcher": "^(Edit|Write|ApplyPatch)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/lsp/dist/cli.js\" hook post-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking LSP Diagnostics"
+					}
+				]
+			},
+			{
+				"matcher": "^(Edit|Write|ApplyPatch)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js\" hook post-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Matching Project Rules"
+					}
+				]
+			},
+			{
+				"matcher": "^(mcp__codegraph__.*)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/codegraph/dist/cli.js\" hook post-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Checking CodeGraph Init Guidance"
+					}
+				]
+			},
+			{
+				"matcher": "^(Agent|Task)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook post-tool-use",
+						"timeout": 5,
+						"statusMessage": "(LazyZ 0.1.1) Verifying Executor Evidence"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/start-work-continuation/dist/cli.js\" hook stop",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.1.1) Checking Start-Work Continuation"
+					}
+				]
+			}
+		]
+	}
+}
