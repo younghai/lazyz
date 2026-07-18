@@ -1,6 +1,6 @@
 ---
 name: lcx-doctor
-description: "Diagnose LazyCodex and Codex CLI installation health against the latest sources. Use ONLY when the user EXPLICITLY asks for a LazyCodex/Codex doctor or health check, install audit, or setup comparison — this is a contributor/maintenance tool and does not auto-trigger on ordinary coding work."
+description: "Diagnose LazyZ and ZCode/Codex CLI installation health against the latest sources. Use ONLY when the user EXPLICITLY asks for a LazyZ/ZCode/Codex doctor or health check, install audit, or setup comparison — this is a contributor/maintenance tool and does not auto-trigger on ordinary coding work."
 metadata:
   short-description: Diagnose LazyCodex/Codex install health against latest sources
 ---

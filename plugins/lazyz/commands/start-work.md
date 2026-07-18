@@ -1,5 +1,5 @@
 ---
-description: Execute a work plan until every checkbox is done, with durable Boulder progress, evidence ledger updates, parallel subagents, and Stop-hook continuation. Prints ORCHESTRATION COMPLETE.
+description: Execute a work plan until every checkbox is done, with durable progress tracking, evidence ledger updates, parallel subagents, and automatic continuation. Prints ORCHESTRATION COMPLETE.
 argument-hint: "[plan-name] [--worktree <path>]"
 ---
 

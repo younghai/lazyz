@@ -4,7 +4,7 @@
 	"description": "LazyZ — ZCode plugin distribution of the OmO agent harness. Project memory, planning, execution, and verified completion inside ZCode.",
 	"author": {
 		"name": "LazyZ contributors",
-		"url": "https://github.com/code-yeongyu/lazycodex"
+		"url": "https://github.com/younghai/lazyz"
 	},
 	"license": "MIT",
 	"keywords": [

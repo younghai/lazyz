@@ -1,6 +1,6 @@
 ---
 name: init-deep
-description: "(builtin) Initialize hierarchical AGENTS.md knowledge base"
+description: "Initialize hierarchical AGENTS.md project memory. Use when the repo is new, large, or unfamiliar, or when downstream planning/execution quality matters. Triggers: init-deep, set up project memory, explain this repo, first session, project context, AGENTS.md."
 ---
 ## ZCode Harness Tool Compatibility
 

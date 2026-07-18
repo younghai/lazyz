@@ -1,6 +1,6 @@
 ---
 name: lcx-contribute-bug-fix
-description: "Contribute a verified bug fix for LazyCodex, lazycodex-ai, omo-codex, bundled Codex skills, or upstream Codex CLI bugs. Opens a fork PR only for upstream openai/codex; LazyCodex-owned defects become a verified-fix issue on code-yeongyu/lazycodex (never a PR — that repo is a generated distribution mirror). Use ONLY when the user EXPLICITLY asks to fix, contribute, or open a PR for a LazyCodex/Codex defect — this is a contributor/maintenance tool and does not auto-trigger on ordinary coding work."
+description: "Contribute a verified bug fix for LazyZ, lazycodex-ai, omo-codex, bundled ZCode/Codex skills, or upstream Codex CLI bugs. Opens a fork PR only for upstream openai/codex; LazyZ-owned defects become a verified-fix issue on the LazyZ repo (never a PR — that repo is a generated distribution mirror). Use ONLY when the user EXPLICITLY asks to fix, contribute, or open a PR for a LazyZ/Codex defect — this is a contributor/maintenance tool and does not auto-trigger on ordinary coding work."
 metadata:
   short-description: Contribute verified LazyCodex or Codex bug fixes
 ---

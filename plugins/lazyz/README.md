@@ -25,7 +25,7 @@ Labs; all credit for the underlying harness belongs to the OmO maintainers.
 
 - **Supported environments:** macOS and Linux. Windows is not supported in this release.
 - **Runtime:** Node.js 20 or later must be on your `PATH`. Confirm with `node --version`.
-- **Privacy:** LazyZ sends one anonymous daily-active event by default. Opt out before first launch with `touch ~/.omo/telemetry-disabled`.
+- **Privacy:** LazyZ telemetry is **OFF by default** (privacy-by-default). To opt in, run `export LAZYZ_ENABLE_TELEMETRY=1` before starting ZCode. See the [privacy section](#telemetry) for details.
 
 ### 1. Install LazyZ
 
@@ -161,11 +161,22 @@ ZCode's extension model differs from Codex's:
 
 ## Telemetry
 
-The bundled telemetry component (inherited from OmO) emits one anonymous
-`omo_codex_daily_active` event per UTC day per machine when the SessionStart
-hook runs. It uses `sha256("omo-codex:" + hostname)` as the distinct ID,
-disables person profiles, and stores daily dedup state under
-`$XDG_DATA_HOME/omo-codex/` or `~/.local/share/omo-codex/`.
+LazyZ telemetry is **OFF by default** (privacy-by-default, GDPR-aligned).
+No event is sent unless you explicitly opt in.
+
+To **enable** anonymous daily-active tracking:
+
+```bash
+export LAZYZ_ENABLE_TELEMETRY=1
+# or the legacy alias:
+export OMO_ENABLE_TELEMETRY=1
+```
+
+When enabled, the telemetry component emits one anonymous `lazyz_daily_active`
+event per UTC day per machine when the SessionStart hook runs. It uses
+`sha256("lazyz:" + hostname)` as the distinct ID, disables person profiles,
+and stores daily dedup state under `$XDG_DATA_HOME/lazyz/` or
+`~/.local/share/lazyz/`.
 
 Captured properties are limited to product/runtime metadata, OS metadata,
 coarse machine shape, locale/timezone, shell/terminal hints, `source`,
@@ -173,21 +184,17 @@ coarse machine shape, locale/timezone, shell/terminal hints, `source`,
 files, repository contents, file paths, tokens, API keys, hostnames, Git
 remotes, usernames, emails, or error diagnostics.
 
-On first run, a one-time notice is printed to stderr explaining what is
-collected and how to opt out. It does not repeat after that.
-
-Opt out — pick whichever is easiest:
+To **disable** (if you previously enabled it), pick whichever is easiest:
 
 ```bash
 # Option A: marker file (persists across shells and restarts)
 touch ~/.omo/telemetry-disabled
 
 # Option B: environment variables
+export LAZYZ_DISABLE_POSTHOG=1
+# or the legacy aliases:
 export OMO_CODEX_DISABLE_POSTHOG=1
-export OMO_CODEX_SEND_ANONYMOUS_TELEMETRY=0
-# or the global flags:
 export OMO_DISABLE_POSTHOG=1
-export OMO_SEND_ANONYMOUS_TELEMETRY=0
 ```
 
 ## License
