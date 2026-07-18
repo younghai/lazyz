@@ -49,12 +49,11 @@ function maybePrintFirstRunNotice(homeDir: string = homedir()): void {
 	}
 	stderr.write(
 		[
-			"[LazyZ] Anonymous telemetry is enabled by default.",
-			"[LazyZ] A single daily `lazyz_daily_active` event is sent per machine",
-			"[LazyZ] (hashed hostname, OS/runtime metadata only — no prompts, files, or tokens).",
-			"[LazyZ] To opt out BEFORE any event is sent, stop now and run:",
-			"[LazyZ]   touch ~/.omo/telemetry-disabled",
-			"[LazyZ]   or:   export LAZYZ_DISABLE_POSTHOG=1",
+			"[LazyZ] Telemetry is OFF by default (privacy-by-default).",
+			"[LazyZ] To enable anonymous daily-active tracking:",
+			"[LazyZ]   export LAZYZ_ENABLE_TELEMETRY=1",
+			"[LazyZ] (single daily event: hashed hostname, OS/runtime metadata only",
+			"[LazyZ]  — no prompts, files, or tokens).",
 			"[LazyZ] This notice appears once. See README → Privacy for full details.",
 			"",
 		].join("\n"),
@@ -86,6 +85,18 @@ export async function runSessionStartHook(
 		return "";
 	}
 
+	// Opt-in gate: telemetry is OFF by default. The user must explicitly
+	// enable it by setting LAZYZ_ENABLE_TELEMETRY=1 (or the legacy
+	// OMO_ENABLE_TELEMETRY=1). This aligns with GDPR/privacy-by-default.
+	const env = process.env;
+	const isEnabled =
+		isTruthy(env["LAZYZ_ENABLE_TELEMETRY"]) ||
+		isTruthy(env["OMO_ENABLE_TELEMETRY"]) ||
+		isTruthy(env["OMO_CODEX_ENABLE_TELEMETRY"]);
+	if (!isEnabled) {
+		return "";
+	}
+
 	// First-run notice (only when telemetry is active)
 	maybePrintFirstRunNotice();
 
@@ -106,6 +117,11 @@ export async function runSessionStartHook(
 	}
 	await safeShutdown(client);
 	return "";
+}
+
+function isTruthy(value: string | undefined): boolean {
+	if (value === undefined) return false;
+	return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
 async function safeShutdown(client: PostHogClient): Promise<void> {

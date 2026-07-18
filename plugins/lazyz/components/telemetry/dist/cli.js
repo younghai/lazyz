@@ -6057,12 +6057,11 @@ function maybePrintFirstRunNotice(homeDir = homedir2()) {
     writeFileSync3(notifiedMarker, new Date().toISOString());
   } catch {}
   stderr.write([
-    "[LazyZ] Anonymous telemetry is enabled by default.",
-    "[LazyZ] A single daily `lazyz_daily_active` event is sent per machine",
-    "[LazyZ] (hashed hostname, OS/runtime metadata only — no prompts, files, or tokens).",
-    "[LazyZ] To opt out BEFORE any event is sent, stop now and run:",
-    "[LazyZ]   touch ~/.omo/telemetry-disabled",
-    "[LazyZ]   or:   export LAZYZ_DISABLE_POSTHOG=1",
+    "[LazyZ] Telemetry is OFF by default (privacy-by-default).",
+    "[LazyZ] To enable anonymous daily-active tracking:",
+    "[LazyZ]   export LAZYZ_ENABLE_TELEMETRY=1",
+    "[LazyZ] (single daily event: hashed hostname, OS/runtime metadata only",
+    "[LazyZ]  — no prompts, files, or tokens).",
     "[LazyZ] This notice appears once. See README → Privacy for full details.",
     ""
   ].join(`
@@ -6082,6 +6081,11 @@ async function runSessionStartHook(_input, options = {}) {
   if (isTelemetryOptOutFilePresent()) {
     return "";
   }
+  const env2 = process.env;
+  const isEnabled = isTruthy(env2["LAZYZ_ENABLE_TELEMETRY"]) || isTruthy(env2["OMO_ENABLE_TELEMETRY"]) || isTruthy(env2["OMO_CODEX_ENABLE_TELEMETRY"]);
+  if (!isEnabled) {
+    return "";
+  }
   maybePrintFirstRunNotice();
   let client;
   try {
@@ -6099,6 +6103,11 @@ async function runSessionStartHook(_input, options = {}) {
   }
   await safeShutdown(client);
   return "";
+}
+function isTruthy(value) {
+  if (value === undefined)
+    return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 async function safeShutdown(client) {
   try {

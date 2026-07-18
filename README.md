@@ -135,8 +135,8 @@ real evidence before it is accepted.
 
 - Use ZCode on macOS or Linux. Windows is not supported in this release.
 - Make sure Node.js 20 or later is available: `node --version`.
-- LazyZ sends one anonymous daily-active event by default. To opt out before
-  first launch, run `touch ~/.omo/telemetry-disabled`; see the
+- LazyZ telemetry is **OFF by default** (privacy-by-default). To opt in,
+  run `export LAZYZ_ENABLE_TELEMETRY=1` before starting ZCode; see the
   [privacy details](plugins/lazyz/README.md#telemetry).
 
 ### 1. Install LazyZ
