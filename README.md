@@ -1,5 +1,9 @@
 # LazyZ
 
+> **Last updated: 2026-07-17** — telemetry switched to opt-in (OFF by default);
+> bootstrap ZCode manifest fix; data governance hardening (13 items).
+> See [Changelog](#changelog) below.
+
 **The OmO agent harness, packaged as a ZCode plugin.**
 Project memory, planning, execution, and verified completion — inside ZCode.
 
@@ -255,7 +259,58 @@ server). No file paths, prompts, source, or identifiers beyond a daily
 hashed machine id.
 
 See the [privacy details](plugins/lazyz/README.md#telemetry) for the
-daily-active event and opt-out controls.
+daily-active event and opt-in controls.
+
+## Changelog
+
+### 2026-07-17 — Data governance & operations hardening
+
+**Security & privacy (P0–P1):**
+- **Telemetry is now opt-in** (OFF by default). Set `LAZYZ_ENABLE_TELEMETRY=1`
+  to enable. Aligns with GDPR privacy-by-default.
+- **`.omo/` directory permissions** hardened to `0o700` across all 13 state
+  creation sites (evidence, ledger, counters, telemetry). Shared hosts and CI
+  runners can no longer read another user's evidence files.
+- **Secret redaction scrubber** (`scripts/redact-secrets.mjs`): scans
+  `.omo/evidence/` and `ledger.jsonl` for API keys, tokens, JWTs, connection
+  strings. Run with `--fix` to mask in place; without `--fix` acts as a CI
+  gate (exit 1 on findings).
+
+**Reliability (P0–P2):**
+- **Bootstrap ZCode manifest fix**: `readPluginVersion` now reads
+  `.zcode-plugin/plugin.json` (was `.codex-plugin/` only) and accepts
+  `ZCODE_PLUGIN_ROOT` (was `PLUGIN_ROOT` only). Bootstrap was permanently
+  no-op before this fix.
+- **Boulder parser sync CI gate**: CI step `Verify boulder parser sync`
+  diffs `BoulderWorkStatus` between the two independent parsers and fails
+  on divergence.
+- **Vendor boulder-reader sync**: vendor copy aligned with main (Sprint 2
+  `blocked` status + `fail_count`).
+- **Atomic write for `.lazyz-prompts.json`**: switched from direct
+  `writeFileSync` to temp+rename to prevent lost-update races.
+
+**Operations (P3):**
+- **Evidence retention pruner** (`scripts/prune-evidence.mjs`): removes
+  evidence files older than 30 days or over 100 MB total; tail-truncates
+  ledger files to 10,000 lines.
+- **Codegraph timeout tuning**: SessionStart timeout set to 15s (detached
+  worker returns immediately; only the 2s status probe is synchronous).
+- **`schema_version` documented as cosmetic**: no migration runs on bump;
+  inline warning added to SKILL.md.
+- **Downgrade compatibility**: AGENTS.md documents that a plugin downgrade
+  may make `"blocked"` status works invisible (safe but silent).
+- **SessionStart latency**: documented in known-limitations.md (6 hooks,
+  sequential; tracked for ZCode concurrency investigation).
+
+### 2026-07-12 — Initial public release (v0.1.1)
+
+- ZCode plugin port of the OmO/LazyCodex harness.
+- 25 skills, 10 agents, 16 hooks, 5 MCP servers.
+- Project memory (`init-deep`), planning (`ulw-plan`), execution
+  (`start-work`), verified completion (`ulw-loop`).
+- Prebuilt `dist/` for install-and-go (no Node/Bun build required).
+- Sprint 2: boulder.json `blocked` status + `fail_count`, cycle/failure
+  caps, debugging budget, Manual-QA pre-notification gate.
 
 ## License
 
