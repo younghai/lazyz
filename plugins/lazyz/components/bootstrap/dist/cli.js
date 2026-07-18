@@ -2846,7 +2846,7 @@ function errorMessage(error) {
 }
 
 // src/worker.ts
-var BOOTSTRAP_DOCTOR_HINT = "npx lazycodex-ai doctor";
+var BOOTSTRAP_DOCTOR_HINT = "See LazyZ README \u2192 Troubleshooting, or check that Node.js 20+ and dist/ are present";
 function parseWorkerFlags(argv) {
   let codexHome;
   let manifestDir;
@@ -3090,11 +3090,11 @@ async function drainStdin(stdin) {
 }
 
 // src/cli.ts
-var TOP_LEVEL_HELP = "Usage:\n  omo-bootstrap hook session-start\n  omo-bootstrap worker [--codex-home <dir>] [--once] [--only <step>] [--manifest-dir <dir>]\n  omo-bootstrap download <manifest> <platform> <destination-dir>\n  omo-bootstrap help | --help | -h\n";
+var TOP_LEVEL_HELP = "Usage:\n  lazyz-bootstrap hook session-start\n  lazyz-bootstrap worker [--codex-home <dir>] [--once] [--only <step>] [--manifest-dir <dir>]\n  lazyz-bootstrap download <manifest> <platform> <destination-dir>\n  lazyz-bootstrap help | --help | -h\n";
 async function runDownloadCommand(args) {
   const [manifestName, platformKey, destinationDir] = args;
   if (manifestName === void 0 || platformKey === void 0 || destinationDir === void 0) {
-    process.stderr.write(`[omo-bootstrap] download requires <manifest> <platform> <destination-dir>
+    process.stderr.write(`[LazyZ] download requires <manifest> <platform> <destination-dir>
 ${TOP_LEVEL_HELP}`);
     return 1;
   }
@@ -3104,7 +3104,7 @@ ${TOP_LEVEL_HELP}`);
 `);
     return 0;
   } catch (error) {
-    process.stderr.write(`[omo-bootstrap] download failed: ${error instanceof Error ? error.message : String(error)}
+    process.stderr.write(`[LazyZ] download failed: ${error instanceof Error ? error.message : String(error)}
 `);
     return 1;
   }
@@ -3116,17 +3116,17 @@ async function runWorkerCommand(args) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/flag/.test(message)) {
-      process.stderr.write(`[omo-bootstrap] ${message}
+      process.stderr.write(`[LazyZ] ${message}
 ${TOP_LEVEL_HELP}`);
       return 1;
     }
-    process.stderr.write(`[omo-bootstrap] worker error: ${message}
+    process.stderr.write(`[LazyZ] worker error: ${message}
 `);
     return 0;
   }
   process.stdout.write(
-    result.ran ? `[omo-bootstrap] worker finished: ${result.status}
-` : `[omo-bootstrap] worker skipped: ${result.reason}
+    result.ran ? `[LazyZ] worker finished: ${result.status}
+` : `[LazyZ] worker skipped: ${result.reason}
 `
   );
   return 0;
@@ -3147,7 +3147,7 @@ async function main() {
   if (command === "download") {
     return runDownloadCommand(argv.slice(1));
   }
-  process.stderr.write(`[omo-bootstrap] unknown command: ${argv.join(" ")}
+  process.stderr.write(`[LazyZ] unknown command: ${argv.join(" ")}
 ${TOP_LEVEL_HELP}`);
   return 1;
 }
@@ -3164,7 +3164,7 @@ if (isProcessEntry()) {
   main().then((code) => {
     process.exit(code);
   }).catch((error) => {
-    process.stderr.write(`[omo-bootstrap] ${error instanceof Error ? error.message : String(error)}
+    process.stderr.write(`[LazyZ] ${error instanceof Error ? error.message : String(error)}
 `);
     process.exit(0);
   });

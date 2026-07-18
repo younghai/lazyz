@@ -1,6 +1,6 @@
 ---
 name: comment-checker
-description: Use when Codex needs to understand or respond to automatic comment-checker feedback emitted after an edit-like PostToolUse hook.
+description: Use when ZCode needs to understand or respond to automatic comment-checker feedback emitted after an edit-like PostToolUse hook.
 ---
 
 # Codex Comment Checker

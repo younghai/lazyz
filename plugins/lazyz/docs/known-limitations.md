@@ -36,7 +36,7 @@ timeline invariant).
 
 ## Tier display and per-skill hiding (platform-dependent)
 
-**Symptom.** The `/` menu shows all 23 skills; no built-in hide for `lcx-*`.
+**Symptom.** The `/` menu shows all 25 skills; no built-in hide for `lcx-*`.
 
 **Why.** ZCode executes only `commands`/`skills`/`hooks`/`mcpServers`/
 `agents`. SKILL.md frontmatter has no standard `tier`/`visible`/`hidden`

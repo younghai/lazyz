@@ -400,23 +400,23 @@ function renderResumePrompt(snapshot, nowMs, lastAt) {
   const since = lastAt !== null ? ` (마지막 안내: ${formatElapsed(nowMs - lastAt)} 전)` : "";
   if (snapshot.kind === "start-work") {
     if (snapshot.degraded) {
-      return `⏳ LazyZ: 진행 중인 start-work 작업이 있는 것으로 보이나 boulder.json을 완전히 읽지 못했습니다 (${snapshot.boulderPath}). 수동으로 확인해 주세요.${since}`;
+      return `⏳ LazyZ: 진행 중인 작업이 있으나 상태 파일을 완전히 읽지 못했습니다. 수동으로 확인해 주세요.${since}`;
     }
     if (snapshot.status === "blocked") {
       const fail = snapshot.failCount ?? 0;
-      return `⛔ LazyZ: "${snapshot.planName}" 작업이 blocked 상태입니다 (실패 캡 도달, fail_count=${fail}). continuation이 중단됩니다. status를 "active"로 변경하거나 사용자 판단이 필요합니다.${since}`;
+      return `⛔ LazyZ: "${snapshot.planName}" 작업이 중단되었습니다 (실패 한도 도달, ${fail}회). 상태를 다시 "active"로 변경하거나 사용자 판단이 필요합니다.${since}`;
     }
     const { completed, total: total2, nextTaskLabel } = snapshot.checklist;
     const next = nextTaskLabel ?? "(다음 작업 라벨 없음)";
-    return `⏳ LazyZ: 진행 중인 작업이 있습니다 — "${snapshot.planName}" (${completed}/${total2} 완료). 다음: ${truncate(next, 80)}.${snapshot.worktreePath !== null ? ` worktree: ${snapshot.worktreePath}.` : ""} 이어서 하시려면 start-work로 진행, 무시하셔도 됩니다.${since}`;
+    return `⏳ LazyZ: 진행 중인 작업 — "${snapshot.planName}" (${completed}/${total2} 완료). 다음: ${truncate(next, 80)}.${snapshot.worktreePath !== null ? ` worktree: ${snapshot.worktreePath}.` : ""} 계속하려면 start-work로 진행.${since}`;
   }
   if (snapshot.degraded) {
-    return `⏳ LazyZ: 진행 중인 ulw-loop 작업이 있는 것으로 보이나 goals.json을 완전히 읽지 못했습니다 (${snapshot.goalsPath}).${since}`;
+    return `⏳ LazyZ: 진행 중인 다중 목표 작업이 있으나 상태 파일을 완전히 읽지 못했습니다.${since}`;
   }
   const total = snapshot.goals.length;
   const incomplete = snapshot.goals.filter((g) => !isComplete(g.status)).length;
   const cr = `${snapshot.passedCriteria}/${snapshot.totalCriteria}`;
-  return `⏳ LazyZ: 진행 중인 ulw-loop 작업이 있습니다 — 골 ${incomplete}/${total} 미완료, 크리테리아 ${cr} 통과. 이어서 하시려면 ulw-loop로 진행, 무시하셔도 됩니다.${since}`;
+  return `⏳ LazyZ: 진행 중인 다중 목표 작업 — 골 ${incomplete}/${total} 미완료, 크리테리아 ${cr} 통과. 계속하려면 ulw-loop로 진행.${since}`;
 }
 function maybeInitDeepSuggestion(cwd, nowMs) {
   if (existsSync2(join2(cwd, "AGENTS.md")))
@@ -426,7 +426,7 @@ function maybeInitDeepSuggestion(cwd, nowMs) {
   if (lastAt !== null && nowMs - lastAt < ONE_DAY_MS)
     return null;
   writePromptedAt(cwd, key, nowMs);
-  return "\uD83D\uDCA1 LazyZ: 이 프로젝트에 `AGENTS.md` 메모리가 없습니다. `init-deep`을 한 번 실행하면 " + "계층적 프로젝트 메모리가 생성되어 이후 계획·실행 품질이 크게 올라갑니다. " + "무시하셔도 됩니다. (최초 9개 스킬 안내는 플러그인 README의 'Start here' 섹션을 보세요.)";
+  return "\uD83D\uDCA1 LazyZ: 이 프로젝트에 `AGENTS.md` 메모리가 없습니다. `init-deep`을 실행하면 " + "프로젝트 메모리가 생성되어 이후 계획·실행 품질이 올라갑니다.";
 }
 function maybeBuildMissingLines(pluginRoot, cwd, nowMs) {
   const missing = [];
@@ -444,7 +444,7 @@ function maybeBuildMissingLines(pluginRoot, cwd, nowMs) {
   writePromptedAt(cwd, key, nowMs);
   const list = missing.join(", ");
   return [
-    `⚠️ LazyZ: 로컬 MCP 서버가 빌드되지 않았습니다 (${list}). 이 서버들은 \`required: false\`라 조용히 스킵됩니다. 기능이 필요하면 \`cd plugins/lazyz && npm install && npm run build\` 후 ZCode를 재시작하세요. 무시하셔도 됩니다.`
+    `⚠️ LazyZ: 일부 MCP 서버가 빌드되지 않았습니다 (${list}). 필요하면 \`npm install && npm run build\` 후 재시작.`
   ];
 }
 function maybeManualQaNotice(cwd, nowMs) {
@@ -456,7 +456,7 @@ function maybeManualQaNotice(cwd, nowMs) {
   if (lastAt !== null && nowMs - lastAt < ONE_DAY_MS)
     return null;
   writePromptedAt(cwd, key, nowMs);
-  return `ℹ️ LazyZ: 이 작업의 사용자 노출 체크박스는 각각 Manual-QA 증거가 필요합니다 — HTTP(curl), tmux, browser, computer-use 중 해당 채널을 준비해 주세요. (CLI/데이터 형태는 보조 증거 허용; --dry-run은 증불가) 무시하셔도 됩니다.`;
+  return `ℹ️ LazyZ: 이 작업의 체크박스는 Manual-QA 증거가 필요합니다 — HTTP, tmux, browser 중 해당 채널을 준비해 주세요.`;
 }
 function isComplete(status) {
   return status === "complete" || status === "completed" || status === "pass";

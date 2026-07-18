@@ -1,6 +1,6 @@
 ---
 name: lsp
-description: Use when Codex needs language-server diagnostics, definitions, references, symbols, or rename safety checks in the current workspace.
+description: Use when ZCode needs language-server diagnostics, definitions, references, symbols, or rename safety checks in the current workspace.
 ---
 
 # Codex LSP

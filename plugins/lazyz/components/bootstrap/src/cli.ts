@@ -71,12 +71,12 @@ export type {
 } from "./worker.ts";
 
 const TOP_LEVEL_HELP =
-	"Usage:\n  omo-bootstrap hook session-start\n  omo-bootstrap worker [--codex-home <dir>] [--once] [--only <step>] [--manifest-dir <dir>]\n  omo-bootstrap download <manifest> <platform> <destination-dir>\n  omo-bootstrap help | --help | -h\n";
+	"Usage:\n  lazyz-bootstrap hook session-start\n  lazyz-bootstrap worker [--codex-home <dir>] [--once] [--only <step>] [--manifest-dir <dir>]\n  lazyz-bootstrap download <manifest> <platform> <destination-dir>\n  lazyz-bootstrap help | --help | -h\n";
 
 async function runDownloadCommand(args: readonly string[]): Promise<number> {
 	const [manifestName, platformKey, destinationDir] = args;
 	if (manifestName === undefined || platformKey === undefined || destinationDir === undefined) {
-		process.stderr.write(`[omo-bootstrap] download requires <manifest> <platform> <destination-dir>\n${TOP_LEVEL_HELP}`);
+		process.stderr.write(`[LazyZ] download requires <manifest> <platform> <destination-dir>\n${TOP_LEVEL_HELP}`);
 		return 1;
 	}
 	try {
@@ -84,7 +84,7 @@ async function runDownloadCommand(args: readonly string[]): Promise<number> {
 		process.stdout.write(`OK:${destination}\n`);
 		return 0;
 	} catch (error) {
-		process.stderr.write(`[omo-bootstrap] download failed: ${error instanceof Error ? error.message : String(error)}\n`);
+		process.stderr.write(`[LazyZ] download failed: ${error instanceof Error ? error.message : String(error)}\n`);
 		return 1;
 	}
 }
@@ -96,16 +96,16 @@ async function runWorkerCommand(args: readonly string[]): Promise<number> {
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		if (/flag/.test(message)) {
-			process.stderr.write(`[omo-bootstrap] ${message}\n${TOP_LEVEL_HELP}`);
+			process.stderr.write(`[LazyZ] ${message}\n${TOP_LEVEL_HELP}`);
 			return 1;
 		}
 		// Runtime worker failures must never surface as non-zero exits; the
 		// degraded ledger in state.json is the error channel.
-		process.stderr.write(`[omo-bootstrap] worker error: ${message}\n`);
+		process.stderr.write(`[LazyZ] worker error: ${message}\n`);
 		return 0;
 	}
 	process.stdout.write(
-		result.ran ? `[omo-bootstrap] worker finished: ${result.status}\n` : `[omo-bootstrap] worker skipped: ${result.reason}\n`,
+		result.ran ? `[LazyZ] worker finished: ${result.status}\n` : `[LazyZ] worker skipped: ${result.reason}\n`,
 	);
 	return 0;
 }
@@ -126,7 +126,7 @@ async function main(): Promise<number> {
 	if (command === "download") {
 		return runDownloadCommand(argv.slice(1));
 	}
-	process.stderr.write(`[omo-bootstrap] unknown command: ${argv.join(" ")}\n${TOP_LEVEL_HELP}`);
+	process.stderr.write(`[LazyZ] unknown command: ${argv.join(" ")}\n${TOP_LEVEL_HELP}`);
 	return 1;
 }
 
@@ -147,7 +147,7 @@ if (isProcessEntry()) {
 		})
 		.catch((error: unknown) => {
 			// The SessionStart hook path must never fail the session: log and exit 0.
-			process.stderr.write(`[omo-bootstrap] ${error instanceof Error ? error.message : String(error)}\n`);
+			process.stderr.write(`[LazyZ] ${error instanceof Error ? error.message : String(error)}\n`);
 			process.exit(0);
 		});
 }

@@ -302,7 +302,7 @@ daily-active event and opt-in controls.
 - **SessionStart latency**: documented in known-limitations.md (6 hooks,
   sequential; tracked for ZCode concurrency investigation).
 
-### 2026-07-12 — Initial public release (v0.1.1)
+### 2026-07-12 — Initial public release (v0.10.2)
 
 - ZCode plugin port of the OmO/LazyCodex harness.
 - 25 skills, 10 agents, 16 hooks, 5 MCP servers.

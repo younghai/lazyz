@@ -9,7 +9,7 @@ import { runSgProvision } from "./provision.ts";
 import type { SgProvisionSeams } from "./provision.ts";
 import { runWorkerSetup } from "./setup.ts";
 
-export const BOOTSTRAP_DOCTOR_HINT = "npx lazycodex-ai doctor";
+export const BOOTSTRAP_DOCTOR_HINT = "See LazyZ README → Troubleshooting, or check that Node.js 20+ and dist/ are present";
 
 export type BootstrapRunStatus = "success" | "degraded";
 

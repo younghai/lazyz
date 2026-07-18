@@ -1,6 +1,6 @@
 ---
 name: rules
-description: Use when the user asks about Codex Rules behavior, injected project rules, supported rule file locations, matching, or environment configuration.
+description: Use when the user asks about LazyZ Rules behavior, injected project rules, supported rule file locations, matching, or environment configuration.
 ---
 
 # Codex Rules
