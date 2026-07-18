@@ -16,7 +16,7 @@
 					{
 						"type": "command",
 						"command": "sh \"${ZCODE_PLUGIN_ROOT}/scripts/run-hook.sh\" \"${ZCODE_PLUGIN_ROOT}/components/codegraph/dist/cli.js\" hook session-start",
-						"timeout": 5,
+						"timeout": 60,
 						"statusMessage": "(LazyZ 0.10.2) Checking CodeGraph Bootstrap"
 					}
 				]

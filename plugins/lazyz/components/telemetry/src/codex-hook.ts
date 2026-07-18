@@ -42,18 +42,20 @@ function maybePrintFirstRunNotice(homeDir: string = homedir()): void {
 	const notifiedMarker = join(homeDir, ".omo", "telemetry-notified");
 	if (existsSync(notifiedMarker)) return;
 	try {
-		mkdirSync(dirname(notifiedMarker), { recursive: true });
+		mkdirSync(dirname(notifiedMarker), { recursive: true, mode: 0o700 });
 		writeFileSync(notifiedMarker, new Date().toISOString());
 	}	catch {
 		// Best-effort: if we can't write the marker, we may re-notify later.
 	}
 	stderr.write(
 		[
-			"[LazyZ] Anonymous telemetry is enabled.",
+			"[LazyZ] Anonymous telemetry is enabled by default.",
 			"[LazyZ] A single daily `lazyz_daily_active` event is sent per machine",
 			"[LazyZ] (hashed hostname, OS/runtime metadata only — no prompts, files, or tokens).",
-			"[LazyZ] Opt out: touch ~/.omo/telemetry-disabled",
+			"[LazyZ] To opt out BEFORE any event is sent, stop now and run:",
+			"[LazyZ]   touch ~/.omo/telemetry-disabled",
 			"[LazyZ]   or:   export LAZYZ_DISABLE_POSTHOG=1",
+			"[LazyZ] This notice appears once. See README → Privacy for full details.",
 			"",
 		].join("\n"),
 	);

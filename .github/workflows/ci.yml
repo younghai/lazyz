@@ -68,3 +68,26 @@ jobs:
               test -f "$ref" || { echo "Broken reference: $ref"; exit 1; }
             done
           echo "All manifest references resolve to built files."
+
+      - name: Verify boulder parser sync
+        working-directory: plugins/lazyz
+        run: |
+          set -e
+          # The two boulder parsers (work-status + start-work-continuation) must
+          # declare the same BoulderWorkStatus values. Extract the union members
+          # from both and diff. If they diverge, one parser will silently mishandle
+          # a status the other understands.
+          ws="components/work-status/src/work-status.ts"
+          sw="components/start-work-continuation/src/boulder-reader.ts"
+          ws_statuses=$(grep -m1 'type BoulderWorkStatus' "$ws" \
+            | grep -oE '"[a-z]+"' | sort)
+          sw_statuses=$(grep -m1 'type BoulderWorkStatus' "$sw" \
+            | grep -oE '"[a-z]+"' | sort)
+          if [ "$ws_statuses" != "$sw_statuses" ]; then
+            echo "BoulderWorkStatus values diverge between the two parsers:"
+            echo "--- work-status ($ws) ---"; echo "$ws_statuses"
+            echo "--- start-work-continuation ($sw) ---"; echo "$sw_statuses"
+            echo "Both parsers must stay in sync. See AGENTS.md 'Downgrade compatibility'."
+            exit 1
+          fi
+          echo "Boulder parsers in sync: $(echo "$ws_statuses" | tr '\n' ' ')"

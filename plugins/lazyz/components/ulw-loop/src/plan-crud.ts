@@ -84,7 +84,7 @@ export async function createUlwLoopPlan(
 			goals,
 		};
 		if (plan.codexGoalMode === "aggregate") plan.codexObjective = aggregateCodexObjectiveForScope(scope);
-		await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true });
+		await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
 		await writeFile(
 			ulwLoopBriefPath(repoRoot, scope),
 			args.brief.endsWith("\n") ? args.brief : `${args.brief}\n`,

@@ -70,7 +70,7 @@ function readSessionState(path) {
     }
 }
 function writeSessionState(path, state) {
-    mkdirSync(dirname(path), { recursive: true });
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     writeFileSync(path, `${JSON.stringify(state)}\n`);
 }
 function emptyState() {

@@ -185,7 +185,7 @@ export function resolveCodegraphCommandInvocation(
 
 function appendOutcome(homeDir: string, outcome: CodegraphSessionStartOutcome): void {
 	const logDir = join(homeDir, ".omo", "codegraph");
-	mkdirSync(logDir, { recursive: true });
+	mkdirSync(logDir, { recursive: true, mode: 0o700 });
 	appendFileSync(join(logDir, "session-start.jsonl"), `${JSON.stringify({ ...outcome, timestamp: new Date().toISOString() })}\n`);
 }
 

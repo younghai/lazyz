@@ -119,14 +119,14 @@ async function linkBundledAgentsStep(options: WorkerSetupOptions): Promise<Agent
 
 async function stageBundledAgents(pluginRoot: string, stageRoot: string): Promise<void> {
 	await rm(stageRoot, { force: true, recursive: true });
-	await mkdir(stageRoot, { recursive: true });
+	await mkdir(stageRoot, { recursive: true, mode: 0o700 });
 	const componentsRoot = join(pluginRoot, "components");
 	for (const componentName of await directoryNames(componentsRoot)) {
 		const agentsDir = join(componentsRoot, componentName, "agents");
 		const agentFiles = (await fileNames(agentsDir)).filter((name) => name.endsWith(".toml"));
 		if (agentFiles.length === 0) continue;
 		const stagedAgentsDir = join(stageRoot, "components", componentName, "agents");
-		await mkdir(stagedAgentsDir, { recursive: true });
+		await mkdir(stagedAgentsDir, { recursive: true, mode: 0o700 });
 		for (const agentFile of agentFiles) {
 			await copyFile(join(agentsDir, agentFile), join(stagedAgentsDir, agentFile));
 		}

@@ -252,7 +252,7 @@ export async function appendBootstrapLog(
 ): Promise<void> {
 	try {
 		const logPath = join(pluginData, "bootstrap", "bootstrap.log");
-		await mkdir(dirname(logPath), { recursive: true });
+		await mkdir(dirname(logPath), { recursive: true, mode: 0o700 });
 		await appendFile(logPath, `${JSON.stringify({ timestamp: new Date(now).toISOString(), event, ...details })}\n`);
 	} catch {
 		// Logging must never fail the worker.

@@ -127,6 +127,8 @@ Write `.omo/boulder.json` before implementation starts. Session ids must be pref
 }
 ```
 
+> **Note:** `schema_version` is a documentation/human-readable field only. No parser reads it and bumping it does not trigger a migration. It exists so humans can tell which shape a file is expected to have. See `docs/known-limitations.md` → "Soft state schema".
+
 `status` transitions: `"active"` (default) → `"paused"` (user pauses) → `"completed"` (all checkboxes done) or `"abandoned"` (user cancels). A `"blocked"` status is set by the cycle/failure caps or a `needs-human-review` verdict; the continuation hook will not resume a blocked work until the user sets it back to `"active"`. Increment `fail_count` each time a cap fires or a `needs-human-review` verdict is recorded.
 
 If `--worktree` is set, verify the path with `git worktree list --porcelain` or create it with `git worktree add <path> <branch-or-HEAD>`, then store the absolute path as `worktree_path`. All edits, commands, tests, and evidence capture must run inside that worktree.
@@ -178,6 +180,8 @@ For each checkbox, complete all five gates before marking it done:
 5. Cleanup: register every QA resource teardown as its own todo the moment it is spawned (QA scripts, tmux assets, browser / agent-browser sessions, PIDs, ports, containers, temp dirs), then execute each and capture the receipt. No QA asset is left running.
 
 Append evidence to `.omo/start-work/ledger.jsonl` using one JSON object per line. Include at least `event`, `plan`, `task`, `session_id`, `commands`, `artifact`, `adversarial_classes`, and `cleanup` fields. `adversarial_classes` lists each probed class with its observable result and each ruled-out class with a one-line reason.
+
+**Before appending**, redact secrets from the `commands` field and evidence artifacts. The `commands` field captures shell invocations verbatim — `curl -H "Authorization: Bearer sk-..."`, `psql PGPASSWORD=...`, `aws --secret-key ...` — and these are as sensitive as shell history. Strip or mask credentials before writing. A post-hoc scrubber is available: `node scripts/redact-secrets.mjs` (reports) or `node scripts/redact-secrets.mjs --fix` (masks in place). Run it before sharing or committing `.omo/`.
 
 ### Sisyphus-style completion contract
 

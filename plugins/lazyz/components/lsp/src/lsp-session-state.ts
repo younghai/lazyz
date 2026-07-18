@@ -89,7 +89,7 @@ function readSessionState(path: string): LspSessionState {
 }
 
 function writeSessionState(path: string, state: LspSessionState): void {
-	mkdirSync(dirname(path), { recursive: true });
+	mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
 	writeFileSync(path, `${JSON.stringify(state)}\n`);
 }
 

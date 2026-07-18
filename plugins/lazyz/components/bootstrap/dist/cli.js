@@ -2714,14 +2714,14 @@ async function linkBundledAgentsStep(options) {
 }
 async function stageBundledAgents(pluginRoot, stageRoot) {
   await rm10(stageRoot, { force: true, recursive: true });
-  await mkdir7(stageRoot, { recursive: true });
+  await mkdir7(stageRoot, { recursive: true, mode: 448 });
   const componentsRoot = join19(pluginRoot, "components");
   for (const componentName of await directoryNames(componentsRoot)) {
     const agentsDir = join19(componentsRoot, componentName, "agents");
     const agentFiles = (await fileNames(agentsDir)).filter((name) => name.endsWith(".toml"));
     if (agentFiles.length === 0) continue;
     const stagedAgentsDir = join19(stageRoot, "components", componentName, "agents");
-    await mkdir7(stagedAgentsDir, { recursive: true });
+    await mkdir7(stagedAgentsDir, { recursive: true, mode: 448 });
     for (const agentFile of agentFiles) {
       await copyFile2(join19(agentsDir, agentFile), join19(stagedAgentsDir, agentFile));
     }
@@ -2998,7 +2998,7 @@ function resolvePluginRoot(env) {
 async function appendBootstrapLog(pluginData, now, event, details) {
   try {
     const logPath = join20(pluginData, "bootstrap", "bootstrap.log");
-    await mkdir8(dirname8(logPath), { recursive: true });
+    await mkdir8(dirname8(logPath), { recursive: true, mode: 448 });
     await appendFile2(logPath, `${JSON.stringify({ timestamp: new Date(now).toISOString(), event, ...details })}
 `);
   } catch {

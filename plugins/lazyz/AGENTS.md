@@ -74,6 +74,20 @@ Codex original on highly ambiguous briefs.
   state model, locking, worktree isolation, and merge integration are harness-agnostic
   and ported from upstream; the thread/bind/live-messaging layer is dropped.
 
+## Downgrade compatibility (boulder.json)
+
+`.omo/boulder.json` is a **soft, LLM-written schema** (see `docs/known-limitations.md`).
+If you downgrade the plugin to a version that predates a status value (e.g. `"blocked"`
+was added in the cycle/failure caps work), the older parser treats the unknown value
+as `undefined`, which means `isContinuableStatus` returns `false`. The practical effect:
+a `"blocked"` work becomes invisible to the resume prompt and the Stop hook will not
+continue it. This is actually safe (the work stays paused), but the work will not
+appear in the SessionStart "in-progress" list until you either upgrade again or
+manually change the `status` in `.omo/boulder.json` back to `"active"` or `"paused"`.
+The same applies to any future status addition. We do not provide a migration script
+because the schema is soft; the defensive parser intentionally degrades rather than
+throwing.
+
 ## Build
 
 Local MCP servers (`codegraph`, `git_bash`, `lsp`) need `npm install && npm run build`

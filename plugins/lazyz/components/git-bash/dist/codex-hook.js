@@ -39,7 +39,7 @@ export function applyGitBashPreToolUseReminder(payload, options = {}) {
     const markerPath = reminderMarkerPath(payload.session_id, options.pluginDataRoot);
     if (hasReminderMarker(markerPath))
         return "";
-    mkdirSync(dirname(markerPath), { recursive: true });
+    mkdirSync(dirname(markerPath), { recursive: true, mode: 0o700 });
     writeFileSync(markerPath, `${new Date().toISOString()}\n`);
     const output = {
         hookSpecificOutput: {

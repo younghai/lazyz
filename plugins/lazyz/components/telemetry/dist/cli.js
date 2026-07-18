@@ -14,20 +14,20 @@ var __export = (target, all) => {
     });
 };
 
-// components/telemetry/src/cli.ts
+// src/cli.ts
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 
-// components/telemetry/src/codex-hook.ts
+// src/codex-hook.ts
 import { existsSync as existsSync4, mkdirSync as mkdirSync5, writeFileSync as writeFileSync3 } from "node:fs";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname3, join as join4 } from "node:path";
 import { stderr } from "node:process";
 
-// vendor/telemetry-core/src/activity-state.ts
+// ../../vendor/telemetry-core/src/activity-state.ts
 import { existsSync, mkdirSync as mkdirSync2, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-// vendor/utils/src/atomic-write.ts
+// ../../vendor/utils/src/atomic-write.ts
 import {
   closeSync,
   fsyncSync,
@@ -78,7 +78,7 @@ function writeFileAtomically(filePath, content, options = {}) {
   }
 }
 
-// vendor/utils/src/xdg-data-dir.ts
+// ../../vendor/utils/src/xdg-data-dir.ts
 import { accessSync, constants, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -102,7 +102,7 @@ function resolveWritableDirectory(preferredDir, fallbackSuffix, osProvider) {
   }
 }
 
-// vendor/telemetry-core/src/activity-state.ts
+// ../../vendor/telemetry-core/src/activity-state.ts
 var POSTHOG_ACTIVITY_STATE_FILE = "posthog-activity.json";
 function resolveTelemetryStateDir(product, options = {}) {
   const dataDir = resolveXdgDataDir(product.cacheDirName, {
@@ -176,10 +176,10 @@ function writePostHogActivityState(stateDir, nextState, diagnostics) {
     });
   }
 }
-// vendor/telemetry-core/src/constants.ts
+// ../../vendor/telemetry-core/src/constants.ts
 var DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 var DEFAULT_POSTHOG_API_KEY = "phc_CFJhj5HyvA62QPhvyaUCtaq23aUfznnijg5VaaGkNk74";
-// vendor/telemetry-core/src/diagnostics.ts
+// ../../vendor/telemetry-core/src/diagnostics.ts
 import { appendFileSync, existsSync as existsSync2, mkdirSync as mkdirSync3, readFileSync as readFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 var DIAGNOSTICS_FILE_NAME = "telemetry-diagnostics.jsonl";
@@ -293,7 +293,7 @@ function trimToMaxBytes(lines) {
   }
   return retained;
 }
-// vendor/telemetry-core/src/env.ts
+// ../../vendor/telemetry-core/src/env.ts
 import { existsSync as existsSync3, mkdirSync as mkdirSync4, writeFileSync as writeFileSync2 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join as join3 } from "node:path";
@@ -338,7 +338,7 @@ function getTelemetryApiKey(env = process.env, defaultApiKey = DEFAULT_POSTHOG_A
 function getTelemetryHost(env = process.env, defaultHost = DEFAULT_POSTHOG_HOST) {
   return env["POSTHOG_HOST"]?.trim() || defaultHost;
 }
-// vendor/telemetry-core/src/machine-id.ts
+// ../../vendor/telemetry-core/src/machine-id.ts
 import { createHash } from "node:crypto";
 import os2 from "node:os";
 function getDefaultTelemetryOsProvider() {
@@ -347,8 +347,8 @@ function getDefaultTelemetryOsProvider() {
 function getTelemetryDistinctId(machineIdPrefix, osProvider = getDefaultTelemetryOsProvider()) {
   return createHash("sha256").update(`${machineIdPrefix}${osProvider.hostname()}`).digest("hex");
 }
-// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/module.node.mjs
-import { dirname as dirname2, posix, sep } from "node:path";
+// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/module.node.mjs
+import { dirname as dirname2, posix, sep } from "path";
 function createModulerModifier() {
   const getModuleFromFileName = createGetModuleFromFilename();
   return async (frames) => {
@@ -383,7 +383,7 @@ function normalizeWindowsPath(path2) {
   return path2.replace(/^[A-Z]:/, "").replace(/\\/g, "/");
 }
 
-// node_modules/@posthog/core/dist/featureFlagUtils.mjs
+// ../../node_modules/@posthog/core/dist/featureFlagUtils.mjs
 var normalizeFlagsResponse = (flagsResponse) => {
   if ("flags" in flagsResponse) {
     const featureFlags = getFlagValuesFromFlags(flagsResponse.flags);
@@ -454,7 +454,7 @@ var parsePayload = (response) => {
   }
 };
 
-// node_modules/@posthog/core/dist/types.mjs
+// ../../node_modules/@posthog/core/dist/types.mjs
 var types_PostHogPersistedProperty = /* @__PURE__ */ function(PostHogPersistedProperty) {
   PostHogPersistedProperty["AnonymousId"] = "anonymous_id";
   PostHogPersistedProperty["DistinctId"] = "distinct_id";
@@ -489,7 +489,7 @@ var types_PostHogPersistedProperty = /* @__PURE__ */ function(PostHogPersistedPr
   return PostHogPersistedProperty;
 }({});
 
-// node_modules/@posthog/core/dist/gzip.mjs
+// ../../node_modules/@posthog/core/dist/gzip.mjs
 function isGzipSupported() {
   return "CompressionStream" in globalThis && "TextEncoder" in globalThis && "Response" in globalThis && typeof Response.prototype.blob == "function";
 }
@@ -563,7 +563,7 @@ async function gzipCompress(input, isDebug = true, options) {
   }
 }
 
-// node_modules/@posthog/core/dist/utils/bot-detection.mjs
+// ../../node_modules/@posthog/core/dist/utils/bot-detection.mjs
 var DEFAULT_BLOCKED_UA_STRS = [
   "amazonbot",
   "amazonproductbot",
@@ -652,7 +652,7 @@ var isBlockedUA = function(ua, customBlockedUserAgents = []) {
     return uaLower.indexOf(blockedUaLower) !== -1;
   });
 };
-// node_modules/@posthog/core/dist/utils/string-utils.mjs
+// ../../node_modules/@posthog/core/dist/utils/string-utils.mjs
 function safeJsonStringify(value) {
   const ancestors = [];
   return JSON.stringify(value, function(_key, replacementValue) {
@@ -677,7 +677,7 @@ function safeJsonStringify(value) {
   }) ?? "null";
 }
 
-// node_modules/@posthog/core/dist/utils/type-utils.mjs
+// ../../node_modules/@posthog/core/dist/utils/type-utils.mjs
 var nativeIsArray = Array.isArray;
 var ObjProto = Object.prototype;
 var type_utils_hasOwnProperty = ObjProto.hasOwnProperty;
@@ -714,7 +714,7 @@ function isInstanceOf(candidate, base) {
   }
 }
 
-// node_modules/@posthog/core/dist/utils/number-utils.mjs
+// ../../node_modules/@posthog/core/dist/utils/number-utils.mjs
 function clampToRange(value, min, max, logger, fallbackValue) {
   if (min > max) {
     logger.warn("min cannot be greater than max.");
@@ -734,7 +734,7 @@ function clampToRange(value, min, max, logger, fallbackValue) {
   return clampToRange(fallbackValue || max, min, max, logger);
 }
 
-// node_modules/@posthog/core/dist/utils/bucketed-rate-limiter.mjs
+// ../../node_modules/@posthog/core/dist/utils/bucketed-rate-limiter.mjs
 var ONE_DAY_IN_MS = 86400000;
 
 class BucketedRateLimiter {
@@ -778,7 +778,7 @@ class BucketedRateLimiter {
     this._buckets = {};
   }
 }
-// node_modules/@posthog/core/dist/vendor/uuidv7.mjs
+// ../../node_modules/@posthog/core/dist/vendor/uuidv7.mjs
 /*! For license information please see uuidv7.mjs.LICENSE.txt */
 var DIGITS = "0123456789abcdef";
 
@@ -956,7 +956,7 @@ var defaultGenerator;
 var uuidv7 = () => uuidv7obj().toString();
 var uuidv7obj = () => (defaultGenerator || (defaultGenerator = new V7Generator)).generate();
 
-// node_modules/@posthog/core/dist/utils/promise-queue.mjs
+// ../../node_modules/@posthog/core/dist/utils/promise-queue.mjs
 class PromiseQueue {
   add(promise) {
     const promiseUUID = uuidv7();
@@ -994,7 +994,7 @@ class PromiseQueue {
     this.nextId = 0;
   }
 }
-// node_modules/@posthog/core/dist/utils/logger.mjs
+// ../../node_modules/@posthog/core/dist/utils/logger.mjs
 function createConsole(consoleLike = console) {
   const lockedMethods = {
     log: consoleLike.log.bind(consoleLike),
@@ -1035,7 +1035,7 @@ var passThrough = (fn) => fn();
 function createLogger(prefix, maybeCall = passThrough) {
   return _createLogger(prefix, maybeCall, createConsole());
 }
-// node_modules/@posthog/core/dist/utils/user-agent-utils.mjs
+// ../../node_modules/@posthog/core/dist/utils/user-agent-utils.mjs
 var MOBILE = "Mobile";
 var IOS = "iOS";
 var ANDROID = "Android";
@@ -1328,7 +1328,7 @@ var osMatchers = [
   ]
 ];
 
-// node_modules/@posthog/core/dist/utils/index.mjs
+// ../../node_modules/@posthog/core/dist/utils/index.mjs
 var STRING_FORMAT = "utf8";
 var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUUID(value) {
@@ -1375,7 +1375,7 @@ function allSettled(promises) {
   }))));
 }
 
-// node_modules/@posthog/core/dist/logs/logs-utils.mjs
+// ../../node_modules/@posthog/core/dist/logs/logs-utils.mjs
 var OTLP_SEVERITY_MAP = {
   trace: {
     text: "TRACE",
@@ -1403,7 +1403,7 @@ var OTLP_SEVERITY_MAP = {
   }
 };
 var DEFAULT_OTLP_SEVERITY = OTLP_SEVERITY_MAP.info;
-// node_modules/@posthog/core/dist/eventemitter.mjs
+// ../../node_modules/@posthog/core/dist/eventemitter.mjs
 class SimpleEventEmitter {
   constructor() {
     this.events = {};
@@ -1425,7 +1425,7 @@ class SimpleEventEmitter {
   }
 }
 
-// node_modules/@posthog/core/dist/error-tracking/index.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/index.mjs
 var exports_error_tracking = {};
 __export(exports_error_tracking, {
   winjsStackLineParser: () => winjsStackLineParser,
@@ -1455,7 +1455,7 @@ __export(exports_error_tracking, {
   DEFAULT_EXCEPTION_STEPS_CONFIG: () => DEFAULT_EXCEPTION_STEPS_CONFIG
 });
 
-// node_modules/@posthog/core/dist/error-tracking/chunk-ids.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/chunk-ids.mjs
 var parsedStackResults;
 var lastKeysCount;
 var cachedFilenameChunkIds;
@@ -1494,7 +1494,7 @@ function getFilenameToChunkIdMap(stackParser) {
   return cachedFilenameChunkIds;
 }
 
-// node_modules/@posthog/core/dist/error-tracking/error-properties-builder.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/error-properties-builder.mjs
 var MAX_CAUSE_RECURSION = 4;
 
 class ErrorPropertiesBuilder {
@@ -1616,7 +1616,7 @@ class ErrorPropertiesBuilder {
     return context;
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/parsers/base.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/base.mjs
 var UNKNOWN_FUNCTION = "?";
 function createFrame(platform, filename, func, lineno, colno) {
   const frame = {
@@ -1632,7 +1632,7 @@ function createFrame(platform, filename, func, lineno, colno) {
   return frame;
 }
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/safari.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/safari.mjs
 var extractSafariExtensionDetails = (func, filename) => {
   const isSafariExtension = func.indexOf("safari-extension") !== -1;
   const isSafariWebExtension = func.indexOf("safari-web-extension") !== -1;
@@ -1645,7 +1645,7 @@ var extractSafariExtensionDetails = (func, filename) => {
   ];
 };
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/chrome.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/chrome.mjs
 var chromeRegexNoFnName = /^\s*at (\S+?)(?::(\d+))(?::(\d+))\s*$/i;
 var chromeRegex = /^\s*at (?:(.+?\)(?: \[.+\])?|.*?) ?\((?:address at )?)?(?:async )?((?:<anonymous>|[-a-z]+:|.*bundle|\/)?.*?)(?::(\d+))?(?::(\d+))?\)?\s*$/i;
 var chromeEvalRegex = /\((\S*)(?::(\d+))(?::(\d+))\)/;
@@ -1671,7 +1671,7 @@ var chromeStackLineParser = (line, platform) => {
   }
 };
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/gecko.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/gecko.mjs
 var geckoREgex = /^\s*(.*?)(?:\((.*?)\))?(?:^|@)?((?:[-a-z]+)?:\/.*?|\[native code\]|[^@]*(?:bundle|\d+\.js)|\/[\w\-. /=]+)(?::(\d+))?(?::(\d+))?\s*$/i;
 var geckoEvalRegex = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i;
 var geckoStackLineParser = (line, platform) => {
@@ -1694,14 +1694,14 @@ var geckoStackLineParser = (line, platform) => {
   }
 };
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/winjs.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/winjs.mjs
 var winjsRegex = /^\s*at (?:((?:\[object object\])?.+) )?\(?((?:[-a-z]+):.*?):(\d+)(?::(\d+))?\)?\s*$/i;
 var winjsStackLineParser = (line, platform) => {
   const parts = winjsRegex.exec(line);
   return parts ? createFrame(platform, parts[2], parts[1] || UNKNOWN_FUNCTION, +parts[3], parts[4] ? +parts[4] : undefined) : undefined;
 };
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/opera.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/opera.mjs
 var opera10Regex = / line (\d+).*script (?:in )?(\S+)(?:: in function (\S+))?$/i;
 var opera10StackLineParser = (line, platform) => {
   const parts = opera10Regex.exec(line);
@@ -1713,7 +1713,7 @@ var opera11StackLineParser = (line, platform) => {
   return parts ? createFrame(platform, parts[5], parts[3] || parts[4] || UNKNOWN_FUNCTION, +parts[1], +parts[2]) : undefined;
 };
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/node.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/node.mjs
 var FILENAME_MATCH = /^\s*[-]{4,}$/;
 var FULL_MATCH = /at (?:async )?(?:(.+?)\s+\()?(?:(.+):(\d+):(\d+)?|([^)]+))\)?/;
 var nodeStackLineParser = (line, platform) => {
@@ -1782,7 +1782,7 @@ function _parseIntOrUndefined(input) {
   return parseInt(input || "", 10) || undefined;
 }
 
-// node_modules/@posthog/core/dist/error-tracking/parsers/index.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/parsers/index.mjs
 var WEBPACK_ERROR_REGEXP = /\(error: (.*)\)/;
 var STACKTRACE_FRAME_LIMIT = 50;
 function reverseAndStripFrames(stack) {
@@ -1827,7 +1827,7 @@ function createStackParser(platform, ...parsers) {
     return reverseAndStripFrames(frames);
   };
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/dom-exception-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/dom-exception-coercer.mjs
 class DOMExceptionCoercer {
   match(err) {
     return this.isDOMException(err) || this.isDOMError(err);
@@ -1857,7 +1857,7 @@ class DOMExceptionCoercer {
     return isBuiltin(err, "DOMError");
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/error-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/error-coercer.mjs
 class ErrorCoercer {
   match(err) {
     return isPlainError(err);
@@ -1884,7 +1884,7 @@ class ErrorCoercer {
     return err.stacktrace || err.stack || undefined;
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/error-event-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/error-event-coercer.mjs
 class ErrorEventCoercer {
   constructor() {}
   match(err) {
@@ -1902,7 +1902,7 @@ class ErrorEventCoercer {
     return exceptionLike;
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/string-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/string-coercer.mjs
 var ERROR_TYPES_PATTERN = /^(?:[Uu]ncaught (?:exception: )?)?(?:((?:Eval|Internal|Range|Reference|Syntax|Type|URI|)Error): )?(.*)$/i;
 
 class StringCoercer {
@@ -1932,7 +1932,7 @@ class StringCoercer {
     ];
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/types.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/types.mjs
 var severityLevels = [
   "fatal",
   "error",
@@ -1942,7 +1942,7 @@ var severityLevels = [
   "debug"
 ];
 
-// node_modules/@posthog/core/dist/error-tracking/coercers/utils.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/utils.mjs
 function extractExceptionKeysForMessage(err, maxLength = 40) {
   const keys = Object.keys(err);
   keys.sort();
@@ -1959,7 +1959,7 @@ function extractExceptionKeysForMessage(err, maxLength = 40) {
   return "";
 }
 
-// node_modules/@posthog/core/dist/error-tracking/coercers/object-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/object-coercer.mjs
 class ObjectCoercer {
   match(candidate) {
     return typeof candidate == "object" && candidate !== null;
@@ -2012,7 +2012,7 @@ class ObjectCoercer {
     }
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/event-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/event-coercer.mjs
 class EventCoercer {
   match(err) {
     return isEvent(err);
@@ -2027,7 +2027,7 @@ class EventCoercer {
     };
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/primitive-coercer.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/primitive-coercer.mjs
 class PrimitiveCoercer {
   match(candidate) {
     return isPrimitive(candidate);
@@ -2041,7 +2041,7 @@ class PrimitiveCoercer {
     };
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/coercers/promise-rejection-event.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/coercers/promise-rejection-event.mjs
 class PromiseRejectionEventCoercer {
   match(err) {
     return isBuiltin(err, "PromiseRejectionEvent") || this.isCustomEventWrappingRejection(err);
@@ -2077,7 +2077,7 @@ class PromiseRejectionEventCoercer {
     return error;
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/utils.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/utils.mjs
 class ReduceableCache {
   constructor(_maxSize) {
     this._maxSize = _maxSize;
@@ -2102,7 +2102,7 @@ class ReduceableCache {
     }
   }
 }
-// node_modules/@posthog/core/dist/error-tracking/exception-steps.mjs
+// ../../node_modules/@posthog/core/dist/error-tracking/exception-steps.mjs
 var EXCEPTION_STEP_INTERNAL_FIELDS = {
   MESSAGE: "$message",
   TIMESTAMP: "$timestamp"
@@ -2235,7 +2235,7 @@ function getUtf8ByteLength(value) {
       byteLength += 1;
   return byteLength;
 }
-// node_modules/@posthog/core/dist/posthog-core-stateless.mjs
+// ../../node_modules/@posthog/core/dist/posthog-core-stateless.mjs
 class PostHogFetchHttpError extends Error {
   constructor(response, reqByteLength) {
     super("HTTP error while fetching PostHog: status=" + response.status + ", reqByteLength=" + reqByteLength), this.response = response, this.reqByteLength = reqByteLength, this.name = "PostHogFetchHttpError";
@@ -3115,7 +3115,7 @@ class PostHogCoreStateless {
     return this.shutdownPromise;
   }
 }
-// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/context-lines.node.mjs
+// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/context-lines.node.mjs
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 var LRU_FILE_CONTENTS_CACHE = new exports_error_tracking.ReduceableCache(25);
@@ -3333,8 +3333,8 @@ function snipLine(line, colno) {
   return newLine;
 }
 
-// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/relative-path.node.mjs
-import { isAbsolute, relative, sep as sep2 } from "node:path";
+// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/relative-path.node.mjs
+import { isAbsolute, relative, sep as sep2 } from "path";
 function createRelativePathModifier(basePath = process.cwd()) {
   const isWindows = sep2 === "\\";
   const toUnix = (p) => isWindows ? p.replace(/\\/g, "/") : p;
@@ -3349,10 +3349,10 @@ function createRelativePathModifier(basePath = process.cwd()) {
   };
 }
 
-// node_modules/posthog-node/dist/version.mjs
+// ../../node_modules/posthog-node/dist/version.mjs
 var version = "5.39.4";
 
-// node_modules/posthog-node/dist/types.mjs
+// ../../node_modules/posthog-node/dist/types.mjs
 var FeatureFlagError2 = {
   ERRORS_WHILE_COMPUTING: "errors_while_computing_flags",
   FLAG_MISSING: "flag_missing",
@@ -3360,7 +3360,7 @@ var FeatureFlagError2 = {
   UNKNOWN_ERROR: "unknown_error"
 };
 
-// node_modules/posthog-node/dist/feature-flag-evaluations.mjs
+// ../../node_modules/posthog-node/dist/feature-flag-evaluations.mjs
 class FeatureFlagEvaluations {
   constructor(init) {
     this._host = init.host;
@@ -3491,7 +3491,7 @@ class FeatureFlagEvaluations {
   }
 }
 
-// node_modules/posthog-node/dist/extensions/feature-flags/crypto.mjs
+// ../../node_modules/posthog-node/dist/extensions/feature-flags/crypto.mjs
 async function hashSHA1(text) {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle)
@@ -3501,7 +3501,7 @@ async function hashSHA1(text) {
   return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// node_modules/posthog-node/dist/extensions/feature-flags/feature-flags.mjs
+// ../../node_modules/posthog-node/dist/extensions/feature-flags/feature-flags.mjs
 var SIXTY_SECONDS = 60000;
 var LONG_SCALE = 1152921504606847000;
 var NULL_VALUES_ALLOWED_OPERATORS = [
@@ -4412,7 +4412,7 @@ function relativeDateParseForFeatureFlagMatching(value) {
   }
 }
 
-// node_modules/posthog-node/dist/extensions/error-tracking/autocapture.mjs
+// ../../node_modules/posthog-node/dist/extensions/error-tracking/autocapture.mjs
 function makeUncaughtExceptionHandler(captureFn, onFatalFn) {
   let calledFatalError = false;
   return Object.assign((error) => {
@@ -4444,7 +4444,7 @@ function addUnhandledRejectionListener(captureFn) {
   }));
 }
 
-// node_modules/posthog-node/dist/extensions/error-tracking/index.mjs
+// ../../node_modules/posthog-node/dist/extensions/error-tracking/index.mjs
 var SHUTDOWN_TIMEOUT = 2000;
 
 class ErrorTracking {
@@ -4513,7 +4513,7 @@ class ErrorTracking {
   }
 }
 
-// node_modules/posthog-node/dist/storage-memory.mjs
+// ../../node_modules/posthog-node/dist/storage-memory.mjs
 class PostHogMemoryStorage {
   getProperty(key) {
     return this._memoryStorage[key];
@@ -4526,7 +4526,7 @@ class PostHogMemoryStorage {
   }
 }
 
-// node_modules/posthog-node/dist/client.mjs
+// ../../node_modules/posthog-node/dist/client.mjs
 var MINIMUM_POLLING_INTERVAL = 100;
 var THIRTY_SECONDS = 30000;
 var MAX_CACHE_SIZE = 50000;
@@ -5627,7 +5627,7 @@ class PostHogBackendClient extends PostHogCoreStateless {
   }
 }
 
-// node_modules/posthog-node/dist/extensions/context/context.mjs
+// ../../node_modules/posthog-node/dist/extensions/context/context.mjs
 import { AsyncLocalStorage } from "node:async_hooks";
 
 class PostHogContext {
@@ -5658,7 +5658,7 @@ class PostHogContext {
   }
 }
 
-// node_modules/posthog-node/dist/extensions/sentry-integration.mjs
+// ../../node_modules/posthog-node/dist/extensions/sentry-integration.mjs
 var NAME = "posthog-node";
 function createEventProcessor(_posthog, { organization, projectId, prefix, severityAllowList = [
   "error"
@@ -5726,7 +5726,7 @@ class PostHogSentryIntegration {
     };
   }
 }
-// node_modules/posthog-node/dist/entrypoints/index.node.mjs
+// ../../node_modules/posthog-node/dist/entrypoints/index.node.mjs
 class PostHog extends PostHogBackendClient {
   getLibraryId() {
     return "posthog-node";
@@ -5749,7 +5749,7 @@ class PostHog extends PostHogBackendClient {
   }
 }
 
-// vendor/telemetry-core/src/posthog-client.ts
+// ../../vendor/telemetry-core/src/posthog-client.ts
 var NO_OP_CLIENT = {
   enabled: false,
   trackActive: () => {
@@ -5907,7 +5907,7 @@ function getSafeCpuInfo(osProvider, input) {
     };
   }
 }
-// components/telemetry/src/product-identity.ts
+// src/product-identity.ts
 import { readFileSync as readFileSync3 } from "node:fs";
 var PRODUCT_NAME = "lazyz";
 var PACKAGE_NAME = "@lazyz/plugin";
@@ -5968,7 +5968,7 @@ function writeComponentTelemetryDiagnostic(input, now = new Date) {
     now
   });
 }
-// components/telemetry/src/posthog.ts
+// src/posthog.ts
 var NO_OP_POSTHOG = {
   trackActive: () => {
     return;
@@ -6046,22 +6046,24 @@ function getPostHogDistinctId() {
   return getTelemetryDistinctId(MACHINE_ID_PREFIX, getDefaultTelemetryOsProvider());
 }
 
-// components/telemetry/src/codex-hook.ts
+// src/codex-hook.ts
 var SESSION_START_REASON = "session_start";
 function maybePrintFirstRunNotice(homeDir = homedir2()) {
   const notifiedMarker = join4(homeDir, ".omo", "telemetry-notified");
   if (existsSync4(notifiedMarker))
     return;
   try {
-    mkdirSync5(dirname3(notifiedMarker), { recursive: true });
+    mkdirSync5(dirname3(notifiedMarker), { recursive: true, mode: 448 });
     writeFileSync3(notifiedMarker, new Date().toISOString());
   } catch {}
   stderr.write([
-    "[LazyZ] Anonymous telemetry is enabled.",
+    "[LazyZ] Anonymous telemetry is enabled by default.",
     "[LazyZ] A single daily `lazyz_daily_active` event is sent per machine",
     "[LazyZ] (hashed hostname, OS/runtime metadata only — no prompts, files, or tokens).",
-    "[LazyZ] Opt out: touch ~/.omo/telemetry-disabled",
+    "[LazyZ] To opt out BEFORE any event is sent, stop now and run:",
+    "[LazyZ]   touch ~/.omo/telemetry-disabled",
     "[LazyZ]   or:   export LAZYZ_DISABLE_POSTHOG=1",
+    "[LazyZ] This notice appears once. See README → Privacy for full details.",
     ""
   ].join(`
 `));
@@ -6107,7 +6109,7 @@ async function safeShutdown(client) {
   }
 }
 
-// components/telemetry/src/cli.ts
+// src/cli.ts
 var command = process.argv[2];
 var subcommand = process.argv[3];
 if (command === "hook" && subcommand === "session-start") {

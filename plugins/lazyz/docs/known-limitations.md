@@ -107,3 +107,25 @@ skip if unbuilt.
 **Tracked for Sprint 2:** opt-in (default OFF) product events — plan_start,
 work_complete, resume_prompted, build_missing, approval_bypassed. Deferred
 from Sprint 1 (T7).
+
+---
+
+## SessionStart hook latency
+
+**Symptom.** Six SessionStart hooks run before the first prompt: bootstrap
+(60s budget), codegraph (60s budget), rules (10s), telemetry (5s),
+work-status (10s), migrate-codex-config (10s). On large monorepos,
+codegraph provisioning and rule loading can take several seconds each.
+
+**Why.** ZCode executes SessionStart hooks in the order declared in
+`hooks/hooks.json`. We have no documented confirmation that ZCode
+parallelizes hooks within an event — so we assume sequential execution.
+
+**What we do.** Each hook has an independent timeout and degrades to
+`exit 0` (no-op) on failure, so one slow hook does not block the others
+indefinitely. `run-hook.sh` wraps every hook with a diagnostic on stderr.
+
+**Tracked for:** investigate ZCode's hook concurrency model. If parallel
+execution is supported, split the six hooks into independent groups.
+If not, consider lazy-loading codegraph (defer to first use rather than
+SessionStart) and caching rule injection more aggressively.
