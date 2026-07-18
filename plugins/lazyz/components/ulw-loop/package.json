@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/ulw-loop",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "Codex plugin: durable repo-native multi-goal orchestration with embedded success criteria and observable evidence audit.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",

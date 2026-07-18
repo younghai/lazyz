@@ -115,16 +115,21 @@ export function resolvePluginDataRoot(env: Record<string, string | undefined>): 
 }
 
 export async function readPluginVersion(pluginRoot: string): Promise<string | undefined> {
-	try {
-		const parsed: unknown = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
-		if (typeof parsed !== "object" || parsed === null) return undefined;
-		const version = (parsed as Record<string, unknown>)["version"];
-		if (typeof version !== "string") return undefined;
-		const trimmed = version.trim();
-		return trimmed.length > 0 ? trimmed : undefined;
-	} catch {
-		return undefined;
+	// Try ZCode manifest first (.zcode-plugin), fall back to Codex (.codex-plugin)
+	// for compatibility with upstream harness layouts.
+	for (const manifestDir of [".zcode-plugin", ".codex-plugin"] as const) {
+		try {
+			const parsed: unknown = JSON.parse(await readFile(join(pluginRoot, manifestDir, "plugin.json"), "utf8"));
+			if (typeof parsed !== "object" || parsed === null) continue;
+			const version = (parsed as Record<string, unknown>)["version"];
+			if (typeof version !== "string") continue;
+			const trimmed = version.trim();
+			if (trimmed.length > 0) return trimmed;
+		} catch {
+			continue;
+		}
 	}
+	return undefined;
 }
 
 export async function readBootstrapState(statePath: string): Promise<BootstrapState> {
@@ -195,7 +200,7 @@ export async function runBootstrapWorker(options: RunBootstrapWorkerOptions = {}
 			degraded.push({
 				component: "bootstrap",
 				hint: BOOTSTRAP_DOCTOR_HINT,
-				reason: `plugin version unresolved from ${join(pluginRoot, ".codex-plugin", "plugin.json")}`,
+				reason: `plugin version unresolved from ${join(pluginRoot, ".zcode-plugin", "plugin.json")} (or .codex-plugin fallback)`,
 			});
 		}
 		for (const step of steps) {

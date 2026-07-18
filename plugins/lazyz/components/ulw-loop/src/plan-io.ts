@@ -95,7 +95,7 @@ export async function readUlwLoopPlan(repoRoot: string, scope?: UlwLoopScope): P
 }
 
 export async function writePlan(repoRoot: string, plan: UlwLoopPlan, scope?: UlwLoopScope): Promise<void> {
-	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true });
+	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
 	const path = ulwLoopGoalsPath(repoRoot, scope);
 	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
 	await writeFile(tmpPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
@@ -103,7 +103,7 @@ export async function writePlan(repoRoot: string, plan: UlwLoopPlan, scope?: Ulw
 }
 
 export async function appendLedger(repoRoot: string, entry: UlwLoopLedgerEntry, scope?: UlwLoopScope): Promise<void> {
-	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true });
+	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
 	await appendFile(ulwLoopLedgerPath(repoRoot, scope), `${JSON.stringify(entry)}\n`, "utf8");
 }
 

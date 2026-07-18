@@ -75,6 +75,15 @@ only when `omo` is installed.
 **What we do.** All readers are defensive; `work-status` returns `degraded`
 snapshots instead of throwing on parse failure.
 
+**`schema_version` is a documentation field, not a migration gate.** The
+`schema_version` key in `boulder.json` is **not read by any parser** — no
+version branch or automatic migration runs on bump. It exists only so humans
+and tooling can tell which shape a file is expected to have. Do not assume
+that incrementing it triggers a migration; there is no v1→v2 migration code.
+Compare with `ulw-loop`'s `goals.json`, which *does* enforce `version: 1`
+and auto-migrates legacy aggregate objectives (`plan-io.ts`). Bringing
+`boulder.json` to the same standard is tracked below.
+
 **Tracked for:** optional TS writer for boulder.json (future sprint).
 
 ---

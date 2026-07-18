@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
 	type WorkSnapshot,
@@ -256,10 +256,16 @@ function writePromptedAt(cwd: string, key: string, ms: number): void {
 	}
 	state[key] = ms;
 	try {
-		mkdirSync(dirname(path), { recursive: true });
-		writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+		mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+		// Atomic write: write to a temp file then rename. Prevents lost-update
+		// races when multiple sessions start concurrently in the same workspace.
+		const tempPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+		writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}\n`);
+		renameSync(tempPath, path);
 	} catch {
 		// best-effort; if .omo/ is not writable we just skip the dedup write.
+		// A failed rename may leave a .tmp file; it is harmless and will be
+		// overwritten on the next successful write.
 	}
 }
 

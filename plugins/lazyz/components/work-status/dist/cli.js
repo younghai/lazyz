@@ -4,7 +4,7 @@
 import { stdout as processStdout } from "node:process";
 
 // src/hook.ts
-import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, renameSync, writeFileSync } from "node:fs";
 import { dirname, join as join2 } from "node:path";
 
 // src/work-status.ts
@@ -507,9 +507,11 @@ function writePromptedAt(cwd, key, ms) {
   } catch {}
   state[key] = ms;
   try {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(state, null, 2)}
+    mkdirSync(dirname(path), { recursive: true, mode: 448 });
+    const tempPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+    writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}
 `);
+    renameSync(tempPath, path);
   } catch {}
 }
 function encodeAdditionalContext(text) {

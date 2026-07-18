@@ -25,7 +25,7 @@ export type ReadonlyFileSystem = {
 export type ReadWriteFileSystem = {
 	readFileSync(path: string, encoding: "utf8"): string;
 	existsSync(path: string): boolean;
-	mkdirSync(path: string, options: { recursive: true }): void;
+	mkdirSync(path: string, options: { recursive: true; mode?: number }): void;
 	writeFileSync(path: string, data: string): void;
 	renameSync(from: string, to: string): void;
 	rmSync(path: string, options: { force: true }): void;

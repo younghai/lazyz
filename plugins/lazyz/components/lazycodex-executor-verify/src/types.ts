@@ -1,4 +1,5 @@
 export const SUBAGENT_STOP_EVENT = "SubagentStop";
+export const POST_TOOL_USE_EVENT = "PostToolUse";
 
 export type SubagentStopInput = {
 	readonly hook_event_name: typeof SUBAGENT_STOP_EVENT;
@@ -19,6 +20,25 @@ export type StopHookOutput = {
 	readonly reason: string;
 };
 
+export type PostToolUseInput = {
+	readonly hook_event_name: typeof POST_TOOL_USE_EVENT;
+	readonly session_id: string;
+	readonly cwd: string;
+	readonly transcript_path: string;
+	readonly tool_name: string;
+	readonly tool_use_id: string;
+	readonly tool_input?: unknown;
+	readonly tool_response?: unknown;
+};
+
+export type PostToolUseDenyOutput = {
+	readonly hookSpecificOutput?: {
+		readonly hookEventName: typeof POST_TOOL_USE_EVENT;
+		readonly permissionDecision: "deny";
+		readonly permissionDecisionReason: string;
+	};
+};
+
 export type FileStat = {
 	readonly size: number;
 	readonly isFile?: () => boolean;
@@ -28,7 +48,10 @@ export type FileStat = {
 export type HookFileSystem = {
 	existsSync(path: string): boolean;
 	lstatSync?(path: string): FileStat;
-	mkdirSync(path: string, options: { readonly recursive: true }): unknown;
+	mkdirSync(
+		path: string,
+		options: { readonly recursive: true; readonly mode?: number },
+	): unknown;
 	readFileSync(path: string, encoding: "utf8"): string;
 	realpathSync?(path: string): string;
 	renameSync(oldPath: string, newPath: string): void;

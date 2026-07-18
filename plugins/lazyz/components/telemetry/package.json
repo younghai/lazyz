@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/telemetry",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "Codex plugin component that emits omo-codex anonymous daily-active telemetry on SessionStart.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",

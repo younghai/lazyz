@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/ultrawork",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "Codex plugin that injects the ultrawork orchestration directive and ships LazyCodex planning, review, QA, and gate agent roles.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",

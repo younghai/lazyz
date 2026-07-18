@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/bootstrap",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "Codex SessionStart bootstrap component that provisions LazyCodex runtime dependencies from a detached worker.",
 	"type": "module",
 	"private": true,

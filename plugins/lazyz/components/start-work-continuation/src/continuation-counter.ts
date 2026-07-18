@@ -60,7 +60,7 @@ function writeContinuationCount(
 	const stateDir = getStateDir(cwd);
 	const statePath = getStatePath(cwd, sessionId);
 	const tempPath = `${statePath}.${process.pid}.${Date.now()}.tmp`;
-	fs.mkdirSync(stateDir, { recursive: true });
+	fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
 	fs.writeFileSync(tempPath, `${JSON.stringify(state)}\n`);
 	fs.renameSync(tempPath, statePath);
 }

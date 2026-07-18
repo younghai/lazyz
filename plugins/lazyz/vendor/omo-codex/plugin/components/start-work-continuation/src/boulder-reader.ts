@@ -8,12 +8,13 @@ export type PlanChecklist = {
 	readonly nextTaskLabel: string | null;
 };
 
-type BoulderWorkStatus = "active" | "paused" | "completed" | "abandoned";
+type BoulderWorkStatus = "active" | "paused" | "completed" | "abandoned" | "blocked";
 
 type BoulderWork = {
 	readonly activePlan: string;
 	readonly planName: string;
 	readonly status?: BoulderWorkStatus;
+	readonly failCount?: number;
 	readonly startedAt?: string;
 	readonly updatedAt?: string;
 	readonly sessionIds: readonly string[];
@@ -143,12 +144,15 @@ function parseBoulderWork(value: unknown): BoulderWork | null {
 	const worktreePath = value["worktree_path"];
 	const startedAt = value["started_at"];
 	const updatedAt = value["updated_at"];
+	const failCountRaw = value["fail_count"];
+	const failCount = typeof failCountRaw === "number" && Number.isFinite(failCountRaw) ? failCountRaw : undefined;
 
 	return {
 		activePlan,
 		planName: typeof planName === "string" ? planName : activePlan,
 		sessionIds,
 		...(status === undefined ? {} : { status }),
+		...(failCount === undefined ? {} : { failCount }),
 		...(typeof startedAt === "string" ? { startedAt } : {}),
 		...(typeof updatedAt === "string" ? { updatedAt } : {}),
 		...(typeof worktreePath === "string" ? { worktreePath } : {}),
@@ -211,7 +215,7 @@ function isCountedHeading(heading: string | null): boolean {
 }
 
 function parseBoulderWorkStatus(value: unknown): BoulderWorkStatus | undefined {
-	if (value === "active" || value === "paused" || value === "completed" || value === "abandoned") return value;
+	if (value === "active" || value === "paused" || value === "completed" || value === "abandoned" || value === "blocked") return value;
 	return undefined;
 }
 

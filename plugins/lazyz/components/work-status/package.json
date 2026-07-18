@@ -1,6 +1,6 @@
 {
 	"name": "@code-yeongyu/lazyz-work-status",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "LazyZ component that reports in-progress start-work / ulw-loop state: resume prompts on SessionStart, progress counts on demand, init-deep suggestions, and local MCP build-missing warnings.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",

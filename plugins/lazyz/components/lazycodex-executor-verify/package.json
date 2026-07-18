@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/lazycodex-executor-verify",
-	"version": "0.1.1",
+	"version": "0.10.2",
 	"description": "Codex SubagentStop evidence verifier for LazyCodex executor completions.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",
