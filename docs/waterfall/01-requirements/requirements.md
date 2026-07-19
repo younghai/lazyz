@@ -1,60 +1,60 @@
-# 요구사항 명세
+# Requirements Specification
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
-| 기준 소스 | `plugins/lazyz/`, Sprint 1-2 구현 이력 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
+| Source | `plugins/lazyz/`, Sprint 1-2 implementation history |
 
-## 1. 기능 요구사항
+## 1. Functional Requirements
 
-### FR-1: ZCode 플러그인으로 설치·운영
-- FR-1.1: `.zcode-plugin/plugin.json` 매니페스트로 ZCode가 플러그인을 발견
-- FR-1.2: `zcode plugin add lazyz@lazyz`로 설치 시 prebuilt dist로 빌드 불필요
-- FR-1.3: 25 스킬, 16 훅, 5 MCP 서버가 정상 로드
+### FR-1: Install and operate as a ZCode plugin
+- FR-1.1: ZCode discovers the plugin via `.zcode-plugin/plugin.json` manifest
+- FR-1.2: `zcode plugin add lazyz@lazyz` works without a build step (prebuilt dist)
+- FR-1.3: 25 skills, 16 hooks, 5 MCP servers load correctly
 
-### FR-2: 4단계 워크플로우
-- FR-2.1: `init-deep` — 계층적 AGENTS.md 프로젝트 메모리 생성
-- FR-2.2: `ulw-plan` — 탐색 선행 계획 (승인 게이트 후 plan 파일 작성)
-- FR-2.3: `start-work` — boulder.json 기반 체크박스 실행 (Stop-hook 자동 재개)
-- FR-2.4: `ulw-loop` — 다중 목표 검증 루프 (증거 기반 완료 게이트)
+### FR-2: Four-stage workflow
+- FR-2.1: `init-deep` — generates hierarchical AGENTS.md project memory
+- FR-2.2: `ulw-plan` — explore-first planning (approval gate before plan file)
+- FR-2.3: `start-work` — checkbox execution via boulder.json (Stop-hook auto-resume)
+- FR-2.4: `ulw-loop` — multi-goal verification loop (evidence-based completion gate)
 
-### FR-3: Sprint 2 기능
-- FR-3.1: boulder.json `status: "blocked"` + `fail_count` 스키마 확장
-- FR-3.2: 사이클 캡 (5 execution cycles, 3 same-failure type)
-- FR-3.3: 디버깅 budget (2 failed rounds → debugging 스킬 로드)
-- FR-3.4: Manual-QA 사전 안내 게이트 (SessionStart)
+### FR-3: Sprint 2 features
+- FR-3.1: boulder.json `status: "blocked"` + `fail_count` schema extension
+- FR-3.2: Cycle caps (5 execution cycles, 3 same-failure type)
+- FR-3.3: Debugging budget (2 failed rounds → load debugging skill)
+- FR-3.4: Manual-QA pre-notification gate (SessionStart)
 
-### FR-4: 에이전트 시스템
-- FR-4.1: 10개 TOML 에이전트를 ZCode .md 서브에이전트로 변환
-- FR-4.2: `scripts/install-agents.sh`로 `~/.zcode/agents/` 배포
+### FR-4: Agent system
+- FR-4.1: 10 TOML agents converted to ZCode .md subagents
+- FR-4.2: `scripts/install-agents.sh` deploys to `~/.zcode/agents/`
 
-## 2. 비기능 요구사항
+## 2. Nonfunctional Requirements
 
-### NFR-1: 보안
-- NFR-1.1: `.omo/` 디렉토리 mode 0o700 (그룹/타인 접근 차단)
-- NFR-1.2: 증거 파일 PII redaction 스크러버 (`redact-secrets.mjs`)
-- NFR-1.3: telemetry opt-in (기본 OFF)
+### NFR-1: Security
+- NFR-1.1: `.omo/` directories mode 0o700 (block group/other access)
+- NFR-1.2: Evidence file PII redaction scrubber (`redact-secrets.mjs`)
+- NFR-1.3: Telemetry opt-in (OFF by default)
 
-### NFR-2: 데이터 정합성
-- NFR-2.1: `.lazyz-prompts.json` 원자적 쓰기 (temp+rename)
-- NFR-2.2: 두 boulder 파서 동기화 CI 강제 (`Verify boulder parser sync`)
-- NFR-2.3: vendor boulder-reader.ts와 메인 동기화
+### NFR-2: Data integrity
+- NFR-2.1: `.lazyz-prompts.json` atomic writes (temp+rename)
+- NFR-2.2: Dual boulder parser sync enforced by CI (`Verify boulder parser sync`)
+- NFR-2.3: Vendor boulder-reader.ts synced with main
 
-### NFR-3: 가용성
-- NFR-3.1: run-hook.sh가 Node/dist 없으면 exit 0 (세션 차단 안 함)
-- NFR-3.2: codegraph timeout 15s (detached worker로 비동기)
+### NFR-3: Availability
+- NFR-3.1: run-hook.sh exits 0 when Node/dist missing (never blocks session)
+- NFR-3.2: codegraph timeout 15s (detached worker, asynchronous)
 
-### NFR-4: 일관성
-- NFR-4.1: 모든 표면의 숫자 통일 (25 skills, 16 hooks, 5 MCP, 4 commands)
-- NFR-4.2: 버전 통일 (0.10.2)
-- NFR-4.3: 스킬 description "Codex" 잔재 0건
-- NFR-4.4: 브랜드 통일 ([LazyZ] 접두어)
+### NFR-4: Consistency
+- NFR-4.1: Count unification across all surfaces (25 skills, 16 hooks, 5 MCP, 4 commands)
+- NFR-4.2: Version unification (0.10.2)
+- NFR-4.3: Skill description "Codex" residue = 0
+- NFR-4.4: Brand unification ([LazyZ] prefix)
 
-## 3. 제약사항
+## 3. Constraints
 
-- ZCode에 SubagentStop 이벤트 없음 → executor-verify는 advisory
-- ZCode에 PostCompact 이벤트 없음 → 캐시 리셋은 SessionStart로 우회
-- ZCode에 goal API / multi_agent_v1 없음 → 파일 기반 상태로 대체
-- boulder.json은 LLM 작성 soft-schema → 코드 강제 불가, prose 가이드에 의존
-- model은 GLM-5.2 단일 (reasoning_effort 제어 불가)
+- ZCode has no SubagentStop event → executor-verify is advisory
+- ZCode has no PostCompact event → cache reset moved to SessionStart
+- ZCode has no goal API / multi_agent_v1 → file-based state instead
+- boulder.json is LLM-written soft-schema → no code enforcement, relies on prose
+- Model is GLM-5.2 single (no reasoning_effort control)

@@ -1,7 +1,7 @@
 # LazyZ
 
-> **Last updated: 2026-07-17** — telemetry switched to opt-in (OFF by default);
-> bootstrap ZCode manifest fix; data governance hardening (13 items).
+> **Last updated: 2026-07-19** — UX design review (brand unification, message tiers,
+> description cleanup); waterfall documentation added (11 phases, 20 files).
 > See [Changelog](#changelog) below.
 
 **The OmO agent harness, packaged as a ZCode plugin.**
@@ -262,6 +262,29 @@ See the [privacy details](plugins/lazyz/README.md#telemetry) for the
 daily-active event and opt-in controls.
 
 ## Changelog
+
+### 2026-07-19 — UX design review & waterfall documentation
+
+**UX & brand consistency:**
+- **Count unification** across all surfaces (25 skills, 16 hooks, 5 MCP, 4
+  commands, 10 agents). `known-limitations.md` corrected.
+- **Version unified** to 0.10.2 (README changelog was v0.1.1).
+- **Skill descriptions** — Codex residue removed from 9 skills
+  (comment-checker, lsp, rules, ultrawork, coding-agent-sessions, lcx-* x3,
+  lsp-setup). init-deep description gained natural-language triggers.
+- **Session hook messages** redesigned — "feel free to dismiss" removed
+  (5 instances, cry-wolf pattern), internal terms abstracted, tier hierarchy
+  clarified (💡 info / ⏳ action / ⛔ blocked).
+- **Brand unification** — `[omo-bootstrap]` → `[LazyZ]` (7 stderr sites),
+  doctor hint updated, `author.url` fixed.
+- **Telemetry policy alignment** — `plugins/lazyz/README.md` rewritten to
+  opt-in (was opt-out, contradicting root README).
+
+**Documentation:**
+- **Waterfall documentation** added — 11 phases, 20 markdown files under
+  `docs/waterfall/`. Covers planning → requirements → design → implementation
+  → QA → deployment → maintenance → review → ops runbook → monitoring.
+  See [docs/waterfall/README.md](docs/waterfall/README.md).
 
 ### 2026-07-17 — Data governance & operations hardening
 

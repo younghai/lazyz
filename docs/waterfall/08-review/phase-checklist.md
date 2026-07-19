@@ -1,82 +1,82 @@
-# 단계별 체크리스트
+# Phase Checklist
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
 
-## Phase 0: 기획
+## Phase 0: Planning
 
-- [x] 서비스 목적 정의 (4단계 discipline)
-- [x] 핵심 사용자 식별 (ZCode 개발자, 플러그인 개발자, 운영 담당자)
-- [x] 범위 확정 (In/Out Scope)
-- [x] 원본 대비 변경 정리 (LazyCodex vs LazyZ)
+- [x] Service purpose defined (four-stage discipline)
+- [x] Core users identified (ZCode developer, plugin developer, operations lead)
+- [x] Scope finalized (In/Out Scope)
+- [x] Changes from original documented (LazyCodex vs LazyZ)
 
-## Phase 1: 요구사항
+## Phase 1: Requirements
 
-- [x] 기능 요구사항 정의 (FR-1 ~ FR-4)
-- [x] 비기능 요구사항 정의 (NFR-1 ~ NFR-4)
-- [x] 제약사항 식별 (ZCode 한계 5가지)
-- [x] 용어 정의
+- [x] Functional requirements defined (FR-1 to FR-4)
+- [x] Nonfunctional requirements defined (NFR-1 to NFR-4)
+- [x] Constraints identified (5 ZCode limitations)
+- [x] Terminology defined
 
-## Phase 2: 시스템 설계
+## Phase 2: System Design
 
-- [x] 아키텍처 다이어그램
-- [x] 컴포넌트 계층 (스킬/훅/MCP/에이전트)
-- [x] 데이터 흐름 (4단계 워크플로우 + SessionStart 체인)
-- [x] vendor 경계 정의
+- [x] Architecture diagram
+- [x] Component layers (skill/hook/MCP/agent)
+- [x] Data flow (four-stage workflow + SessionStart chain)
+- [x] Vendor boundary defined
 
-## Phase 3: 상세 설계
+## Phase 3: Detailed Design
 
-- [x] 13개 컴포넌트 상세
-- [x] boulder.json 상태머신
-- [x] ulw-loop 골 상태머신
-- [x] continuation 카운터 로직
-- [x] 두 파서 동기화 메커니즘
+- [x] 13 component details
+- [x] boulder.json state machine
+- [x] ulw-loop goal state machine
+- [x] Continuation counter logic
+- [x] Dual-parser sync mechanism
 
-## Phase 4: 구현
+## Phase 4: Implementation
 
-- [x] Sprint 1 포팅 (6 Phase)
-- [x] Sprint 2 D·E·L (7 TASK)
-- [x] 데이터 거버넌스 (13개 항목)
-- [x] UX 디자인 검수 (12개 항목)
-- [x] GitHub push (9 커밋)
+- [x] Sprint 1 porting (6 phases)
+- [x] Sprint 2 D·E·L (7 tasks)
+- [x] Data governance (13 items)
+- [x] UX design review (12 items)
+- [x] GitHub push (10 commits)
 
 ## Phase 5: QA
 
-- [x] 13개 컴포넌트 빌드 성공
-- [x] CI 3종 검증 통과 (hook outputs, manifest, parser sync)
-- [x] ZCode 등록 검증 (스킬/MCP 노출)
-- [x] 보안 검증 (권한, PII, telemetry)
-- [x] 잔여 리스크 문서화
+- [x] 13 component builds succeed
+- [x] CI 3 verifications pass (hook outputs, manifest, parser sync)
+- [x] ZCode registration verified (skills/MCP exposed)
+- [x] Security verified (permissions, PII, telemetry)
+- [x] Residual risks documented
 
-## Phase 6: 배포
+## Phase 6: Deployment
 
-- [x] go/no-go gate PASS
-- [x] GitHub 저장소 push 완료
-- [x] prebuilt dist 정책 일관
-- [x] 롤백 절차 문서화
+- [x] Go/no-go gate PASS
+- [x] GitHub repository push complete
+- [x] Prebuilt dist policy consistent
+- [x] Rollback procedure documented
 
-## Phase 7: 유지보수
+## Phase 7: Maintenance
 
-- [x] 정기 점검 항목 정의
-- [x] Sprint 3 백로그 정리
-- [x] 변경 통제 절차 정의
+- [x] Regular inspection items defined
+- [x] Sprint 3 backlog organized
+- [x] Change control procedure defined
 
-## Phase 8: 검토
+## Phase 8: Review
 
-- [x] 단계별 체크리스트 (본 문서)
-- [x] 산출물 목록
-- [x] 정합성 점검 (숫자/버전/브랜드/telemetry)
+- [x] Phase checklist (this document)
+- [x] Project artifacts list
+- [x] Consistency audit (counts/version/brand/telemetry)
 
-## Phase 9: 운영 런북
+## Phase 9: Ops Runbook
 
-- [x] 데이터 거버넌스 가이드
-- [x] 장애 대응 런북
-- [x] 백업/복구 가이드
+- [x] Data governance guide
+- [x] Incident response runbook
+- [x] Backup/recovery guide
 
-## Phase 10: 모니터링
+## Phase 10: Monitoring
 
-- [x] 가시성 현황 (stderr, degraded ledger)
-- [x] SLO 정의
-- [x] 모니터링 갭 식별
+- [x] Visibility status (stderr, degraded ledger)
+- [x] SLO defined
+- [x] Monitoring gaps identified

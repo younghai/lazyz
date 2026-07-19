@@ -1,39 +1,39 @@
-# 비즈니스 정책
+# Business Policy
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
 
-## 1. 라이선스
+## 1. License
 
-MIT. 업스트림 LazyCodex/OmO 소스에서 상속.
+MIT. Inherited from upstream LazyCodex/OmO sources.
 
-## 2. Telemetry 정책
+## 2. Telemetry Policy
 
-- **기본 OFF** (privacy-by-default, GDPR 정합)
-- 활성화: `LAZYZ_ENABLE_TELEMETRY=1` (또는 legacy `OMO_ENABLE_TELEMETRY=1`)
-- 비활성화: `~/.omo/telemetry-disabled` 파일 또는 `LAZYZ_DISABLE_POSTHOG=1`
-- 전송 데이터: hashed hostname, OS/runtime metadata, event name, day_utc
-- 미전송: prompts, transcripts, source files, file paths, tokens, API keys
+- **OFF by default** (privacy-by-default, GDPR-aligned)
+- Enable: `LAZYZ_ENABLE_TELEMETRY=1` (or legacy `OMO_ENABLE_TELEMETRY=1`)
+- Disable: `~/.omo/telemetry-disabled` file or `LAZYZ_DISABLE_POSTHOG=1`
+- Transmitted data: hashed hostname, OS/runtime metadata, event name, day_utc
+- Not transmitted: prompts, transcripts, source files, file paths, tokens, API keys
 
-## 3. 데이터 보존 정책
+## 3. Data Retention Policy
 
-| 데이터 | 위치 | 보존 기간 | 정리 도구 |
+| Data | Location | Retention | Cleanup tool |
 | --- | --- | --- | --- |
-| `.omo/evidence/` | 프로젝트 로컬 | 30일 또는 100MB | `scripts/prune-evidence.mjs` |
-| `.omo/*/ledger.jsonl` | 프로젝트 로컬 | 마지막 10,000줄 | `scripts/prune-evidence.mjs` |
-| `.omo/boulder.json` | 프로젝트 로컬 | 작업 완료 시까지 | 수동 (LLM 작성) |
-| `~/.omo/codegraph/` | 홈 | 영구 (GC 없음) | 수동 |
-| `~/.local/share/lazyz/` | 홈 | 영구 (telemetry dedup) | 수동 |
+| `.omo/evidence/` | Project local | 30 days or 100MB | `scripts/prune-evidence.mjs` |
+| `.omo/*/ledger.jsonl` | Project local | Last 10,000 lines | `scripts/prune-evidence.mjs` |
+| `.omo/boulder.json` | Project local | Until work completes | Manual (LLM-written) |
+| `~/.omo/codegraph/` | Home | Permanent (no GC) | Manual |
+| `~/.local/share/lazyz/` | Home | Permanent (telemetry dedup) | Manual |
 
-## 4. 보안 정책
+## 4. Security Policy
 
-- `.omo/` 디렉토리: mode 0o700 강제 (13곳)
-- `~/.zcode/v2/`: mode 600/700 (P0-1 완료)
-- 증거 파일 PII: `scripts/redact-secrets.mjs` 스크러버 (sk-*, ghp_*, JWT, Bearer, DB 연결문자열)
-- `--fix` 플래그로 마스킹, 미사용 시 CI gate (exit 1)
+- `.omo/` directories: mode 0o700 enforced (13 sites)
+- `~/.zcode/v2/`: mode 600/700 (P0-1 complete)
+- Evidence PII: `scripts/redact-secrets.mjs` scrubber (sk-*, ghp_*, JWT, Bearer, DB connection strings)
+- `--fix` flag for masking; without it acts as CI gate (exit 1)
 
-## 5. 비제휴 선언
+## 5. Non-Affiliation
 
-LazyZ는 Sisyphus Labs와 비제휴. 업스트림 하네스의 모든 공로는 OmO maintainer에게 귀속.
+LazyZ is not affiliated with Sisyphus Labs. All credit for the underlying harness belongs to the OmO maintainers.

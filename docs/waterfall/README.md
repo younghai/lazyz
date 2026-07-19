@@ -1,56 +1,57 @@
 # LazyZ Waterfall Documentation
 
-> 기준일: 2026-07-19
-> 범위: `plugins/lazyz/` 플러그인 전체 (Codex→ZCode 포팅, Sprint 1-2, 데이터 거버넌스, UX 검수)
-> 소스 저장소: https://github.com/younghai/lazyz
+> Baseline date: 2026-07-19
+> Scope: `plugins/lazyz/` full plugin (Codex→ZCode port, Sprint 1-2, data governance, UX review)
+> Source repository: https://github.com/younghai/lazyz
 
-이 문서 세트는 LazyZ ZCode 플러그인을 워터폴 산출물 관점으로 정리한 것이다.
-구현이 이미 완료된 상태에서 각 단계를 as-built 기준으로 역추적하여 작성했다.
+This document set organizes the LazyZ ZCode plugin from a waterfall deliverables
+perspective. The implementation was already complete; each phase is an as-built
+document traced back from the current code and operational evidence.
 
-## 문서 구성
+## Document Structure
 
-| Phase | 단계 | 문서 | 목적 |
+| Phase | Stage | Documents | Purpose |
 | --- | --- | --- | --- |
-| 0 | 기획 | [서비스 기획](00-planning/service-planning.md), [비즈니스 정책](00-planning/business-policy.md) | 제품 목적, 사용자, 범위, 운영 정책 |
-| 1 | 요구사항 | [요구사항 명세](01-requirements/requirements.md), [용어](01-requirements/terminology.md) | 기능/비기능 요구사항, 제약 |
-| 2 | 시스템 설계 | [아키텍처](02-system-design/system-architecture.md), [데이터 흐름](02-system-design/data-flow.md) | 아키텍처, 컴포넌트, 데이터 흐름 |
-| 3 | 상세 설계 | [컴포넌트 설계](03-detailed-design/component-design.md), [상태머신](03-detailed-design/state-machines.md) | 모듈 책임, 상태 흐름, 스키마 |
-| 4 | 구현 | [구현 현황](04-implementation/implementation.md) | 파일 배치, 구현된 기능, 스프린트 이력 |
-| 5 | QA | [QA 계획](05-qa/qa-plan.md), [테스트 결과](05-qa/test-results.md) | 검증 전략, 릴리스 게이트 |
-| 6 | 배포 | [배포 계획](06-deployment/deployment-plan.md), [운영 가이드](06-deployment/operations-guide.md) | 배포 절차, 롤백, 환경 |
-| 7 | 유지보수 | [유지보수 계획](07-maintenance/maintenance.md) | 정기 점검, 백로그 |
-| 8 | 검토 | [단계별 체크리스트](08-review/phase-checklist.md), [산출물 목록](08-review/project-artifacts.md) | 단계 게이트, 정합성 |
-| 9 | 운영 런북 | [데이터 거버넌스](09-operations-runbook/data-governance.md), [장애 대응](09-operations-runbook/incident-response.md) | 운영 절차, 장애, 복구 |
-| 10 | 모니터링 | [모니터링/SLO](10-monitoring/monitoring-slo.md) | 지표, 알림, 가시성 |
+| 0 | Planning | [Service Planning](00-planning/service-planning.md), [Business Policy](00-planning/business-policy.md) | Product purpose, users, scope, KPI, operating policy |
+| 1 | Requirements | [Requirements Spec](01-requirements/requirements.md), [Terminology](01-requirements/terminology.md) | Functional/nonfunctional requirements, constraints |
+| 2 | System Design | [Architecture](02-system-design/system-architecture.md), [Data Flow](02-system-design/data-flow.md) | Architecture, components, data flow |
+| 3 | Detailed Design | [Component Design](03-detailed-design/component-design.md), [State Machines](03-detailed-design/state-machines.md) | Module responsibilities, state flow, schema |
+| 4 | Implementation | [Implementation Status](04-implementation/implementation.md) | File layout, implemented features, sprint history |
+| 5 | QA | [QA Plan](05-qa/qa-plan.md), [Test Results](05-qa/test-results.md) | Verification strategy, release gate |
+| 6 | Deployment | [Deployment Plan](06-deployment/deployment-plan.md), [Operations Guide](06-deployment/operations-guide.md) | Deployment procedure, rollback, environment |
+| 7 | Maintenance | [Maintenance Plan](07-maintenance/maintenance.md) | Regular checks, backlog |
+| 8 | Review | [Phase Checklist](08-review/phase-checklist.md), [Project Artifacts](08-review/project-artifacts.md) | Phase gates, consistency audit |
+| 9 | Ops Runbook | [Data Governance](09-operations-runbook/data-governance.md), [Incident Response](09-operations-runbook/incident-response.md) | Operating procedures, incidents, recovery |
+| 10 | Monitoring | [Monitoring/SLO](10-monitoring/monitoring-slo.md) | Metrics, alerts, visibility |
 
-## 빠른 사실
+## Quick Facts
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 제품 | LazyZ |
-| 유형 | ZCode 플러그인 (에이전트 하네스) |
-| 핵심 가치 | 프로젝트 메모리, 계획, 실행, 검증 완료를 ZCode 안에서 하나의 플러그인으로 |
-| 원본 | LazyCodex (Codex 배포판) → OmO — oh-my-openagent |
-| 언어/런타임 | TypeScript, Node.js 20+, Bun (빌드) |
-| 컴포넌트 | 25 스킬, 10 에이전트, 16 훅, 5 MCP 서버, 4 커맨드 |
-| 저장소 | https://github.com/younghai/lazyz |
-| 버전 | 0.10.2 |
-| 라이선스 | MIT |
+| Product | LazyZ |
+| Type | ZCode plugin (agent harness) |
+| Core value | Project memory, planning, execution, and verified completion as a single installable ZCode plugin |
+| Origin | LazyCodex (Codex distribution) → OmO — oh-my-openagent |
+| Language/Runtime | TypeScript, Node.js 20+, Bun (build) |
+| Components | 25 skills, 10 agents, 16 hooks, 5 MCP servers, 4 commands |
+| Repository | https://github.com/younghai/lazyz |
+| Version | 0.10.2 |
+| License | MIT |
 
-## 운영 가능성 기준
+## Operational Readiness Criteria
 
-이 문서 세트에서 "운영 가능"은 다음 조건을 모두 충족한다는 의미다.
+"Operationally ready" in this document set means all of the following are met:
 
-1. [배포 계획](06-deployment/deployment-plan.md)의 go/no-go gate가 PASS.
-2. ZCode 플러그인 마켓플레이스 등록이 완료되고 스킬/MCP/훅이 정상 로드됨.
-3. [데이터 거버넌스](09-operations-runbook/data-governance.md)의 P0 항목이 해소됨.
-4. [장애 대응](09-operations-runbook/incident-response.md) 런북이 최신 범위와 일치함.
-5. GitHub push가 완료되고 설치 검증이 통과함.
+1. The [Deployment Plan](06-deployment/deployment-plan.md) go/no-go gate is PASS.
+2. ZCode marketplace registration is complete; skills/MCP/hooks load correctly.
+3. [Data Governance](09-operations-runbook/data-governance.md) P0 items are resolved.
+4. The [Incident Response](09-operations-runbook/incident-response.md) runbook matches the latest scope.
+5. GitHub push is complete and installation verification has passed.
 
-## 워터폴 운영 원칙
+## Waterfall Operating Principles
 
-1. 요구사항 변경은 `01-requirements/requirements.md`를 먼저 갱신한다.
-2. 설계 변경은 `02-system-design/`과 `03-detailed-design/` 양쪽에 반영한다.
-3. 코드 변경은 `04-implementation/implementation.md`의 파일 맵을 갱신한다.
-4. 데이터 스키마 변경 시 두 파서(work-status, boulder-reader) 동기화를 CI가 강제한다.
-5. 모든 단계 완료 판단은 `08-review/phase-checklist.md`의 게이트로 남긴다.
+1. Requirement changes start with `01-requirements/requirements.md`.
+2. Design changes are reflected in both `02-system-design/` and `03-detailed-design/`.
+3. Code changes update the file map in `04-implementation/implementation.md`.
+4. Data schema changes enforce dual-parser sync via CI (`Verify boulder parser sync`).
+5. All phase completion decisions are gated by `08-review/phase-checklist.md`.

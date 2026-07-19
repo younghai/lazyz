@@ -1,45 +1,45 @@
-# 상태머신
+# State Machines
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
 
-## 1. boulder.json Work 상태머신
+## 1. boulder.json Work State Machine
 
 ```
                   (isContinuableStatus = true)
    ┌────────────────────────────────────────┐
    ▼                                        │
- active ◄──── (재진입) ────► paused          │ (Stop hook & work-status
-   │                       ▲   │            │  모두 active/paused만
-   │                       │   │            │  continuable로 판정)
-   │ (5 cycles 또는         │   │ (사용자     │
-   │  3 same-failure        │   │  수동)     │
-   │  또는                  │   │            │
+ active ◄──── (re-entry) ────► paused        │ (Stop hook & work-status
+   │                       ▲   │            │  treat active/paused as
+   │                       │   │            │  continuable only)
+   │ (5 cycles or           │   │ (user      │
+   │  3 same-failure        │   │  manual)   │
+   │  or                    │   │            │
    │  needs-human-review)   │   ▼            │
    ▼                       blocked          │
  blocked ◄─────────────────┘   │            │
    │                            │            │
-   │ (사용자가 active로 변경)    │            │
+   │ (user sets to active)      │            │
    └────────────────────────────┘            │
                                               │
- completed ◄── (모든 체크박스 완료) ──────────┘
- abandoned ◄── (사용자 취소) ────────────────┘
-   (terminal — 재개 불가)
+ completed ◄── (all checkboxes done) ────────┘
+ abandoned ◄── (user cancels) ───────────────┘
+   (terminal — not resumable)
 ```
 
-### 상태 전이 규칙
+### State Transition Rules
 
-| 전이 | 트리거 | fail_count | 코드 강제 |
+| Transition | Trigger | fail_count | Code enforcement |
 | --- | --- | --- | --- |
-| active → paused | 사용자 수동 | 변경 없음 | 없음 (LLM prose) |
-| active → blocked | 5 cycles / 3 same-failure / needs-human-review | +1 | prose (SKILL.md/directive.md) |
-| blocked → active | 사용자 수동 | 유지 | 없음 |
-| active → completed | 모든 체크박스 - [x] | 리셋 | 없음 |
-| active → abandoned | 사용자 취소 | 변경 없음 | 없음 |
+| active → paused | User manual | Unchanged | None (LLM prose) |
+| active → blocked | 5 cycles / 3 same-failure / needs-human-review | +1 | Prose (SKILL.md/directive.md) |
+| blocked → active | User manual | Retained | None |
+| active → completed | All checkboxes - [x] | Reset | None |
+| active → abandoned | User cancels | Unchanged | None |
 
-### isContinuableStatus (코드 강제)
+### isContinuableStatus (code-enforced)
 
 ```typescript
 function isContinuableStatus(status: BoulderWorkStatus | undefined): boolean {
@@ -47,40 +47,40 @@ function isContinuableStatus(status: BoulderWorkStatus | undefined): boolean {
 }
 ```
 
-`blocked`, `completed`, `abandoned`, `undefined` → false (재개 불가).
+`blocked`, `completed`, `abandoned`, `undefined` → false (not resumable).
 
-## 2. ulw-loop 골 상태머신
+## 2. ulw-loop Goal State Machine
 
 ```
  pending → in_progress → (criterion loop) → complete / failed / needs_user_decision
 ```
 
-- `complete`: 모든 크리테리아 PASS
-- `failed`: 5 cycles 또는 3 same-criterion failures
-- `needs_user_decision`: external-auth blocker 3회 (코드 강제, checkpoint.ts)
+- `complete`: all criteria PASS
+- `failed`: 5 cycles or 3 same-criterion failures
+- `needs_user_decision`: external-auth blocker 3 times (code-enforced, checkpoint.ts)
 
-## 3. start-work continuation 카운터
+## 3. start-work Continuation Counter
 
 ```
- Stop hook 발화
+ Stop hook fires
    │
-   ├─ stop_hook_active? → 중단
-   ├─ context pressure? → 중단
-   ├─ boulder.json continuable work 없음? → 중단 + counter clear
-   ├─ remaining checkboxes === 0? → 중단 + counter clear
-   ├─ counter >= MAX_CONTINUATIONS (10)? → 중단
-   └─ 통과 → counter++ + directive 주입 (decision: block)
+   ├─ stop_hook_active? → abort
+   ├─ context pressure? → abort
+   ├─ no continuable work in boulder.json? → abort + clear counter
+   ├─ remaining checkboxes === 0? → abort + clear counter
+   ├─ counter >= MAX_CONTINUATIONS (10)? → abort
+   └─ pass → counter++ + inject directive (decision: block)
 ```
 
-## 4. SessionStart 훅 순서 (순차)
+## 4. SessionStart Hook Order (sequential)
 
 ```
  1. bootstrap (15s timeout)
  2. codegraph (15s, detached worker)
  3. rules (10s)
- 4. telemetry (5s, opt-in 시만)
+ 4. telemetry (5s, only when opt-in)
  5. work-status (10s)
  6. migrate-codex-config (10s)
 ```
 
-각 훅은 독립 타임아웃 + exit 0 폴백. 하나가 느려도 다른 훅을 무한 블로킹하지 않음.
+Each hook has an independent timeout and exit 0 fallback. One slow hook does not indefinitely block others.

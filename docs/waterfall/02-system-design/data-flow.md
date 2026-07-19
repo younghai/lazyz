@@ -1,11 +1,11 @@
-# 데이터 흐름
+# Data Flow
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
 
-## 1. 4단계 워크플로우 데이터 흐름
+## 1. Four-Stage Workflow Data Flow
 
 ```
  ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -20,53 +20,53 @@
    session)           gate before code      continuation
 ```
 
-## 2. SessionStart 훅 체인 (순차 실행)
+## 2. SessionStart Hook Chain (sequential)
 
 ```
 ZCode SessionStart
-   ├─[1] bootstrap (15s)     → 에이전트/dist 프로비저닝
-   ├─[2] codegraph (15s)     → 코드 그래프 백그라운드 부트스트랩
-   ├─[3] rules (10s)         → 프로젝트 룰 주입
-   ├─[4] telemetry (5s)      → DAU 이벤트 (opt-in 시만)
-   ├─[5] work-status (10s)   → 진행 중 작업 안내 + Manual-QA 게이트
-   └─[6] migrate (10s)       → Codex config 마이그레이션
+   ├─[1] bootstrap (15s)     → agent/dist provisioning
+   ├─[2] codegraph (15s)     → code graph background bootstrap
+   ├─[3] rules (10s)         → project rule injection
+   ├─[4] telemetry (5s)      → DAU event (only when opt-in)
+   ├─[5] work-status (10s)   → in-progress work notice + Manual-QA gate
+   └─[6] migrate (10s)       → Codex config migration
 ```
 
-## 3. 상태 파일 카탈로그
+## 3. State File Catalog
 
-### 프로젝트 로컬 (`.omo/`)
+### Project Local (`.omo/`)
 
-| 파일 | 생성자 | 원자적 쓰기 | 수명주기 |
+| File | Writer | Atomic write | Lifecycle |
 | --- | --- | --- | --- |
-| `boulder.json` | start-work LLM | 없음 (soft-schema) | 작업 완료 시까지 |
-| `plans/<slug>.md` | ulw-plan | 없음 | 영구 (GC 없음) |
-| `start-work/ledger.jsonl` | start-work LLM | 없음 (append) | prune 스크립트 |
-| `ulw-loop/goals.json` | ulw-loop CLI | 있음 (tmp+rename) | 영구 |
-| `ulw-loop/ledger.jsonl` | ulw-loop CLI | 있음 (mutation lock) | prune 스크립트 |
-| `evidence/` | executor/QA | 없음 | prune (30일/100MB) |
-| `start-work-continuation/<session>.json` | Stop hook | 있음 (tmp+rename) | 완료 시 삭제 |
-| `lazycodex-executor-verify/<id>.json` | PostToolUse hook | 있음 (tmp+rename) | 증거 검증 후 삭제 |
-| `.lazyz-prompts.json` | work-status | 있음 (tmp+rename) | 영구 (dedup) |
+| `boulder.json` | start-work LLM | No (soft-schema) | Until work completes |
+| `plans/<slug>.md` | ulw-plan | No | Permanent (no GC) |
+| `start-work/ledger.jsonl` | start-work LLM | No (append) | prune script |
+| `ulw-loop/goals.json` | ulw-loop CLI | Yes (tmp+rename) | Permanent |
+| `ulw-loop/ledger.jsonl` | ulw-loop CLI | Yes (mutation lock) | prune script |
+| `evidence/` | executor/QA | No | prune (30 days/100MB) |
+| `start-work-continuation/<session>.json` | Stop hook | Yes (tmp+rename) | Deleted on completion |
+| `lazycodex-executor-verify/<id>.json` | PostToolUse hook | Yes (tmp+rename) | Deleted after verification |
+| `.lazyz-prompts.json` | work-status | Yes (tmp+rename) | Permanent (dedup) |
 
-### 홈 영속 (`~/`)
+### Home Persistent (`~/`)
 
-| 경로 | 목적 | 원자적 쓰기 |
+| Path | Purpose | Atomic write |
 | --- | --- | --- |
-| `~/.omo/telemetry-notified` | 최초 안내 센티넬 | 없음 |
-| `~/.omo/telemetry-disabled` | opt-out 센티넬 | n/a (사용자 생성) |
-| `~/.omo/codegraph/` | codegraph 바이너리 + 로그 | 프로비저닝 락 |
-| `~/.local/share/lazyz/` | PostHog 활동 상태 | 있음 |
-| `~/.local/share/lazycodex/` | auto-update 상태 | 없음 (lock 있음) |
-| `~/.codex/codex-rules/` | rules 세션 캐시 | 세션 락 |
-| `~/.zcode/agents/` | 설치된 서브에이전트 | install-agents.sh |
+| `~/.omo/telemetry-notified` | First-run notice sentinel | No |
+| `~/.omo/telemetry-disabled` | Opt-out sentinel | n/a (user-created) |
+| `~/.omo/codegraph/` | codegraph binary + logs | Provisioning lock |
+| `~/.local/share/lazyz/` | PostHog activity state | Yes |
+| `~/.local/share/lazycodex/` | auto-update state | No (lock present) |
+| `~/.codex/codex-rules/` | rules session cache | Session lock |
+| `~/.zcode/agents/` | Installed subagents | install-agents.sh |
 
-## 4. 데이터 정합성 위험 및 완화
+## 4. Data Integrity Risks and Mitigations
 
-| 위험 | 심각도 | 완화 조치 |
+| Risk | Severity | Mitigation |
 | --- | --- | --- |
-| boulder.json 듀얼 파서 drift | HIGH | CI `Verify boulder parser sync` 강제 |
-| boulder.json 비원자적 쓰기 (LLM) | HIGH | defensive parser (degraded fallback) |
-| evidence PII 평문 | HIGH | `redact-secrets.mjs` 스크러버 |
-| `.omo/` 권한 umask 022 | HIGH | mode 0o700 강제 (13곳) |
-| evidence 무한 증식 | MEDIUM | `prune-evidence.mjs` (30일/100MB) |
-| `.lazyz-prompts.json` 레이스 | MEDIUM | temp+rename 원자적 쓰기 |
+| boulder.json dual-parser drift | HIGH | CI `Verify boulder parser sync` enforced |
+| boulder.json non-atomic writes (LLM) | HIGH | Defensive parser (degraded fallback) |
+| Evidence PII in plaintext | HIGH | `redact-secrets.mjs` scrubber |
+| `.omo/` permissions umask 022 | HIGH | mode 0o700 enforced (13 sites) |
+| Evidence unbounded growth | MEDIUM | `prune-evidence.mjs` (30 days/100MB) |
+| `.lazyz-prompts.json` race | MEDIUM | temp+rename atomic write |

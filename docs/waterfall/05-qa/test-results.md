@@ -1,14 +1,14 @@
-# 테스트 결과
+# Test Results
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
-| 테스트 기간 | 2026-07-05 ~ 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
+| Test period | 2026-07-05 to 2026-07-19 |
 
-## 1. 빌드 검증
+## 1. Build Verification
 
-| 컴포넌트 | 빌드 도구 | 결과 | dist 크기 |
+| Component | Build tool | Result | dist size |
 | --- | --- | --- | --- |
 | bootstrap | tsc → bun bundle | ✅ PASS | 124.4 KB |
 | codegraph | bun | ✅ PASS | 108.9 KB |
@@ -23,38 +23,38 @@
 | ulw-loop | tsc | ✅ PASS | — |
 | work-status | bun | ✅ PASS | 20.0 KB |
 
-## 2. CI 검증
+## 2. CI Verification
 
-| 검증 항목 | 결과 |
+| Verification item | Result |
 | --- | --- |
 | Verify hook outputs exist (13 components + 3 vendor) | ✅ PASS |
 | Verify manifest consistency (hooks.json + .mcp.json) | ✅ PASS |
-| Verify boulder parser sync (CI 신규 스텝) | ✅ PASS |
+| Verify boulder parser sync (new CI step) | ✅ PASS |
 
-## 3. ZCode 등록 검증
+## 3. ZCode Registration Verification
 
-| 항목 | 결과 | 증거 |
+| Item | Result | Evidence |
 | --- | --- | --- |
-| 마켓플레이스 등록 | ✅ | `known_marketplaces.json` lazyz pluginCount=1 |
-| 플러그인 설치 | ✅ | `data/lazyz@lazyz/` 디렉토리 존재 |
-| 스킬 노출 | ✅ | 세션에서 lazyz:* 24개 확인 |
-| MCP 연결 | ✅ | context7, grep_app lazyz 스코프로 연결 |
+| Marketplace registration | ✅ | `known_marketplaces.json` lazyz pluginCount=1 |
+| Plugin installation | ✅ | `data/lazyz@lazyz/` directory exists |
+| Skill exposure | ✅ | 24 lazyz:* skills confirmed in session |
+| MCP connection | ✅ | context7, grep_app connected under lazyz scope |
 
-## 4. 보안 검증
+## 4. Security Verification
 
-| 항목 | 결과 |
+| Item | Result |
 | --- | --- |
-| API 키 config.json 권한 600 | ✅ PASS (P0-1) |
-| `.omo/` mode 0o700 (13곳) | ✅ 코드 반영 |
-| redact-secrets.mjs 스크러버 | ✅ 스크립트 동작 |
-| telemetry opt-in (기본 OFF) | ✅ 코드 반영 |
-| GitHub push 보안 스캔 | ✅ CRITICAL/HIGH 0건 |
+| API key config.json permissions 600 | ✅ PASS (P0-1) |
+| `.omo/` mode 0o700 (13 sites) | ✅ Code reflected |
+| redact-secrets.mjs scrubber | ✅ Script functional |
+| Telemetry opt-in (OFF by default) | ✅ Code reflected |
+| GitHub push security scan | ✅ CRITICAL/HIGH 0 |
 
-## 5. 알려진 한계 (비차단)
+## 5. Known Limitations (non-blocking)
 
-| 한계 | 영향 | 추적 |
+| Limitation | Impact | Tracking |
 | --- | --- | --- |
-| `schema_version` cosmetic (마이그레이션 게이트 아님) | 운영자 오판 위험 | 문서화 완료 |
-| downgrade 시 blocked 상태 silent-stall | 사용자 혼란 | AGENTS.md 경고 |
-| evidence 무한 증식 (자동 GC 없음) | 디스크 가득 | prune-evidence.mjs 수동 실행 |
-| SessionStart 직렬 실행 | 최악 65s 지연 | known-limitations.md |
+| `schema_version` cosmetic (not a migration gate) | Risk of operator misjudgment | Documented |
+| Downgrade blocked status silent-stall | User confusion | AGENTS.md warning |
+| Evidence unbounded growth (no auto GC) | Disk full | prune-evidence.mjs manual run |
+| SessionStart sequential execution | Worst case 65s delay | known-limitations.md |

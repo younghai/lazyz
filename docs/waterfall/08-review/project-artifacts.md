@@ -1,49 +1,50 @@
-# 산출물 목록
+# Project Artifacts
 
-| 항목 | 내용 |
+| Item | Value |
 | --- | --- |
-| 문서 버전 | v1.0 |
-| 작성일 | 2026-07-19 |
+| Document version | v1.0 |
+| Date | 2026-07-19 |
 
-## 1. 코드 산출물
+## 1. Code Artifacts
 
-| 분류 | 항목 | 수량 |
+| Category | Item | Count |
 | --- | --- | --- |
-| 스킬 | skills/*/SKILL.md | 25 |
-| 에이전트 | agents/*.md | 10 |
-| 커맨드 | commands/*.md | 4 |
-| 훅 | hooks/hooks.json 등록 | 16 |
-| MCP 서버 | .mcp.json | 5 |
-| 컴포넌트 | components/*/dist/cli.js | 13 (prebuilt) |
-| vendor 패키지 | vendor/*/ | 13 |
-| 스크립트 | scripts/*.mjs, *.sh | 12+ |
+| Skills | skills/*/SKILL.md | 25 |
+| Agents | agents/*.md | 10 |
+| Commands | commands/*.md | 4 |
+| Hooks | hooks/hooks.json registered | 16 |
+| MCP servers | .mcp.json | 5 |
+| Components | components/*/dist/cli.js | 13 (prebuilt) |
+| Vendor packages | vendor/*/ | 13 |
+| Scripts | scripts/*.mjs, *.sh | 12+ |
 
-## 2. 문서 산출물
+## 2. Documentation Artifacts
 
-| 문서 | 위치 |
+| Document | Location |
 | --- | --- |
-| README.md (루트) | GitHub 첫인상, 워크플로우, Changelog |
-| plugins/lazyz/README.md | 상세 설치/사용 가이드 |
-| AGENTS.md | 에이전트 지시 (툴 매핑, 제약, downgrade 호환성) |
-| CHANGELOG.md | 릴리스 이력 |
-| docs/known-limitations.md | 알려진 한계 (schema_version, SessionStart 지연 등) |
-| docs/progress-semantics.md | 완료 의미 통일 |
-| docs/regression-tests.md | 회귀 테스트 명세 |
-| docs/waterfall/ (본 문서 세트) | 11 Phase waterfall 문서 |
+| README.md (root) | GitHub first impression, workflow, Changelog |
+| plugins/lazyz/README.md | Detailed install/usage guide |
+| AGENTS.md | Agent instructions (tool mapping, constraints, downgrade compatibility) |
+| CHANGELOG.md | Release history |
+| docs/known-limitations.md | Known limitations (schema_version, SessionStart latency, etc.) |
+| docs/progress-semantics.md | Completion semantics unification |
+| docs/regression-tests.md | Regression test specification |
+| docs/waterfall/ (this doc set) | 11-phase waterfall documentation |
 
-## 3. CI/CD 산출물
+## 3. CI/CD Artifacts
 
-| 항목 | 위치 |
+| Item | Location |
 | --- | --- |
-| CI 워크플로우 | .github/workflows/ci.yml |
-| 빌드 스크립트 | scripts/build-components.mjs, sync-version.mjs 등 |
-| 보안 스크러버 | scripts/redact-secrets.mjs |
-| retention pruner | scripts/prune-evidence.mjs |
-| 에이전트 설치 | scripts/install-agents.sh |
+| CI workflow | .github/workflows/ci.yml |
+| Build scripts | scripts/build-components.mjs, sync-version.mjs, etc. |
+| Security scrubber | scripts/redact-secrets.mjs |
+| Retention pruner | scripts/prune-evidence.mjs |
+| Agent installer | scripts/install-agents.sh |
 
-## 4. GitHub 커밋 이력
+## 4. GitHub Commit History
 
 ```
+86600fb docs: add waterfall documentation (11 phases, 16 files)
 893c2ec fix(design): 7 remaining UX inconsistencies — complete sweep
 6399ae4 fix(design): UX consistency + brand unification (5 items)
 f760541 docs: add update date + changelog to README
@@ -54,16 +55,16 @@ e3593a8 fix(ops): F1 bootstrap ZCode manifest + NFR data governance
 0f2abbc feat: LazyZ ZCode plugin initial release
 ```
 
-## 5. 정합성 검증 결과
+## 5. Consistency Audit Results
 
-| 항목 | 기준값 | 실제값 | 상태 |
+| Item | Expected | Actual | Status |
 | --- | --- | --- | --- |
-| 스킬 수 | 25 | 25 | ✅ |
-| 훅 수 | 16 | 16 | ✅ |
-| MCP 수 | 5 | 5 | ✅ |
-| 커맨드 수 | 4 | 4 | ✅ |
-| 에이전트 수 | 10 | 10 (.md) | ✅ |
-| 버전 | 0.10.2 | 0.10.2 (전 표면) | ✅ |
-| telemetry 정책 | opt-in (OFF by default) | root + 부품 README 일치 | ✅ |
+| Skill count | 25 | 25 | ✅ |
+| Hook count | 16 | 16 | ✅ |
+| MCP count | 5 | 5 | ✅ |
+| Command count | 4 | 4 | ✅ |
+| Agent count | 10 | 10 (.md) | ✅ |
+| Version | 0.10.2 | 0.10.2 (all surfaces) | ✅ |
+| Telemetry policy | opt-in (OFF by default) | root + sub-README consistent | ✅ |
 | author.url | younghai/lazyz | younghai/lazyz | ✅ |
-| description "Codex" 잔재 | 0건 (외부 명칭 제외) | 0건 | ✅ |
+| Description "Codex" residue | 0 (excluding external names) | 0 | ✅ |
