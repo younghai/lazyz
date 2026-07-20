@@ -335,6 +335,14 @@ daily-active event and opt-in controls.
 - Sprint 2: boulder.json `blocked` status + `fail_count`, cycle/failure
   caps, debugging budget, Manual-QA pre-notification gate.
 
+## Community
+
+- **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Security:** See [SECURITY.md](SECURITY.md)
+- **Code of Conduct:** See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **Architecture docs:** See [docs/waterfall/](docs/waterfall/README.md) (11 phases)
+- **Bug reports:** Use the [issue templates](.github/ISSUE_TEMPLATE/) on GitHub
+
 ## License
 
 MIT, inherited from the upstream LazyCodex/OmO sources.

@@ -1,0 +1,21 @@
+# CODEOWNERS for LazyZ
+# These reviewers are automatically requested on PRs touching the listed paths.
+
+# Plugin core
+plugins/lazyz/                    @younghai
+
+# Hooks and components
+plugins/lazyz/hooks/              @younghai
+plugins/lazyz/components/         @younghai
+
+# Skills and agents
+plugins/lazyz/skills/             @younghai
+plugins/lazyz/agents/             @younghai
+plugins/lazyz/commands/           @younghai
+
+# Vendor (do not modify without coordination)
+plugins/lazyz/vendor/             @younghai
+
+# CI and docs
+.github/                          @younghai
+docs/                             @younghai

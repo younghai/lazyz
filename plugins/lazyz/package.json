@@ -1,7 +1,7 @@
 {
 	"name": "@lazyz/plugin",
 	"version": "0.10.2",
-	"description": "LazyZ — ZCode plugin distribution of the OmO agent harness (project memory, planning, execution, verified completion).",
+	"description": "LazyZ \u2014 ZCode plugin distribution of the OmO agent harness (project memory, planning, execution, verified completion).",
 	"type": "module",
 	"packageManager": "npm@11.12.1",
 	"private": true,
@@ -41,5 +41,8 @@
 		"sync:hooks": "node scripts/sync-hook-status-messages.mjs",
 		"sync:skills": "node scripts/sync-skills.mjs",
 		"test": "node --test test/*.test.mjs"
+	},
+	"engines": {
+		"node": ">=20"
 	}
 }
