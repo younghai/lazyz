@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LazyZ 0.11.0 — 빌드·테스트 및 공개 검증</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 24px;color:#172534;background:#f5f7fa}section{background:white;padding:24px;margin:20px 0;border:1px solid #d7e0e9;border-radius:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd5df;padding:10px;text-align:left;vertical-align:top}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px}h1,h2{line-height:1.3}.flow{display:flex;gap:12px;flex-wrap:wrap}.flow span{padding:12px;background:#edf3ff;border:1px solid #c7d6f4;border-radius:8px}.warn{border-left:5px solid #bd7212;padding-left:16px}a{color:#1357a5}@media print{body{background:white;margin:0}section{break-inside:avoid}}</style></head><body>
+<h1>LazyZ 0.11.0 — 빌드·테스트 및 공개 검증</h1>
+<p>2026-10-18 KST · 대상: <code>lazyz-github</code> · 제품 경로: <code>plugins/lazyz</code> · 이번 요청: 전체 빌드·테스트, 발견 문제 수정, GitHub 커밋·푸시.</p>
+<section><h2>결과와 검증 한계</h2>
+<p>정의된 LazyZ 제품 검사 <code>npm run check</code>가 종료 코드 0으로 완료됐다. 테스트 <strong>1,385개</strong>, 12개 컴포넌트 타입 검사, ZCode 호환성 검사가 통과했다. 잠긴 의존성 감사는 0건이며 소스 없는 807파일 설치 묶음의 무결성 검사도 통과했다.</p>
+<p>이 문서는 커밋 직전의 로컬 검증 기록이다. 원격 게시와 CI의 최종 상태는 <a href="https://github.com/younghai/lazyz/actions">GitHub Actions</a>에서 해당 커밋과 연결해 확인한다. GitHub Release·홈페이지 배포·실제 ZCode 운영 검증을 의미하지 않는다.</p>
+<table><tr><th>판정 항목</th><th>결과와 근거</th></tr>
+<tr><td>로컬 구현·제품 검사</td><td>완료 — check 종료 코드 0, 아래의 테스트 수와 설치 묶음 검사.</td></tr>
+<tr><td>별도 상위 프로젝트 범위</td><td>OmO 전체 Codex 설치기·중첩 Codex 플러그인은 미완료 범위. 전체 adapter 탐색 실행에서 17 실패(11 import 오류 포함)를 관찰했으며, 이를 통과로 집계하지 않았다.</td></tr>
+<tr><td>로컬 테스트 부작용</td><td>초기 LSP 테스트 격리 오류로 개발자 환경의 설치 승인 두 항목이 변경됐다. 확인 가능한 원본 한 항목은 복원했고 다른 항목은 사용자 선택이 필요하다. 이후 임시 경로 전용 검사에서는 추가 변경이 없었다. 구체적인 개인 설정 기록은 공개 저장소에 포함하지 않는다.</td></tr>
+<tr><td>완전 완료 여부</td><td>로컬 제품 검사 완료. 원격 CI와 개인 설정 후속 처리는 별도 상태이며 이 문서는 자동 완료로 간주하지 않는다.</td></tr>
+<tr><td>실제 업무 개선</td><td><strong>개선 미검증</strong> — 기능·의존성·테스트 경로는 확인했지만 생산성·비용·지연의 비교 실험은 하지 않았다.</td></tr></table>
+</section>
+<section><h2>이번에 수정한 문제</h2><ol>
+<li>네이티브 process 훅의 실행 경로가 <code>command</code>가 아닌 <code>args</code>에 있는 경우 테스트가 놓치던 문제. bootstrap → CodeGraph 순서 조건은 유지했다.</li>
+<li>LSP 빌드가 잠금 설치 뒤 다시 패키지를 설치하던 경로를 제거했다. 의존성은 루트 <code>npm ci</code>로 준비하며, 없는 경우 오류를 낸다.</li>
+<li>기존 실행 파일이 있으면 소스 변경을 무시하던 MCP 빌드를 고쳤다. 소스 checkout에서는 세 MCP bundle을 재생성하고, 소스 없는 설치에서는 prebuilt를 사용한다.</li>
+<li>CLI가 간접 의존성으로만 사용하던 esbuild를 직접 선언했다. Bun은 1.4.2로 고정했다.</li>
+<li>js-yaml 4.3.2, source-map-js 1.2.2, Vitest 4.1.11로 알려진 감사 항목을 처리했다. 감사 0건은 모든 보안 문제의 부재를 뜻하지 않는다.</li>
+<li>LSP 테스트에 명시적 요청 컨텍스트와 임시 home을 제공했다. 코어의 컨텍스트 없는 요청 거절·경로 제한을 유지했다. standalone MCP resource probe 호환 처리도 보완했다.</li>
+<li>Bun이 Markdown을 HTML로 변환하지 않도록 prompt import를 text로 지정했다.</li>
+<li>상위 monorepo 경로에 묶인 테스트를 이동 가능하게 했다. 모델 자료는 원본 고정 커밋의 snapshot을 보존하고 공급자 ID와 snapshot 표기의 메타데이터 대응만 보완했다. 사용자 모델 선택·공급자 라우팅은 변경하지 않았다.</li>
+<li><code>/start-work</code>를 승인된 기존 계획을 실행하는 <code>/ulw-execute</code> 계약과 통일했다.</li>
+</ol></section>
+<section><h2>실행한 검사와 범위</h2>
+<p>주 실행 환경: macOS, Node 26.5.0, npm 11.17.0, Bun 1.4.2. 설치 묶음 doctor/help는 Node 24.19.0에서도 확인했다. CI 정의는 Linux/macOS × Node 20/22이며 로컬 결과를 그 네 조합의 결과로 대신하지 않는다.</p>
+<table><tr><th>검사</th><th>결과</th></tr>
+<tr><td>루트 검사</td><td>49 통과 — CLI, 경로·심볼릭 링크, manifest 무결성, process 훅, 설치 동의, MCP, 빌드 의존성 계약 등.</td></tr>
+<tr><td>컴포넌트</td><td>203 통과 — bootstrap 4, CodeGraph 78, comment-checker 6, git-bash 2, executor 38, LSP 6, rules 5, continuation 5, telemetry 1, ultrawork 2, ulw-loop 29, work-status 27.</td></tr>
+<tr><td>독립 vendor와 사용 helper</td><td>1,133 통과 — stdio 20, utils 386, git-bash 24, comment core 1, model 288, prompts 25, rules 26, telemetry 24, LSP core 37, daemon 142, tools 98, bootstrap helper 62.</td></tr>
+<tr><td>타입·호환성</td><td>12개 컴포넌트 typecheck, MCP 소스 build, ZCode compatibility 통과. LSP tools 별도 typecheck 통과.</td></tr>
+<tr><td>의존성</td><td>npm ci 완료. npm audit 0 vulnerabilities. 새로운 기능 패키지는 추가하지 않고 기존 CLI 빌드 도구를 명시했다.</td></tr>
+<tr><td>설치용 묶음</td><td>807파일 export, doctor <code>ok:true</code>, 해시·entrypoint·버전·권한 검증. src/test/tests/node_modules와 lockfile 누출 0건.</td></tr>
+<tr><td>수동 명령 실행</td><td>help/capabilities/ulw-loop 도움말 정상, 잘못된 명령 종료 코드 2. 설치 묶음 AST-grep initialize와 tools/list(3개), 소스 checkout LSP bundle initialize와 tools/list(8개) 정상.</td></tr>
+<tr><td>게시 전 검사</td><td>일반 소스 git diff --check 통과. 해시 고정된 AST-grep prebuilt의 원본 EOF 빈 줄은 보존하며 공백 검사에서 제외했다. 정리 중 발생한 해시 불일치는 원본 복원 뒤 루트 49개 검사로 재확인했다. 변경 대상의 개인 절대 경로·자격증명 문자열 패턴·로컬 세션/설정 경로 검사에서 일치 없음. 이는 완전한 비밀정보 탐지나 전체 보안 감사가 아니다.</td></tr></table>
+<p class="warn">doctor는 기존 LSP daemon 상태와 다른 설치본을 가리키는 로컬 CLI 연결을 경고했다. 사용자 환경을 자동 변경하지 않았다. 실제 ZCode plugin discovery, 승인→실행 시나리오, 외부 MCP·CodeGraph provisioning, Windows, 유료 모델 호출은 이번 검증에 포함되지 않았다.</p>
+<p>제품 범위와 별도 상위 설치기 테스트는 <a href="../../docs/maintenance/publishing.md">게시 가이드</a>에 명시했다. 초기 실패 로그를 지우거나 skip으로 감추지 않았으며, 제품에 포함되는 helper 6파일은 별도로 실행했다.</p>
+</section>
+<section><h2>7원칙 완료 확인</h2><table><tr><th>원칙</th><th>상태</th><th>근거·이유</th><th>다음조치</th></tr>
+<tr><td>1. 맥락·방향·결과 우선</td><td>적용</td><td>공개 checkout만 수정하고 사용자 요청의 검사·게시를 기준으로 진행.</td><td>별도 개발 checkout은 자동 역동기화하지 않는다.</td></tr>
+<tr><td>2. AI 원리 설명</td><td>적용</td><td>아래 정적 흐름과 Mermaid 소스.</td><td>내부 모델 연산·운영 효과를 관찰한 것으로 표현하지 않는다.</td></tr>
+<tr><td>3. 60/30/10 포트폴리오</td><td>부분 적용</td><td>반복 검증 60%, 방법 개선 30%, 실험 10%를 향후 배분안으로만 제시.</td><td>실제 투입 비율은 미측정; 단일 작업 할당량으로 쓰지 않는다.</td></tr>
+<tr><td>4. 빈도·효과·낮은 위험</td><td>부분 적용</td><td>매 공개 시 재사용할 잠금 설치·빌드·테스트에 집중했으나 테스트 격리 부작용이 발생.</td><td>임시 경로 강제 유지, 잔여 개인 설정은 사용자 선택으로 처리.</td></tr>
+<tr><td>5. 실제 적용·적합성</td><td>부분 적용</td><td>실제 공개 소스와 설치 묶음에 적용. 기술 검증만 수행.</td><td>실제 ZCode 업무의 적합성·효율은 별도 승인된 파일럿 필요.</td></tr>
+<tr><td>6. 성공 workflow 재사용</td><td>부분 적용</td><td>잠금 설치→소스 빌드→제품 검사→source-free 검사가 로컬에서 성공.</td><td>CI 이식성과 반복 실행 근거를 축적하기 전 운영 성공으로 일반화하지 않는다.</td></tr>
+<tr><td>7. 전후 HTML 보고</td><td>적용</td><td>날짜·검사 수·출처·한계·위험을 이 파일에 기록.</td><td>원격 상태는 해당 commit의 Actions 결과와 연결한다.</td></tr></table></section>
+<section><h2>입력 → 처리 → 결과 → 사람 검토</h2>
+<div class="flow"><span>0.11.0 공개 준비본과 사용자 요청</span><span>→ 소스·실패 로그 분석 및 수정</span><span>→ 빌드·테스트·설치 묶음</span><span>→ 변경 검토·게시·잔여 설정 선택</span></div>
+<p>AI는 소스와 실행 결과를 바탕으로 수정을 제안·적용한다. 테스트와 사람 검토가 결과의 범위를 확인하며, 통과한 테스트가 실제 사업 효과나 모든 호스트 동작을 보증하지 않는다.</p>
+<pre class="mermaid-source">flowchart LR
+  A[공개 소스와 사용자 요청] --> B[맥락 기반 분석과 수정]
+  B --> C[빌드 및 격리된 제품 검사]
+  C --> D[설치 묶음과 검증 기록]
+  D --> E[사람 검토와 GitHub 게시]
+  E --> F[원격 검사 및 미확인 범위 확인]
+</pre></section>
+<section><h2>전후 결과 비교</h2><table><tr><th>차원</th><th>기준선</th><th>이후 결과</th><th>기간·단위</th><th>출처</th><th>판정·한계</th></tr>
+<tr><td>품질</td><td>초기 제품 검사 CodeGraph 1실패, vendor 컨텍스트·경로·자료 오류.</td><td>제품 gate 1,385 통과, 0실패.</td><td>2026-10-18 실행별 테스트 건수.</td><td>check 초기/최종 로그.</td><td>검사 범위가 확대되어 단순 실패율 전후 비교는 부적절. 사용 업무 품질 미검증.</td></tr>
+<tr><td>시간</td><td>미측정.</td><td>미측정.</td><td>같은 업무 처리시간 비교 없음.</td><td>비교 실험 없음.</td><td>속도 개선 주장하지 않음.</td></tr>
+<tr><td>비용</td><td>미측정.</td><td>미측정. 유료 provider API를 호출하지 않음.</td><td>작업당 비용 비교 없음.</td><td>도구 사용 범위.</td><td>세션 자체의 토큰 비용과 절감액 미측정.</td></tr>
+<tr><td>위험</td><td>의존성 감사 4항목, 빌드 중 재설치, 격리 불충분한 vendor 테스트.</td><td>감사 0건, 재설치 제거·임시 경로 강제. 초기 격리 실수의 개인 설정 1항목은 사용자 선택 대기.</td><td>2026-10-18 감사 건수와 변경 항목.</td><td>npm audit·빌드 spy·격리 검사·사건 기록.</td><td>취약점 감사와 운영·개인 설정 위험을 합산해 개선으로 단정하지 않음.</td></tr></table></section>
+<section><h2>재사용 후보와 후속조치</h2>
+<p>반복 공개가 있을 때마다 잠금 설치 → 소스 재빌드 → 제품 gate → 별도 설치 묶음 검사를 사용하는 후보가 있다. 매 release마다 수행할 가능성이 높다는 추정이며 실제 빈도는 기록하지 않았다. 실패 시 게시를 중단하고 소스를 고친 후 관련 검사를 다시 수행한다. 전역 설치·모델 호출·비밀정보 변경은 포함하지 않는다.</p>
+<p>회복은 이후 Git revert로 수행할 수 있다. import 도구는 대상 전용 파일을 삭제하지 않으며, 덮어쓰기 전 임시 백업을 만든다. <code>docs/reports/source-snapshot.json</code>은 10월 17일 가져온 원본의 해시 목록이지 이번 수리 후 최종 파일의 해시 목록이 아니다. 최종 변경은 Git 이력, CLI provenance, export manifest로 추적한다.</p>
+</section>
+<section><h2>근거와 산출물</h2><ul>
+<li><code>plugins/lazyz/package.json</code>, <code>package-lock.json</code>, 빌드 스크립트·시험, LSP 및 prompt/model 보정과 대응 dist.</li>
+<li><code>.github/workflows/ci.yml</code>: 고정 Bun, 잠금 감사, 전체 제품 검사, 생성 파일 비교, source-free 검사.</li>
+<li>세션 원본 로그: <code>/tmp/lazyz-publication-check-R5dd3W/check-complete.log</code>, <code>build-release.log</code>, 개별 package 로그. 임시 파일이며 공개 Git에는 로그·개인 설정을 포함하지 않는다.</li>
+<li><a href="https://github.com/advisories/GHSA-2883-xcg3-v3hh">js-yaml advisory</a>, <a href="https://github.com/advisories/GHSA-68fv-2mgg-jv7q">source-map-js advisory</a>, <a href="https://github.com/advisories/GHSA-82fw-gwwq-j7x9">Vitest advisory</a>.</li>
+<li>모델 fixture는 <a href="https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/generated/model-capabilities.generated.json">고정 upstream snapshot</a>을 보존했다. ID 근거: <a href="https://github.com/anomalyco/models.dev/blob/5c281e4febe61ded719f8094476be6d12f2b1d37/providers/kimi-for-coding/models/k2p5.toml">Kimi historical metadata</a>, <a href="https://developers.openai.com/api/docs/models/gpt-5.4-mini">OpenAI model ID</a>. 신규 공급자 API 검증이 아니다.</li>
+</ul></section></body></html>

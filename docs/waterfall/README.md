@@ -1,5 +1,10 @@
 # LazyZ Waterfall Documentation
 
+> Historical baseline only. This set describes July 19, 2026 and is preserved
+> for traceability. Counts, test results and readiness statements below are not
+> current 0.11.0 certification. Start with [current documentation](../README.md)
+> and the [October 17 report](../reports/2026-10-17-feature-evolution.md).
+
 > Baseline date: 2026-07-19
 > Scope: `plugins/lazyz/` full plugin (Codex→ZCode port, Sprint 1-2, data governance, UX review)
 > Source repository: https://github.com/younghai/lazyz
