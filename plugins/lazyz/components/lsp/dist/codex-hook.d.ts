@@ -10,7 +10,13 @@ export interface CodexPostToolUseInput {
 export interface CodexPostCompactInput {
     session_id?: unknown;
 }
+export interface CodexSessionStartInput {
+    hook_event_name?: unknown;
+    session_id?: unknown;
+    source?: unknown;
+}
 export declare function runLspDiagnosticsText(filePath: string): Promise<string>;
 export declare function runLspPostToolUseHook(input: CodexPostToolUseInput, runDiagnostics?: DiagnosticsRunner): Promise<string>;
 export declare function runLspPostCompactHook(input: CodexPostCompactInput): Promise<string>;
+export declare function runLspSessionStartHook(input: CodexSessionStartInput): string;
 export declare function isRecord(value: unknown): value is Record<string, unknown>;

@@ -4,6 +4,7 @@ import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { getConfigPaths, getMergedServers } from "../src/lsp/config-loader.js";
+import { withTempRequestContext } from "./helpers/request-context.js";
 
 const tempDirectories: string[] = [];
 
@@ -33,10 +34,10 @@ describe("config loader", () => {
 		process.env["LSP_TOOLS_MCP_USER_CONFIG"] = ".opencode/lsp.json";
 
 		try {
-			const paths = getConfigPaths();
+			const paths = withTempRequestContext(() => getConfigPaths());
 
 			expect(paths.project).toBe(join(process.cwd(), "config", "lsp-opencode.json"));
-			expect(paths.user).toBe(join(process.env["HOME"] ?? "", ".opencode", "lsp.json"));
+			expect(paths.user.endsWith(join(".opencode", "lsp.json"))).toBe(true);
 		} finally {
 			if (previousProject === undefined) {
 				delete process.env["LSP_TOOLS_MCP_PROJECT_CONFIG"];
@@ -62,7 +63,7 @@ describe("config loader", () => {
 		process.env["LSP_TOOLS_MCP_USER_CONFIG"] = absoluteUser;
 
 		try {
-			const paths = getConfigPaths();
+			const paths = withTempRequestContext(() => getConfigPaths());
 
 			expect(paths.project).toBe(absoluteProject);
 			expect(paths.user).toBe(absoluteUser);
@@ -105,7 +106,7 @@ describe("config loader", () => {
 
 		try {
 			// when
-			const servers = getMergedServers();
+			const servers = withTempRequestContext(() => getMergedServers(), { cwd: root });
 
 			// then
 			expect(servers).toContainEqual(

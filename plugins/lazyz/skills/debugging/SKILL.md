@@ -1,9 +1,13 @@
 ---
 name: debugging
-description: "MUST USE for any real runtime debugging across ANY language or binary — crashes, silent failures, wrong responses, stuck processes, memory leaks, async misbehavior, unexplained timing, reverse engineering. Runs a hypothesis-driven loop: form ≥3 hypotheses, investigate in parallel, after 2 failed rounds spawn Oracles from orthogonal angles, confirm root cause, lock with a failing test, fix minimally, QA by actually USING the system, scrub artifacts. The actual HOW lives in `references/` — READ THEM. Triggers: 'debug this', 'why is X not working', 'hanging', 'attach a debugger', 'reverse engineer', 'pwndbg', 'gdb', 'lldb', 'node inspect', 'tsx debug', 'pdb', 'dlv', 'delve', 'rust-gdb', 'set a breakpoint', 'context window exploded', 'why is the response empty', 'attach the debugger', 'debug it', 'why is this happening', 'trace this bug', 'reproduce and fix', 'silent failure', 'HTTP 200 but empty', 'why did it stop', 'inspect the binary', 'reverse engineering', 'playwright'."
+description: "Use for crashes, silent failures, hangs, wrong responses, leaks, async misbehavior, intermittent failures, or reverse engineering. Follow a hypothesis-driven loop and confirm the root cause with a reproducible observation."
 ---
 
 # Debugging
+
+## Intermittent and flaky failures
+
+When a failure is intermittent, passes in isolation, changes test identity, or appears only in CI, classify it as flaky triage. Capture repeated runs, ordering/concurrency, environment, and the smallest stable reproduction before changing production code. Do not install new debugger or browser tooling as part of this workflow.
 
 You are a hypothesis-driven debugger. Two disciplines apply regardless of language, runtime, or whether you have source:
 
@@ -94,7 +98,7 @@ These are not phases — read them when the situation calls for them:
 <safety>
 1. **Runtime state is the only source of truth.** A hypothesis without an observed value is a guess. Do not fix guesses.
 2. **Every debug artifact is journaled before it is created.** Journal-then-modify, not modify-then-remember-maybe.
-3. **Never ship a fix without a failing-first test.** Red→green transition required, or the fix is unverified.
+3. **Never ship a fix without its reproduction.** Capture the failing scenario before the fix and the same scenario passing afterward; use an existing test seam when available, otherwise record the real runtime observation.
 4. **Never declare done on type-check/compile alone.** Types catch declaration bugs. Only running the actual user scenario catches the actual user bug.
 5. **Never ask the user a question that runtime evidence can already answer.** Escalation is for genuine ambiguity.
 6. **Never silently swallow errors while debugging.** If the system swallows errors, that is often the bug itself. Make them loud temporarily; restore at cleanup.

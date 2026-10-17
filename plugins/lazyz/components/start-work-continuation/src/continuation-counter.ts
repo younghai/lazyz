@@ -44,7 +44,12 @@ export function readContinuationCount(cwd: string, sessionId: string, fs: ReadWr
 
 export function incrementContinuationCount(cwd: string, sessionId: string, fs: ReadWriteFileSystem): void {
 	const current = readContinuationCount(cwd, sessionId, fs);
-	writeContinuationCount(cwd, sessionId, { continuations: current.continuations + 1, updatedAt: new Date().toISOString() }, fs);
+	writeContinuationCount(
+		cwd,
+		sessionId,
+		{ continuations: current.continuations + 1, updatedAt: new Date().toISOString() },
+		fs,
+	);
 }
 
 export function clearContinuationCount(cwd: string, sessionId: string, fs: ReadWriteFileSystem): void {

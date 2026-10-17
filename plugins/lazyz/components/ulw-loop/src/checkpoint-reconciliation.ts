@@ -1,8 +1,6 @@
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-
 import { codexGoalMode, isFinalRunCompletionCandidate } from "./goal-status.js";
-import { type UlwLoopScope, ulwLoopBriefPath } from "./paths.js";
+import type { UlwLoopScope } from "./paths.js";
+import { readUlwLoopBrief } from "./plan-io.js";
 import type { UlwLoopItem, UlwLoopPlan } from "./types.js";
 import { ULW_LOOP_DIR, ULW_LOOP_GOALS, ULW_LOOP_LEDGER } from "./types.js";
 
@@ -41,9 +39,11 @@ async function snapshotObjectiveMapsToUlwLoopPlan(
 ): Promise<boolean> {
 	const actual = normalizeObjective(snapshotObjective).toLowerCase();
 	if (textMentionsUlwLoopPlanArtifact(actual)) return true;
-	if (actual.length < 24 || !existsSync(ulwLoopBriefPath(repoRoot, scope))) return false;
+	if (actual.length < 24) return false;
 	try {
-		const brief = normalizeObjective(await readFile(ulwLoopBriefPath(repoRoot, scope), "utf8")).toLowerCase();
+		const rawBrief = await readUlwLoopBrief(repoRoot, scope);
+		if (rawBrief === null) return false;
+		const brief = normalizeObjective(rawBrief).toLowerCase();
 		return brief.length >= 24 && (brief.includes(actual) || actual.includes(brief));
 	} catch (error) {
 		if (error instanceof Error) return false;
@@ -87,7 +87,7 @@ export async function canReconcileActiveFinalTaskScopedAggregateSnapshot(
 function buildCompletedLegacyGoalRemediation(goal: UlwLoopItem): string {
 	return [
 		"If get_goal returns a different completed legacy/thread objective, do not repeat --status complete in this thread.",
-		`Record a non-terminal blocker with: omo ulw-loop checkpoint --goal-id ${goal.id} --status blocked --evidence "<completed legacy Codex goal blocks create_goal in this thread>" --codex-goal-json "<different completed get_goal JSON or path>".`,
+		`Record a non-terminal blocker with: lazyz ulw-loop checkpoint --goal-id ${goal.id} --status blocked --evidence "<completed legacy Codex goal blocks create_goal in this thread>" --codex-goal-json "<different completed get_goal JSON or path>".`,
 		"Then continue only from a Codex goal context with no active/completed conflicting goal, in the same repo/worktree, and create the intended goal there.",
 	].join(" ");
 }

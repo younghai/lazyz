@@ -4,19 +4,16 @@
   "workspaces": {
     "": {
       "name": "@lazyz/plugin",
-      "dependencies": {
-        "@oh-my-opencode/shared-skills": "file:./vendor/shared-skills",
-      },
     },
     "components/bootstrap": {
       "name": "@lazyz/bootstrap",
-      "version": "0.1.0",
+      "version": "0.11.0",
     },
     "components/codegraph": {
       "name": "@lazyz/codegraph",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-codegraph": "dist/cli.js",
+        "omo-codegraph": "./dist/cli.js",
       },
       "devDependencies": {
         "@oh-my-opencode/mcp-stdio-core": "file:../../vendor/mcp-stdio-core",
@@ -26,14 +23,14 @@
         "typescript": "^6.0.3",
       },
       "optionalDependencies": {
-        "@colbymchenry/codegraph": "1.0.1",
+        "@colbymchenry/codegraph": "1.5.0",
       },
     },
     "components/comment-checker": {
       "name": "@lazyz/comment-checker",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-comment-checker": "dist/cli.js",
+        "omo-comment-checker": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -48,9 +45,9 @@
     },
     "components/git-bash": {
       "name": "@lazyz/git-bash-hook",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-git-bash-hook": "dist/cli.js",
+        "omo-git-bash-hook": "./dist/cli.js",
       },
       "devDependencies": {
         "@oh-my-opencode/utils": "file:../../vendor/utils",
@@ -60,9 +57,9 @@
     },
     "components/lazycodex-executor-verify": {
       "name": "@lazyz/lazycodex-executor-verify",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "lazycodex-executor-verify": "dist/cli.js",
+        "lazycodex-executor-verify": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -73,9 +70,9 @@
     },
     "components/lsp": {
       "name": "@lazyz/lsp",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-lsp": "dist/cli.js",
+        "omo-lsp": "./dist/cli.js",
       },
       "dependencies": {
         "@code-yeongyu/lsp-daemon": "file:../../vendor/lsp-daemon",
@@ -89,9 +86,9 @@
     },
     "components/rules": {
       "name": "@lazyz/rules",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-rules": "dist/cli.js",
+        "omo-rules": "./dist/cli.js",
       },
       "dependencies": {
         "picomatch": "^4.0.3",
@@ -107,9 +104,9 @@
     },
     "components/start-work-continuation": {
       "name": "@lazyz/start-work-continuation",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-start-work-continuation": "dist/cli.js",
+        "omo-start-work-continuation": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -120,9 +117,9 @@
     },
     "components/telemetry": {
       "name": "@lazyz/telemetry",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-telemetry": "dist/cli.js",
+        "omo-telemetry": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -134,9 +131,9 @@
     },
     "components/ultrawork": {
       "name": "@lazyz/ultrawork",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-ultrawork": "dist/cli.js",
+        "omo-ultrawork": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -148,11 +145,11 @@
     },
     "components/ulw-loop": {
       "name": "@lazyz/ulw-loop",
-      "version": "0.1.0",
+      "version": "0.11.0",
       "bin": {
-        "omo-ulw-loop": "dist/cli.js",
-        "ulw": "dist/cli.js",
-        "ulw-loop": "dist/cli.js",
+        "omo-ulw-loop": "./dist/cli.js",
+        "ulw": "./dist/cli.js",
+        "ulw-loop": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -193,7 +190,7 @@
       "name": "@code-yeongyu/lsp-daemon",
       "version": "0.1.0",
       "bin": {
-        "omo-lsp-daemon": "dist/cli.js",
+        "omo-lsp-daemon": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -208,7 +205,7 @@
       "name": "@code-yeongyu/lsp-tools-mcp",
       "version": "0.1.0",
       "bin": {
-        "omo-lsp": "dist/cli.js",
+        "omo-lsp": "./dist/cli.js",
       },
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
@@ -256,10 +253,6 @@
         "picomatch": "^4.0.4",
       },
     },
-    "vendor/shared-skills": {
-      "name": "@oh-my-opencode/shared-skills",
-      "version": "0.1.0",
-    },
     "vendor/telemetry-core": {
       "name": "@oh-my-opencode/telemetry-core",
       "version": "0.1.0",
@@ -272,10 +265,15 @@
       "name": "@oh-my-opencode/utils",
       "version": "0.1.0",
       "dependencies": {
-        "js-yaml": "^4.1.1",
+        "js-yaml": "^4.3.1",
         "jsonc-parser": "^3.3.1",
       },
     },
+  },
+  "overrides": {
+    "js-yaml": "4.3.1",
+    "nanoid": "3.3.18",
+    "postcss": "8.5.26",
   },
   "packages": {
     "@biomejs/biome": ["@biomejs/biome@2.4.16", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.4.16", "@biomejs/cli-darwin-x64": "2.4.16", "@biomejs/cli-linux-arm64": "2.4.16", "@biomejs/cli-linux-arm64-musl": "2.4.16", "@biomejs/cli-linux-x64": "2.4.16", "@biomejs/cli-linux-x64-musl": "2.4.16", "@biomejs/cli-win32-arm64": "2.4.16", "@biomejs/cli-win32-x64": "2.4.16" }, "bin": { "biome": "bin/biome" } }, "sha512-x9ajFh1zChVybCiM3TN6OD4phAqLgtPZjFrZF+aTMYCPjwBO+k529TX7PPsAqtGNLeV4UgzwQnowEgS7bGmzcA=="],
@@ -302,19 +300,19 @@
 
     "@code-yeongyu/lsp-tools-mcp": ["@code-yeongyu/lsp-tools-mcp@workspace:vendor/lsp-tools-mcp"],
 
-    "@colbymchenry/codegraph": ["@colbymchenry/codegraph@1.0.1", "", { "optionalDependencies": { "@colbymchenry/codegraph-darwin-arm64": "1.0.1", "@colbymchenry/codegraph-darwin-x64": "1.0.1", "@colbymchenry/codegraph-linux-arm64": "1.0.1", "@colbymchenry/codegraph-linux-x64": "1.0.1", "@colbymchenry/codegraph-win32-arm64": "1.0.1", "@colbymchenry/codegraph-win32-x64": "1.0.1" }, "bin": { "codegraph": "npm-shim.js" } }, "sha512-Y4ZMk7wxSRI9g2wQTcW21TfLr+fw7td1Dadkll6Udl9Ll8wX3H6qtov7K/VGtHG2AFX2j1e5Lm48PTHi74mImg=="],
+    "@colbymchenry/codegraph": ["@colbymchenry/codegraph@1.5.0", "", { "optionalDependencies": { "@colbymchenry/codegraph-darwin-arm64": "1.5.0", "@colbymchenry/codegraph-darwin-x64": "1.5.0", "@colbymchenry/codegraph-linux-arm64": "1.5.0", "@colbymchenry/codegraph-linux-x64": "1.5.0", "@colbymchenry/codegraph-win32-arm64": "1.5.0", "@colbymchenry/codegraph-win32-x64": "1.5.0" }, "bin": { "codegraph": "npm-shim.js" } }, "sha512-/l1JMVOQ9WGQLrc/IIuAg7Igr944t79/oNCJTcnGkYtIeQx2XFIqI0ho+9Les/Yu4zKfmPU17hIUshD6yP1fKw=="],
 
-    "@colbymchenry/codegraph-darwin-arm64": ["@colbymchenry/codegraph-darwin-arm64@1.0.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-4z3aNzR3Ml31MBVzAvFQm+bk83erdHkjnaJ0PoeM6I9T7xuTIcdAGV36i3qYwgBE4tdrghRdR0mP5MNM+OrGFA=="],
+    "@colbymchenry/codegraph-darwin-arm64": ["@colbymchenry/codegraph-darwin-arm64@1.5.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-ptQV1WlEKCDDy0Wl2r/urVGwaczUn5ezjt/Rv22Gj7RnKHAc9pNdU1uvL3gQzvoWJ9q7kmCeo7q6866/ZohbjQ=="],
 
-    "@colbymchenry/codegraph-darwin-x64": ["@colbymchenry/codegraph-darwin-x64@1.0.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-KBSKl+tLCSIgV4iyi21SqYlpXL0P8DPqAnVHvvStdyYsCmkc2Heqf4oQIko+TYyFmuo65m4VpX989JkYZVGIVQ=="],
+    "@colbymchenry/codegraph-darwin-x64": ["@colbymchenry/codegraph-darwin-x64@1.5.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-7BUOOxMacLNXmXTQTrjDTZXhbo0o5R5Z19uKjICIau2KxO9oU+Zbk7Bnf4P/JT1T4M41xRuiCJVE1uqBi6cFWA=="],
 
-    "@colbymchenry/codegraph-linux-arm64": ["@colbymchenry/codegraph-linux-arm64@1.0.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-2TOeL/Lx3kME+dmv2Q9hbIQFBvT6uKLdZONDRaYto+1Bcl3GrJuIu6bsu3jiJuifPhnYIL2xwUV6y+TZQ8MbTw=="],
+    "@colbymchenry/codegraph-linux-arm64": ["@colbymchenry/codegraph-linux-arm64@1.5.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-Bq5Ggb7PoLF7mnOiGl/UxMrDgrPCAQUMsl7BpMkAxq8FulvVEp7E/GrIQih2YB32vWr18KpN2i2VoRLAHLIDUw=="],
 
-    "@colbymchenry/codegraph-linux-x64": ["@colbymchenry/codegraph-linux-x64@1.0.1", "", { "os": "linux", "cpu": "x64" }, "sha512-UENXSURJJUhcvdKoYsB5Wj6Z6O9C2afhYfG0LnL13KFWJhGXugqYKjF4KwkaeE8Po8TFul9k3f+8eXjmJwwwaQ=="],
+    "@colbymchenry/codegraph-linux-x64": ["@colbymchenry/codegraph-linux-x64@1.5.0", "", { "os": "linux", "cpu": "x64" }, "sha512-wT1O7NkQoV6zPiq36d1qBqoIHL2ZRnOkFMjQ7JJwWS7KHnP32qHCd/pPaSwl8cNRlGYkYSaX3WVDpz2BaV+Now=="],
 
-    "@colbymchenry/codegraph-win32-arm64": ["@colbymchenry/codegraph-win32-arm64@1.0.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-ZEG+HOakHiAe1AWMa2LgD52HyIEbWsY2FyNvDmon4Ss2889OghqUyA8BOLu5hNW+EI42JwwSXijVevn2Zn0hlg=="],
+    "@colbymchenry/codegraph-win32-arm64": ["@colbymchenry/codegraph-win32-arm64@1.5.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-cWMJp8BeVLKR1mUVklI3opy9mJL/yrVkvjBqJFXRejM8CCU+UTpPDxDzQuPyywY0qyD0Ru2tjuWT4do7OUcNvg=="],
 
-    "@colbymchenry/codegraph-win32-x64": ["@colbymchenry/codegraph-win32-x64@1.0.1", "", { "os": "win32", "cpu": "x64" }, "sha512-qU6jjyma635qKJ0aaL8XU8QtYUGkWly0Mu4Wm2cSWRcNDL1v6sVoHMElgfUY7E9tK0gnU+/LbZW3MfmtqLG1GA=="],
+    "@colbymchenry/codegraph-win32-x64": ["@colbymchenry/codegraph-win32-x64@1.5.0", "", { "os": "win32", "cpu": "x64" }, "sha512-45gycJ+t153vpLEVkXChEySG1Ok5zqCgiBeonLe5V7Jxt1w+MF2vG00qexTC0pBWTmHSeMW4Q8d47nVMiC8ciQ=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.12", "", { "os": "aix", "cpu": "ppc64" }, "sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA=="],
 
@@ -407,8 +405,6 @@
     "@oh-my-opencode/prompts-core": ["@oh-my-opencode/prompts-core@workspace:vendor/prompts-core"],
 
     "@oh-my-opencode/rules-engine": ["@oh-my-opencode/rules-engine@workspace:vendor/rules-engine"],
-
-    "@oh-my-opencode/shared-skills": ["@oh-my-opencode/shared-skills@workspace:vendor/shared-skills"],
 
     "@oh-my-opencode/telemetry-core": ["@oh-my-opencode/telemetry-core@workspace:vendor/telemetry-core"],
 
@@ -516,13 +512,13 @@
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
-    "js-yaml": ["js-yaml@4.3.0", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": "bin/js-yaml.js" }, "sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q=="],
+    "js-yaml": ["js-yaml@4.3.1", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ=="],
 
     "jsonc-parser": ["jsonc-parser@3.3.1", "", {}, "sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
-    "nanoid": ["nanoid@3.3.15", "", { "bin": "bin/nanoid.cjs" }, "sha512-y7Wygv/7mEOvxTuEQDB8StXdMRBWf1kR/tlhAzBRUFkB2jfcLOAxO/SHmOO2zgz1pVgK29/kyupn059/bCHdjA=="],
+    "nanoid": ["nanoid@3.3.18", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w=="],
 
     "obug": ["obug@2.1.3", "", {}, "sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg=="],
 
@@ -532,7 +528,7 @@
 
     "picomatch": ["picomatch@4.0.5", "", {}, "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="],
 
-    "postcss": ["postcss@8.5.16", "", { "dependencies": { "nanoid": "^3.3.12", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg=="],
+    "postcss": ["postcss@8.5.26", "", { "dependencies": { "nanoid": "^3.3.17", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ=="],
 
     "posthog-node": ["posthog-node@5.39.4", "", { "dependencies": { "@posthog/core": "^1.39.5" }, "peerDependencies": { "rxjs": "^7.0.0" }, "optionalPeers": ["rxjs"] }, "sha512-+fCQ7htBFRQQFbIzl1T0TA7bDwYyaB9XP308ZFMCUoB5LzTzOFxBa6TYVrxdH/VQl43WXTp6sf0QsG2Z4XlNBg=="],
 

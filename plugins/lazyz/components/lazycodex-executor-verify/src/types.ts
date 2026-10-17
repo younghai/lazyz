@@ -1,5 +1,7 @@
 export const SUBAGENT_STOP_EVENT = "SubagentStop";
 export const POST_TOOL_USE_EVENT = "PostToolUse";
+export const POST_TOOL_USE_FAILURE_EVENT = "PostToolUseFailure";
+export const PRE_TOOL_USE_EVENT = "PreToolUse";
 
 export type SubagentStopInput = {
 	readonly hook_event_name: typeof SUBAGENT_STOP_EVENT;
@@ -31,6 +33,22 @@ export type PostToolUseInput = {
 	readonly tool_response?: unknown;
 };
 
+export type PreToolUseInput = Omit<PostToolUseInput, "hook_event_name" | "tool_response"> & {
+	readonly hook_event_name: typeof PRE_TOOL_USE_EVENT;
+};
+
+export type PostToolUseFailureInput = Omit<PostToolUseInput, "hook_event_name" | "tool_response"> & {
+	readonly hook_event_name: typeof POST_TOOL_USE_FAILURE_EVENT;
+	readonly error?: unknown;
+};
+
+export type StopInput = {
+	readonly hook_event_name: "Stop";
+	readonly session_id: string;
+	readonly cwd: string;
+	readonly stop_hook_active: boolean;
+};
+
 export type PostToolUseDenyOutput = {
 	readonly hookSpecificOutput?: {
 		readonly hookEventName: typeof POST_TOOL_USE_EVENT;
@@ -48,14 +66,12 @@ export type FileStat = {
 export type HookFileSystem = {
 	existsSync(path: string): boolean;
 	lstatSync?(path: string): FileStat;
-	mkdirSync(
-		path: string,
-		options: { readonly recursive: true; readonly mode?: number },
-	): unknown;
+	mkdirSync(path: string, options: { readonly recursive: boolean; readonly mode?: number }): unknown;
+	readdirSync?(path: string): string[];
 	readFileSync(path: string, encoding: "utf8"): string;
 	realpathSync?(path: string): string;
 	renameSync(oldPath: string, newPath: string): void;
 	rmSync(path: string, options: { readonly force: true; readonly recursive?: boolean }): void;
 	statSync(path: string): FileStat;
-	writeFileSync(path: string, data: string): void;
+	writeFileSync(path: string, data: string, options?: { readonly flag: "wx"; readonly mode: number }): void;
 };

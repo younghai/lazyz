@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { ModelCapabilitiesSnapshot } from "./model-capabilities"
 import { getBundledModelCapabilitiesSnapshot } from "./model-capabilities"
-import bundledModelCapabilitiesSnapshotJson from "../../../packages/omo-opencode/src/generated/model-capabilities.generated.json"
+import bundledModelCapabilitiesSnapshotJson from "../test/fixtures/model-capabilities.generated.json"
 import {
   collectModelCapabilityGuardrailIssues,
   getBuiltInRequirementModelIDs,

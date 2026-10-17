@@ -7,6 +7,7 @@ import {
 	completeGoals,
 	createGoals,
 	criteria,
+	qualityContext,
 	reviewBlockers,
 	status,
 	steer,
@@ -25,6 +26,7 @@ export const ULW_LOOP_SUBCOMMANDS = [
 	"criteria",
 	"record-evidence",
 	"record-review-blockers",
+	"quality-context",
 ] as const;
 
 export type UlwLoopSubcommand = (typeof ULW_LOOP_SUBCOMMANDS)[number];
@@ -75,6 +77,8 @@ export async function ulwLoopCommand(argv: readonly string[]): Promise<number> {
 				return await captureEvidence(repoRoot, rest, json, scope);
 			case "record-review-blockers":
 				return await reviewBlockers(repoRoot, rest, json, scope);
+			case "quality-context":
+				return await qualityContext(repoRoot, rest, json, scope);
 			default:
 				return unhandledSubcommand(command);
 		}

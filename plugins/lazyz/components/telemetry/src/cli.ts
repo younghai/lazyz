@@ -38,9 +38,9 @@ function isCodexSessionStartInput(value: unknown): value is CodexSessionStartInp
 		isRecord(value) &&
 		value["hook_event_name"] === "SessionStart" &&
 		typeof value["session_id"] === "string" &&
-		isStringOrNull(value["transcript_path"]) &&
+		(value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["source"] === "string"
 	);

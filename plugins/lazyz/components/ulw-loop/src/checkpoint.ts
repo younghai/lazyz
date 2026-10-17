@@ -1,6 +1,7 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { inspectGitProvenance } from "../../lazycodex-executor-verify/dist/git-provenance.js";
 import {
 	buildTaskScopedAggregateReconciliationHint,
 	canReconcileActiveFinalTaskScopedAggregateSnapshot,
@@ -24,8 +25,8 @@ import {
 	classifyExternalAuthorizationBlocker,
 	clearGoalBlockerFields,
 	sameBlockerOccurrences,
-	validateQualityGate,
 } from "./quality-gate.js";
+import { validateStrictQualityGate } from "./quality-gate-strict.js";
 import type {
 	UlwLoopAggregateCompletion,
 	UlwLoopItem,
@@ -48,8 +49,6 @@ export interface CheckpointUlwLoopResult {
 	readonly ledgerEntry: UlwLoopLedgerEntry;
 	readonly aggregateCompletion?: UlwLoopAggregateCompletion;
 }
-
-const QUALITY_GATE_FS = { existsSync, statSync } as const;
 
 function ulwLoopFail(message: string, code: string): never {
 	throw new UlwLoopError(message, code);
@@ -217,11 +216,16 @@ export async function checkpointUlwLoop(
 					);
 			}
 			if (final) aggregateCompletion = makeAggregateCompletion(now, evidence, codexGoal);
-			if (final || aggregateCompletion !== undefined)
-				qualityGate = validateQualityGate(await readJsonInput(args.qualityGateJson, repoRoot), {
+			if (final || aggregateCompletion !== undefined) {
+				const input = await readJsonInput(args.qualityGateJson, repoRoot);
+				qualityGate = validateStrictQualityGate(input, {
 					repoRoot,
-					fs: QUALITY_GATE_FS,
+					plan,
+					finalGoal: goal,
+					source: inspectGitProvenance(repoRoot).provenance,
+					...(scope === undefined ? {} : { scope }),
 				});
+			}
 			goal.status = "complete";
 			goal.completedAt = now;
 			goal.evidence = evidence;

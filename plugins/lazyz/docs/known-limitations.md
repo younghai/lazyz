@@ -4,7 +4,7 @@ What LazyZ does not yet do, why, and where it is tracked.
 
 ---
 
-## Mid-session compaction does not auto-resume work (Sprint 1 scope)
+## Compaction reset is not guaranteed work resumption
 
 **Symptom.** When the model context is compacted **mid-session**, an
 in-progress `start-work` plan is NOT automatically re-injected.
@@ -14,29 +14,30 @@ in-progress `start-work` plan is NOT automatically re-injected.
 1. ZCode has no `PostCompact` hook event (only `SessionStart`,
    `UserPromptSubmit`, `PreToolUse`, `PermissionRequest`, `PostToolUse`,
    `PostToolUseFailure`, `Stop`).
-2. The `start-work-continuation` `Stop` hook **suppresses itself** on
-   compaction/context-pressure markers (by design — do not fight an
-   exhausted context).
-3. The `work-status` SessionStart hook only fires on a **new session**.
+2. LazyZ has `SessionStart` `compact|clear` matchers for selected cache-reset
+   work, but those matchers are not a `PostCompact` event and do not provide a
+   subagent-completion or plan-resumption receipt.
+3. The `Stop` event can continue at most three consecutive times. It is a
+   bounded host loop, not a persistent completion/security boundary.
 
 **What DOES work.**
 
 - Close + reopen session → `work-status` shows resume prompt. ✅
 - "Next day, reopen" → same path. ✅
-- Explicit `$start-work` → resumes from `.omo/boulder.json`. ✅
+- Explicit `/ulw-execute` (or `/start-work`) → reads the tracked plan state. ✅
 
-**Workaround for mid-session compaction.** Run `$start-work <plan-name>`
+**Workaround for mid-session compaction.** Run `/ulw-execute <plan-name>`
 explicitly.
 
-**Tracked for Sprint 2.** A `UserPromptSubmit`-based compaction detector
-was deferred (would push `work-status` from 🟢 to 🟡, breaking the Sprint 1
-timeline invariant).
+**Limit.** A stronger recovery claim needs an official host event or documented
+completion API; LazyZ does not infer one from unrelated host source surfaces.
 
 ---
 
 ## Tier display and per-skill hiding (platform-dependent)
 
-**Symptom.** The `/` menu shows all 25 skills; no built-in hide for `lcx-*`.
+**Symptom.** The `/` menu can show every installed skill; no built-in hide for
+`lcx-*` is documented here.
 
 **Why.** ZCode executes only `commands`/`skills`/`hooks`/`mcpServers`/
 `agents`. SKILL.md frontmatter has no standard `tier`/`visible`/`hidden`
@@ -44,8 +45,7 @@ field ZCode consumes for display.
 
 **What we did (Sprint 1).**
 
-- `metadata.tier`/`metadata.advanced` recorded in all 23 SKILL.md
-  frontmatters (platform-readiness).
+- `metadata.tier`/`metadata.advanced` are platform-readiness metadata.
 - `lcx-*` descriptions had "MUST USE" triggers removed → no auto-load noise.
 - README "first 9 skills" curation + `work-status` init-deep auto-suggestion
   route new users to the Tier 0/1 core.
@@ -55,15 +55,16 @@ field ZCode consumes for display.
 
 ---
 
-## `ulw-loop` hard-depends on the `omo` CLI
+## `ulw-loop` final completion requires current, bound evidence
 
-**Symptom.** Without `omo` on PATH, `ulw-loop` falls back to
-`bootstrap-notepad.md` (degraded).
+Use the bundled `lazyz ulw-loop` surface; a separate `omo` executable is not
+required. Run `quality-context --goal-id <id> --json` to obtain the actual plan,
+criteria and current source binding before constructing final quality evidence.
 
-**Workaround.** Prefer `start-work` for single-plan work; use `ulw-loop`
-only when `omo` is installed.
-
-**Tracked for:** future lightweight mode (deferred — PM dropped J).
+Final checkpoints reject historical unbound quality JSON, stale source identities,
+unknown/duplicate criteria, unsuccessful executions and unsafe artifact paths.
+The JSON binds claims to files; it does not authenticate reviewer identities or
+prove a submitted command was executed by a trusted external runner.
 
 ---
 
@@ -88,13 +89,15 @@ and auto-migrates legacy aggregate objectives (`plan-io.ts`). Bringing
 
 ---
 
-## Local MCP servers silently degrade if unbuilt
+## Local MCP startup is host-controlled
 
-**Symptom.** `codegraph`/`git_bash`/`lsp` are `required: false` → silent
-skip if unbuilt.
+**Scope.** LazyZ declares `codegraph`, `git_bash`, `lsp`, and `ast_grep` as
+enabled Node stdio servers with `timeoutMs: 30000`. It does not use
+undocumented `required`, `defer`, or lazy-load fields.
 
-**Fix (Sprint 1).** `work-status` SessionStart hook warns 1×/day when a
-`required: false` server's `dist/` is missing.
+**Limit.** A declared local process can still fail to start when Node or a
+prebuilt entrypoint is unavailable. `lazyz doctor` can statically inspect the
+manifest and payload; it is not a live host/MCP connection probe.
 
 ---
 
@@ -112,20 +115,24 @@ from Sprint 1 (T7).
 
 ## SessionStart hook latency
 
-**Symptom.** Six SessionStart hooks run before the first prompt: bootstrap
-(60s budget), codegraph (60s budget), rules (10s), telemetry (5s),
-work-status (10s), migrate-codex-config (10s). On large monorepos,
+**Symptom.** Five unfiltered SessionStart hooks run before the first prompt:
+bootstrap (30s budget), codegraph (15s), rules (10s), telemetry (5s), and
+work-status (10s). Two additional `compact|clear` entries perform selected
+cache resets when those sources occur. On large monorepos,
 codegraph provisioning and rule loading can take several seconds each.
 
 **Why.** ZCode executes SessionStart hooks in the order declared in
 `hooks/hooks.json`. We have no documented confirmation that ZCode
 parallelizes hooks within an event — so we assume sequential execution.
 
-**What we do.** Each hook has an independent timeout and degrades to
-`exit 0` (no-op) on failure, so one slow hook does not block the others
-indefinitely. `run-hook.sh` wraps every hook with a diagnostic on stderr.
+**What we do.** Each declared process hook has an independent host timeout.
+There is no documented hook-concurrency guarantee in the reviewed source.
+Initialized/cooldown/locked CodeGraph projects can skip process sweeping.
+Transcript lookup is bounded to the latest 1 MiB, so very old injection markers
+can fall outside the lookup window. A launcher structure count such as
+"two Node processes to one" is not a measured end-to-end service-time claim.
 
 **Tracked for:** investigate ZCode's hook concurrency model. If parallel
-execution is supported, split the six hooks into independent groups.
-If not, consider lazy-loading codegraph (defer to first use rather than
-SessionStart) and caching rule injection more aggressively.
+execution is supported, assess whether the five hooks can run concurrently.
+If not, assess only documented lifecycle/configuration options; LazyZ does not
+declare an unsupported `defer` or lazy-load field.

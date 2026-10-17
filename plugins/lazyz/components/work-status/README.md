@@ -77,7 +77,7 @@ an estimate would erode trust. See `docs/progress-semantics.md`.
 | --- | --- | --- | --- |
 | boulder pointer | `.omo/boulder.json` | `start-work` skill prose (LLM) | Soft — defensive reader |
 | plan checkboxes | `.omo/plans/<slug>.md` | `ulw-plan` + `start-work` skill prose | Soft |
-| ulw-loop plan | `.omo/ulw-loop/goals.json` | `omo ulw-loop` TS CLI | Stable (`version: 1`) |
+| ulw-loop plan | `.omo/ulw-loop/goals.json` | `lazyz ulw-loop` TS CLI | Stable (`version: 1`) |
 | prompt dedup | `.omo/.lazyz-prompts.json` | this component | Internal |
 
 The boulder + plan-checkbox parser is a self-contained re-implementation of

@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/code-yeongyu/oh-my-openagent.git",
+  "ref": "v4.19.4",
+  "commit": "b072d279110bdda2c6ac2525d0d24dc54d16148a",
+  "sourcePath": "packages/omo-opencode/src/generated/model-capabilities.generated.json",
+  "sourceUrl": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/generated/model-capabilities.generated.json",
+  "sha256": "35547a26c90f76eb43b2f6226eb2a5866c85ef9b3e07d2c2bc80e7f6168dff25"
+}

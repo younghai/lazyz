@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// src/cli.ts
+// components/work-status/src/cli.ts
 import { stdout as processStdout } from "node:process";
 
-// src/hook.ts
+// components/work-status/src/hook.ts
 import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, renameSync, writeFileSync } from "node:fs";
 import { dirname, join as join2 } from "node:path";
 
-// src/work-status.ts
+// components/work-status/src/work-status.ts
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 var TODO_HEADING_LOWER = "todos";
@@ -33,6 +33,7 @@ function readInProgressStartWork(cwd) {
     ledgerPath: join(cwd, ".omo", "start-work", "ledger.jsonl"),
     worktreePath: work.worktreePath ?? null,
     status: work.status,
+    failCount: work.failCount,
     checklist,
     degraded: false
   };
@@ -57,6 +58,7 @@ function readInProgressStartWorkLenient(cwd) {
       ledgerPath: join(cwd, ".omo", "start-work", "ledger.jsonl"),
       worktreePath: null,
       status: undefined,
+      failCount: undefined,
       checklist: emptyChecklist(),
       degraded: true
     };
@@ -219,7 +221,7 @@ function parseIsoToMs(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 function isContinuableStatus(status) {
-  return status === "active" || status === "paused";
+  return status === "active" || status === "paused" || status === "blocked";
 }
 function emptyChecklist() {
   return { completed: 0, remaining: 0, total: 0, nextTaskLabel: null };
@@ -342,7 +344,7 @@ function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// src/hook.ts
+// components/work-status/src/hook.ts
 var PROMPT_STATE_PATH = ".omo/.lazyz-prompts.json";
 var ONE_DAY_MS = 24 * 60 * 60 * 1000;
 var LOCAL_MCP_SERVERS = [
@@ -406,9 +408,9 @@ function renderResumePrompt(snapshot, nowMs, lastAt) {
       const fail = snapshot.failCount ?? 0;
       return `⛔ LazyZ: "${snapshot.planName}" 작업이 중단되었습니다 (실패 한도 도달, ${fail}회). 상태를 다시 "active"로 변경하거나 사용자 판단이 필요합니다.${since}`;
     }
-    const { completed, total: total2, nextTaskLabel } = snapshot.checklist;
+    const { completed, total, nextTaskLabel } = snapshot.checklist;
     const next = nextTaskLabel ?? "(다음 작업 라벨 없음)";
-    return `⏳ LazyZ: 진행 중인 작업 — "${snapshot.planName}" (${completed}/${total2} 완료). 다음: ${truncate(next, 80)}.${snapshot.worktreePath !== null ? ` worktree: ${snapshot.worktreePath}.` : ""} 계속하려면 start-work로 진행.${since}`;
+    return `⏳ LazyZ: 진행 중인 작업 — "${snapshot.planName}" (${completed}/${total} 완료). 다음: ${truncate(next, 80)}.${snapshot.worktreePath !== null ? ` worktree: ${snapshot.worktreePath}.` : ""} 계속하려면 start-work로 진행.${since}`;
   }
   if (snapshot.degraded) {
     return `⏳ LazyZ: 진행 중인 다중 목표 작업이 있으나 상태 파일을 완전히 읽지 못했습니다.${since}`;
@@ -528,7 +530,7 @@ function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// src/cli.ts
+// components/work-status/src/cli.ts
 var command = process.argv[2];
 if (command === "hook" && process.argv[3] === "session-start") {
   await runHookCli();
@@ -613,13 +615,13 @@ function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function readStdin() {
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve, reject) => {
     let data = "";
     process.stdin.setEncoding("utf8");
     process.stdin.on("data", (chunk) => {
       data += chunk;
     });
     process.stdin.once("error", reject);
-    process.stdin.once("end", () => resolve2(data));
+    process.stdin.once("end", () => resolve(data));
   });
 }

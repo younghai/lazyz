@@ -4,7 +4,7 @@
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 
 // components/ultrawork/src/codex-hook.ts
-import { readFileSync as readFileSync2 } from "node:fs";
+import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 
 // components/ultrawork/src/directive.ts
 import { readFileSync } from "node:fs";
@@ -26,19 +26,22 @@ var CONTEXT_PRESSURE_MARKERS = [
 function runUserPromptSubmitHook(input) {
   if (!isCodexUserPromptSubmitInput(input))
     return "";
+  if (!isUltraworkPrompt(input.prompt))
+    return "";
   if (isContextPressureRecoveryPrompt(input.prompt))
     return "";
-  if (hasUltraworkDirectiveAlreadyInTranscript(input.transcript_path))
+  const transcriptSignals = readTranscriptSignals(input.transcript_path);
+  if (transcriptSignals.directiveAlreadyPresent || transcriptSignals.contextPressure)
     return "";
-  if (isContextPressureTranscript(input.transcript_path))
-    return "";
-  return isUltraworkPrompt(input.prompt) ? formatAdditionalContextOutput(ULTRAWORK_DIRECTIVE) : "";
+  return formatAdditionalContextOutput(ULTRAWORK_DIRECTIVE);
 }
-function hasUltraworkDirectiveAlreadyInTranscript(transcriptPath) {
+function readTranscriptSignals(transcriptPath) {
   if (transcriptPath === undefined || transcriptPath === null)
-    return false;
+    return { directiveAlreadyPresent: false, contextPressure: false };
   try {
     const rawTranscript = readTranscriptTail(transcriptPath);
+    const contextPressure = isContextPressureRecoveryPrompt(rawTranscript);
+    let directiveAlreadyPresent = false;
     for (const line of rawTranscript.split(/\r?\n/)) {
       const parsed = parseJsonLine(line);
       if (parsed === null) {
@@ -55,19 +58,28 @@ function hasUltraworkDirectiveAlreadyInTranscript(transcriptPath) {
         continue;
       }
       if (typeof hookSpecificOutput["additionalContext"] === "string" && hookSpecificOutput["additionalContext"].includes(ULTRAWORK_DIRECTIVE_MARKER)) {
-        return true;
+        directiveAlreadyPresent = true;
+        break;
       }
     }
+    return { directiveAlreadyPresent, contextPressure };
   } catch (error) {
     if (error instanceof Error)
-      return false;
+      return { directiveAlreadyPresent: false, contextPressure: false };
     throw error;
   }
-  return false;
 }
 function readTranscriptTail(transcriptPath) {
-  const rawTranscript = readFileSync2(transcriptPath);
-  return rawTranscript.subarray(Math.max(0, rawTranscript.byteLength - TRANSCRIPT_SEARCH_BYTES)).toString("utf8");
+  const descriptor = openSync(transcriptPath, "r");
+  try {
+    const size = fstatSync(descriptor).size;
+    const length = Math.min(size, TRANSCRIPT_SEARCH_BYTES);
+    const buffer = Buffer.alloc(length);
+    const bytesRead = readSync(descriptor, buffer, 0, length, size - length);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally {
+    closeSync(descriptor);
+  }
 }
 function isUltraworkPrompt(prompt) {
   return ULTRAWORK_CURRENT_PROMPT_PATTERN.test(prompt);
@@ -75,17 +87,6 @@ function isUltraworkPrompt(prompt) {
 function isContextPressureRecoveryPrompt(prompt) {
   const normalizedPrompt = prompt.toLowerCase();
   return CONTEXT_PRESSURE_MARKERS.some((marker) => normalizedPrompt.includes(marker));
-}
-function isContextPressureTranscript(transcriptPath) {
-  if (transcriptPath === undefined || transcriptPath === null)
-    return false;
-  try {
-    return isContextPressureRecoveryPrompt(readTranscriptTail(transcriptPath));
-  } catch (error) {
-    if (error instanceof Error)
-      return false;
-    throw error;
-  }
 }
 function formatAdditionalContextOutput(additionalContext) {
   const normalizedContext = normalizeAdditionalContext(additionalContext);

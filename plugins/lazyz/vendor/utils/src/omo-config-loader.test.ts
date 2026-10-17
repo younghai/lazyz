@@ -29,6 +29,7 @@ describe("loadOmoConfig", () => {
       expect(result.config).toEqual({
         codegraph: {
           auto_provision: true,
+		  daemon: true,
           enabled: true,
           telemetry: false,
         },
@@ -44,6 +45,31 @@ describe("loadOmoConfig", () => {
       rmSync(homeDir, { force: true, recursive: true })
     }
   })
+
+	test("#given CodeGraph 1.5 settings in base and Codex config #when loaded #then arrays merge and Codex-only cooldown survives", () => {
+		// given
+		const homeDir = makeTempHome()
+		const cwd = join(homeDir, "repo")
+		mkdirSync(cwd, { recursive: true })
+		writeConfig(homeDir, `{
+			"codegraph": { "excluded_roots": ["/tmp/base", "/tmp/shared"], "daemon": true },
+			"[codex]": { "codegraph": { "excluded_roots": ["/tmp/shared", "/tmp/codex"], "session_start_cooldown_ms": 900000 } }
+		}`)
+
+		try {
+			// when
+			const result = loadOmoConfig({ harness: "codex", cwd, homeDir, env: { CODEX_CODEGRAPH_DAEMON: "0" } })
+
+			// then
+			expect(result.config.codegraph).toMatchObject({
+				daemon: false,
+				excluded_roots: ["/tmp/base", "/tmp/shared", "/tmp/codex"],
+				session_start_cooldown_ms: 900_000,
+			})
+		} finally {
+			rmSync(homeDir, { force: true, recursive: true })
+		}
+	})
 
   test("#given global base and codex block #when loading codex config #then harness block deep-merges over base", () => {
     // given
@@ -73,6 +99,7 @@ describe("loadOmoConfig", () => {
       // then
       expect(result.config.codegraph).toEqual({
         auto_provision: true,
+		daemon: true,
         enabled: false,
         install_dir: "/base",
         telemetry: false,
@@ -99,6 +126,7 @@ describe("loadOmoConfig", () => {
       // then
       expect(result.config.codegraph).toEqual({
         auto_provision: false,
+		daemon: true,
         enabled: true,
         install_dir: "/child",
         telemetry: false,

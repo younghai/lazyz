@@ -17,6 +17,7 @@ import { isEssentialCriterion } from "./goal-status.js";
 import type { UlwLoopScope } from "./paths.js";
 import { addUlwLoopGoal, createUlwLoopPlan, startNextUlwLoop, summarizeUlwLoopPlan } from "./plan-crud.js";
 import { readUlwLoopPlan } from "./plan-io.js";
+import { buildQualityGateContext } from "./quality-gate-context.js";
 import { recordFinalReviewBlockers } from "./review-blockers.js";
 import { steerUlwLoop } from "./steering.js";
 import type { UlwLoopItem } from "./types.js";
@@ -120,6 +121,18 @@ export async function checkpoint(
 	const result = await checkpointUlwLoop(repoRoot, args, scope);
 	if (json) printJson({ ok: true, ...result, summary: summarizeUlwLoopPlan(result.plan) });
 	else process.stdout.write(`ulw-loop checkpoint: ${result.goal.id} -> ${result.goal.status}\n`);
+	return 0;
+}
+
+export async function qualityContext(
+	repoRoot: string,
+	argv: readonly string[],
+	json: boolean,
+	scope?: UlwLoopScope,
+): Promise<number> {
+	const context = await buildQualityGateContext(repoRoot, required(argv, "--goal-id"), scope);
+	if (json) printJson({ ok: true, ...context });
+	else process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
 	return 0;
 }
 

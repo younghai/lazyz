@@ -27,10 +27,26 @@ export type CodexPostToolUseInput = {
 
 export type CodexHookOptions = {
 	run?: CommentCheckerRunner;
+	readonly maxConcurrency?: number;
+	readonly maxRequests?: number;
+	readonly hookTimeoutMs?: number;
+	readonly onMetrics?: (metrics: CommentCheckerHookMetrics) => void;
 };
+
+export interface CommentCheckerHookMetrics {
+	readonly requested: number;
+	readonly scheduled: number;
+	readonly completed: number;
+	readonly maxConcurrency: number;
+	readonly timedOut: boolean;
+	readonly durationMs: number;
+}
 
 const DEFAULT_MAX_HOOK_FEEDBACK_CHARS = 8000;
 const CONTEXT_PRESSURE_MAX_HOOK_FEEDBACK_CHARS = 1200;
+const DEFAULT_MAX_CONCURRENCY = 4;
+const DEFAULT_MAX_REQUESTS = 16;
+const DEFAULT_HOOK_TIMEOUT_MS = 4_500;
 const CONTEXT_PRESSURE_MARKERS = [
 	"context compacted",
 	"context_length_exceeded",
@@ -50,32 +66,107 @@ export async function runCommentCheckerPostToolUse(
 	options: CodexHookOptions = {},
 ): Promise<string> {
 	const requests = extractCodexCommentCheckRequests(input);
-	if (requests.length === 0) return "";
-
-	const runner = options.run ?? runCommentChecker;
-	const warnings: Array<{ filePath: string; message: string }> = [];
-
-	for (const request of requests) {
-		const context = {
-			sessionId: input.session_id,
-			cwd: input.cwd,
-			...(input.transcript_path === null ? {} : { transcriptPath: input.transcript_path }),
-		};
-		const result = await runner(toHookInput(request, context));
-		if (result.status === "missing" || result.status === "pass") continue;
-		if (result.status === "error") continue;
-		const message = normalizeHookText(result.message);
-		if (message.length > 0) {
-			warnings.push({ filePath: request.filePath, message });
-		}
+	const startedAt = Date.now();
+	if (requests.length === 0) {
+		options.onMetrics?.({
+			requested: 0,
+			scheduled: 0,
+			completed: 0,
+			maxConcurrency: 0,
+			timedOut: false,
+			durationMs: 0,
+		});
+		return "";
 	}
 
-	if (warnings.length === 0) return "";
+	const maxRequests = normalizePositiveInteger(options.maxRequests, DEFAULT_MAX_REQUESTS);
+	const scheduledRequests = uniqueRequestsByFile(requests).slice(0, maxRequests);
+	const maxConcurrency = Math.min(
+		normalizePositiveInteger(options.maxConcurrency, DEFAULT_MAX_CONCURRENCY),
+		scheduledRequests.length,
+	);
+	const hookTimeoutMs = normalizePositiveInteger(options.hookTimeoutMs, DEFAULT_HOOK_TIMEOUT_MS);
+	const runner = options.run ?? runCommentChecker;
+	const warnings: Array<{ filePath: string; message: string } | undefined> = new Array(scheduledRequests.length);
+	const controller = new AbortController();
+	let nextIndex = 0;
+	let completed = 0;
+	let active = 0;
+	let observedMaxConcurrency = 0;
+	let timedOut = false;
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	const deadline = new Promise<"timeout">((resolve) => {
+		timeout = setTimeout(() => {
+			timedOut = true;
+			controller.abort("comment-checker hook deadline exceeded");
+			resolve("timeout");
+		}, hookTimeoutMs);
+		timeout.unref?.();
+	});
+	const workers = Promise.all(
+		Array.from({ length: maxConcurrency }, async () => {
+			for (;;) {
+				if (controller.signal.aborted) return;
+				const index = nextIndex;
+				nextIndex += 1;
+				const request = scheduledRequests[index];
+				if (request === undefined) return;
+				active += 1;
+				observedMaxConcurrency = Math.max(observedMaxConcurrency, active);
+				try {
+					const context = {
+						sessionId: input.session_id,
+						cwd: input.cwd,
+						...(input.transcript_path === null ? {} : { transcriptPath: input.transcript_path }),
+					};
+					const result = await runner(toHookInput(request, context), { signal: controller.signal });
+					if (result.status === "warning") {
+						const message = normalizeHookText(result.message);
+						if (message.length > 0) warnings[index] = { filePath: request.filePath, message };
+					}
+				} finally {
+					active -= 1;
+					completed += 1;
+				}
+			}
+		}),
+	);
+	await Promise.race([workers.then(() => "complete" as const), deadline]);
+	if (timeout !== undefined) clearTimeout(timeout);
+	if (timedOut) void workers.catch(() => undefined);
+	options.onMetrics?.({
+		requested: requests.length,
+		scheduled: scheduledRequests.length,
+		completed,
+		maxConcurrency: observedMaxConcurrency,
+		timedOut,
+		durationMs: Date.now() - startedAt,
+	});
+
+	const completedWarnings = warnings.filter(
+		(warning): warning is { filePath: string; message: string } => warning !== undefined,
+	);
+	if (completedWarnings.length === 0) return "";
 
 	return JSON.stringify({
 		decision: "block",
-		reason: limitHookText(formatWarnings(warnings), hookFeedbackLimit(input.transcript_path)),
+		reason: limitHookText(formatWarnings(completedWarnings), hookFeedbackLimit(input.transcript_path)),
 	});
+}
+
+function uniqueRequestsByFile(requests: readonly CommentCheckRequest[]): CommentCheckRequest[] {
+	const seen = new Set<string>();
+	const unique: CommentCheckRequest[] = [];
+	for (const request of requests) {
+		if (seen.has(request.filePath)) continue;
+		seen.add(request.filePath);
+		unique.push(request);
+	}
+	return unique;
+}
+
+function normalizePositiveInteger(value: number | undefined, fallback: number): number {
+	return value === undefined || !Number.isFinite(value) || value <= 0 ? fallback : Math.floor(value);
 }
 
 export async function runCodexHookCli(): Promise<void> {

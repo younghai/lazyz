@@ -7,8 +7,10 @@ type MutableCodegraphConfig = {
 
 const CODEGRAPH_ENV_KEYS: readonly [CodegraphSettingKey, string, "boolean" | "number" | "string"][] = [
   ["auto_provision", "AUTO_PROVISION", "boolean"],
+  ["daemon", "DAEMON", "boolean"],
   ["enabled", "ENABLED", "boolean"],
   ["install_dir", "INSTALL_DIR", "string"],
+  ["session_start_cooldown_ms", "SESSION_START_COOLDOWN_MS", "number"],
   ["telemetry", "TELEMETRY", "boolean"],
   ["watch_debounce_ms", "WATCH_DEBOUNCE_MS", "number"],
 ]
@@ -34,11 +36,19 @@ function setCodegraphSetting(config: MutableCodegraphConfig, key: CodegraphSetti
     case "auto_provision":
       if (typeof value === "boolean") config.auto_provision = value
       return
+    case "daemon":
+      if (typeof value === "boolean") config.daemon = value
+      return
     case "enabled":
       if (typeof value === "boolean") config.enabled = value
       return
+    case "excluded_roots":
+      return
     case "install_dir":
       if (typeof value === "string") config.install_dir = value
+      return
+    case "session_start_cooldown_ms":
+      if (typeof value === "number" && value >= 60_000) config.session_start_cooldown_ms = value
       return
     case "telemetry":
       if (typeof value === "boolean") config.telemetry = value

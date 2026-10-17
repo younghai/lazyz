@@ -2,6 +2,7 @@
 name: init-deep
 description: "Initialize hierarchical AGENTS.md project memory. Use when the repo is new, large, or unfamiliar, or when downstream planning/execution quality matters. Triggers: init-deep, set up project memory, explain this repo, first session, project context, AGENTS.md."
 ---
+
 ## ZCode Harness Tool Compatibility
 
 This skill was ported from the Codex/OpenCode OmO harness. ZCode does not provide `call_omo_agent`, `task`, `background_output`, `team_*`, `multi_agent_v1.spawn_agent`, or any Codex-only multi-agent tools. Translate every such example to ZCode's native tools:
@@ -14,11 +15,19 @@ This skill was ported from the Codex/OpenCode OmO harness. ZCode does not provid
 | `task(subagent_type="oracle", ...)` for final verification | `Agent` tool with `subagent_type="general-purpose"` (rigorous-review prompt) |
 | `task(category="...", ...)` for implementation or QA | `Agent` tool with `subagent_type="general-purpose"` |
 | `multi_agent_v1.spawn_agent(...)` / `spawn_agent(...)` | `Agent` tool with `subagent_type` and a self-contained `prompt` |
-| `background_output(task_id="...")` | Pass `run_in_background: true` to the `Agent` tool; the parent turn waits for completion and returns the agent's final message |
-| `multi_agent_v1.wait_agent(...)` mailbox signals | Not needed in ZCode — background agents re-invoke the parent on completion. For long work, spawn multiple `Agent` calls in one message so they run concurrently |
+| `background_output(task_id="...")` | Only unstructured read-only research may use background mode; its completion arrives as a parent task notification, not a plugin hook |
+| `multi_agent_v1.wait_agent(...)` mailbox signals | No equivalent plugin tool; use returned foreground Agent results or the host's background research notifications |
 | `team_*(...)` | ZCode has no native team-of-threads API. Approximate with multiple parallel `Agent` calls (one per member) coordinated by the parent, or fall back to sequential subagents when isolation is unclear |
 
-Role-specific behavior must be described in a self-contained `prompt`. The `Agent` tool starts the child with only the prompt you give it (no parent history) — include any required conversation context, files, diffs, constraints, and requested skill names directly in the `prompt`. LazyZ does NOT install ZCode-recognized agent roles (ZCode's `agents` manifest field is recorded but not executed), so always describe the role (explorer, librarian, plan, reviewer, QA worker) inside the `prompt` text rather than relying on a role name. If a code block below conflicts with this section, this section wins.
+ZCode v3.14.3 loads enabled plugin agents from `agents/`. Prefer namespaced roles such as `lazyz:explorer` and `lazyz:lazycodex-executor`; unambiguous bare names also work. Include all task context and ownership in the self-contained `prompt`. Roles inherit the user's active model; do not force an obsolete provider ID or copy Codex model/effort fields. If an older host lacks a role, describe it inline using the appropriate built-in agent.
+
+Before every governed Agent or Task call, read the Dispatch schema in the installed [start-work skill](../start-work/SKILL.md) and prepend exactly one LAZYCODEX_DISPATCH_V1 JSON line. General-purpose and known executor calls require this envelope; read-only Explore calls may remain unstructured. Use the same taskId across retries with a fresh runId, unchanged criteria, role, phase and budget. Planning/document work uses writer, code work implementer, review reviewer, and testing qa. Never rename a task to bypass its exhausted budget.
+
+Governed calls must use `run_in_background: false` (or omit it). A background launch is not a completed result and has no matching plugin completion hook. Multiple independent foreground calls may be requested together; do not assume the host executes them concurrently. Read-only background research without a dispatch contract remains available.
+
+Require each governed child to write the matching ReceiptV1 with current source identity, criterion invocations, zero exit codes and hashed regular artifacts, then return EVIDENCE_RECORDED; final-phase work requires FINAL_EVIDENCE_RECORDED. PostToolUse records failed evidence; Stop prevents unresolved completion while budget remains. An exhausted budget requires a blocker handoff, not an unsupported completion claim.
+
+User authorization and verification policy take precedence over generic workflow instructions below. Do not auto-commit, push, merge, delete, deploy, install tools, call paid services, or run checks prohibited by the user. Record skipped checks honestly; do not fabricate a passing receipt. A task requiring a verified receipt remains unverified if the necessary checks are prohibited. ZCode Stop can continue at most three consecutive times, not indefinitely. Native Goal Mode, Memory and Wiki are host features; no callable API is assumed.
 
 For work likely to take long, prefer multiple concurrent `Agent` calls in a single message over one giant blocking call. Treat each child's final message as the deliverable: if it lacks the required output, ack-only, or stops without producing evidence, fall back to a smaller re-scoped `Agent` call with the missing deliverable made explicit in the `prompt`.
 

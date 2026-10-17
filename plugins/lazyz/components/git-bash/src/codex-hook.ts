@@ -5,14 +5,14 @@ import { dirname, join } from "node:path";
 export interface PreToolUsePayload {
 	readonly cwd: string;
 	readonly hook_event_name: "PreToolUse";
-	readonly model: string;
+	readonly model?: string;
 	readonly permission_mode: string;
 	readonly session_id: string;
 	readonly tool_input: unknown;
 	readonly tool_name: string;
 	readonly tool_use_id: string;
-	readonly transcript_path: string | null;
-	readonly turn_id: string;
+	readonly transcript_path?: string | null;
+	readonly turn_id?: string;
 }
 
 export interface GitBashHookOptions {
@@ -26,6 +26,12 @@ export interface PostCompactPayload {
 	readonly session_id: string;
 	readonly transcript_path?: string | null;
 	readonly trigger?: string;
+}
+
+export interface SessionStartPayload {
+	readonly hook_event_name: "SessionStart";
+	readonly session_id: string;
+	readonly source?: string;
 }
 
 interface PreToolUseHookOutput {
@@ -86,21 +92,33 @@ export function applyGitBashPostCompactReset(payload: PostCompactPayload, option
 	return "";
 }
 
+export function applyGitBashSessionStartReset(payload: SessionStartPayload, options: GitBashHookOptions = {}): string {
+	if (payload.source !== "compact" && payload.source !== "clear") return "";
+	rmSync(reminderMarkerPath(payload.session_id, options.pluginDataRoot), { force: true });
+	return "";
+}
+
 export async function runGitBashHookCli(
 	stdin: NodeJS.ReadableStream,
 	stdout: NodeJS.WritableStream,
-	eventName: "pre-tool-use" | "post-compact" = "pre-tool-use",
+	eventName: "pre-tool-use" | "post-compact" | "session-start" = "pre-tool-use",
 	options: GitBashHookOptions = {},
 ): Promise<void> {
 	try {
 		const raw = await readAll(stdin);
 		const output =
-			eventName === "post-compact" ? postCompactOutput(raw, options) : preToolUseOutput(raw, options);
+			eventName === "post-compact" ? postCompactOutput(raw, options) : eventName === "session-start" ? sessionStartOutput(raw, options) : preToolUseOutput(raw, options);
 		if (output.length > 0) stdout.write(output);
 	} catch (error) {
 		if (error instanceof Error) return;
 		return;
 	}
+}
+
+function sessionStartOutput(raw: string, options: GitBashHookOptions): string {
+	const parsed: unknown = JSON.parse(raw);
+	if (!isSessionStartPayload(parsed)) return "";
+	return applyGitBashSessionStartReset(parsed, options);
 }
 
 function preToolUseOutput(raw: string, options: GitBashHookOptions): string {
@@ -127,7 +145,7 @@ function hasReminderMarker(path: string): boolean {
 }
 
 function reminderMarkerPath(sessionId: string, pluginDataRoot?: string): string {
-	const root = pluginDataRoot ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "omo-git-bash");
+	const root = pluginDataRoot ?? process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "omo-git-bash");
 	return join(root, "git-bash-reminder", `${safePathSegment(sessionId)}.seen`);
 }
 
@@ -140,13 +158,13 @@ function isPreToolUsePayload(value: unknown): value is PreToolUsePayload {
 	return (
 		value["hook_event_name"] === "PreToolUse" &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["session_id"] === "string" &&
 		typeof value["tool_name"] === "string" &&
 		typeof value["tool_use_id"] === "string" &&
-		(value["transcript_path"] === null || typeof value["transcript_path"] === "string") &&
-		typeof value["turn_id"] === "string" &&
+		(value["transcript_path"] === undefined || value["transcript_path"] === null || typeof value["transcript_path"] === "string") &&
+		(value["turn_id"] === undefined || typeof value["turn_id"] === "string") &&
 		Object.hasOwn(value, "tool_input")
 	);
 }
@@ -161,6 +179,10 @@ function isPostCompactPayload(value: unknown): value is PostCompactPayload {
 			typeof value["transcript_path"] === "string") &&
 		(value["trigger"] === undefined || typeof value["trigger"] === "string")
 	);
+}
+
+function isSessionStartPayload(value: unknown): value is SessionStartPayload {
+	return isRecord(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && (value["source"] === undefined || typeof value["source"] === "string");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

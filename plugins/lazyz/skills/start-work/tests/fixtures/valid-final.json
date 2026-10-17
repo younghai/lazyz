@@ -1,0 +1,6 @@
+{
+  "deliverable": "Implemented the parser boundary and regression tests",
+  "verify": "5 targeted tests passed",
+  "artifact": ".omo/evidence/session-parser.txt",
+  "completion_condition_met": true
+}

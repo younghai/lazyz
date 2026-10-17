@@ -1,5 +1,56 @@
 {
 	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "^(Agent|Task)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook pre-tool-use",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.11.0) Reserving Executor Budget"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "^(Agent|Task)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook post-tool-use",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.11.0) Verifying Executor Receipt"
+					}
+				]
+			}
+		],
+		"PostToolUseFailure": [
+			{
+				"matcher": "^(Agent|Task)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook post-tool-use-failure",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.11.0) Recording Executor Failure"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook stop",
+						"timeout": 10,
+						"statusMessage": "(LazyZ 0.11.0) Checking Executor Tasks"
+					}
+				]
+			}
+		],
 		"SubagentStop": [
 			{
 				"matcher": "^lazycodex-executor$",
@@ -8,7 +59,7 @@
 						"type": "command",
 						"command": "node \"${PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js\" hook subagent-stop",
 						"timeout": 10,
-						"statusMessage": "(LazyZ 0.10.2) Verifying Executor Evidence"
+						"statusMessage": "(LazyZ 0.11.0) Verifying Executor Evidence"
 					}
 				]
 			}

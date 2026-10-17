@@ -137,4 +137,5 @@ AGENT_BROWSER_HEADED=1           # show the browser window
 - Do NOT use vanilla Chrome when stealth is needed — always CloakBrowser.
 - Do NOT forget to `close` the session when done.
 - Do NOT inject cookies without reloading the page.
+- NEVER clear cookies, cache, or site data on the user's real browser profile. Clone the profile first and clear only the disposable clone.
 - Do NOT hardcode site domains/selectors into `engine/**` or `waf_profiles.yaml` — runtime hints only (see the no-site-name rule in the insane-search reference).

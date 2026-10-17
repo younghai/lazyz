@@ -4,7 +4,10 @@
 // LazyZ port: ZCode has no Codex threads. A member is a one-shot Agent-tool call
 // whose FINAL MESSAGE is the deliverable. There is no live `send_message_to_thread`;
 // members report by returning their findings in their final message and exchange
-// files through the shared artifacts/ directory. The guide reflects this model.
+// files through the shared artifacts/ directory. Governed calls stay foreground
+// because background completion notifications are not PostToolUse receipts.
+
+import { DISPATCH_MARKER, buildMemberDispatch } from "./team-dispatch.mjs";
 
 function memberLine(member) {
 	const wt = member.worktree?.path ? ` | worktree ${member.worktree.path}` : "";
@@ -31,8 +34,8 @@ that is a coordination signal: report \`BLOCKED: <reason>\` in your final messag
 This team runs each member in its own git worktree branched off \`${team.worktree.baseBranch}\`.
 **You MUST work only inside your own worktree.** The leader passes your worktree path in
 your dispatch prompt; every edit, command, and commit happens there. Never touch another
-member's worktree, and never edit files outside your assigned scope. Commit your work so the
-leader can integrate it. If your assigned worktree path is missing, empty, or does not look
+member's worktree, and never edit files outside your assigned scope. Commit only when the
+user authorized it; otherwise hand off the local diff. If your assigned worktree path is missing, empty, or does not look
 like a git worktree/repository, report \`BLOCKED: worktree not ready\` in your final message
 and stop.
 
@@ -109,9 +112,10 @@ Your slice is done only when (1) the deliverable exists, (2) you have evidence i
 are true, keep working within your turn.`;
 }
 
-export function buildMemberPrompt(team, id) {
+export function buildMemberPrompt(team, id, dispatchOptions = {}) {
 	const member = team.members.find((m) => m.id === id);
 	if (!member) throw new Error(`no member with id "${id}"`);
+	const dispatch = buildMemberDispatch(team, member, dispatchOptions);
 	const guide = team.paths?.guide ?? ".omo/teams/<session_id>/guide.md";
 	const teamJson = team.paths?.team ?? ".omo/teams/<session_id>/team.json";
 	const where = member.cwd
@@ -123,8 +127,13 @@ export function buildMemberPrompt(team, id) {
 		team.worktree?.enabled
 			? "\nBefore editing, verify that your assigned worktree exists and contains repo files. If the path is missing, empty, or not a git worktree/repository, return `BLOCKED: worktree not ready` and stop."
 			: "";
-	return `You are member ${member.id}${member.name ? ` (${member.name})` : ""} of team ${team.teamName} - owner of: ${member.focus}. Your deliverable: ${member.deliverable || "(not specified - infer from your focus)"}.
+	return `${DISPATCH_MARKER}${JSON.stringify(dispatch.contract)}
+You are member ${member.id}${member.name ? ` (${member.name})` : ""} of team ${team.teamName} - owner of: ${member.focus}. Your deliverable: ${member.deliverable || "(not specified - infer from your focus)"}.
 FIRST read your field manual at \`${guide}\`, then the team state at \`${teamJson}\`; they define your scope, deliverable, the leader, the artifacts directory, and the communication model.
 ${where}${readiness}
-You have ONE turn. Do the work, then return your deliverable to the leader in your final message, structured per the guide (status line first: DONE/BLOCKED/PARTIAL). Put large outputs in the artifacts directory and reference them by path. Report in English.`;
+Completion criterion C001: ${dispatch.criterion}
+You have ONE turn. Do the work, then return your deliverable to the leader in your final message, structured per the guide (status line first: DONE/BLOCKED/PARTIAL). Put large outputs in the artifacts directory and reference them by path. Report in English.
+
+Write a ReceiptV1 JSON receipt to \`${dispatch.receiptPath}\` with exactly these top-level fields: \`schemaVersion\`, \`taskId\`, \`runId\`, \`role\`, \`phase\`, \`source\`, \`criteria\`, and \`artifacts\`. Bind it to the dispatch values above. \`source\` contains the current \`commitSha\` and dirty-aware \`treeOid\`; \`criteria\` contains C001 with \`outcome: "passed"\`, the real verification \`invocation\`, \`exitCode: 0\`, and non-empty \`artifactIds\`; \`artifacts\` contains matching ids, confined regular paths under \`.omo/evidence/\`, and their SHA-256 hashes. Follow the installed start-work contract at \`\${ZCODE_PLUGIN_ROOT}/skills/start-work/SKILL.md\` if you need the canonical schema details. Never invent evidence, command results, provenance, artifacts, or hashes.
+End the final response with exactly one machine marker line: \`${dispatch.finalMarker}: ${dispatch.receiptPath}\`.`;
 }

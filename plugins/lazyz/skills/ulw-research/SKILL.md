@@ -1,6 +1,6 @@
 ---
 name: ulw-research
-description: "Maximum-saturation research orchestration: parallel explore+librarian swarms across codebase, web, official docs, and OSS repos; a recursive EXPAND loop driven by leads workers return in message text; empirical verification by running code; cited synthesis and optional MD/HTML/PDF/PPTX reports. ACTIVATES ONLY on an explicit user demand for research — the word 'ulw-research' ('/ulw-research', '$ulw-research'), any 'ulw' research wording, or an explicit request for research / deep research / an ultra-precise investigation, in any language. Never self-activates for ordinary questions, debugging, or implementation context-gathering. While active it overrides exploration-bounding defaults: exhaustive coverage is the goal."
+description: "Maximum-saturation research orchestration: parallel explore+librarian swarms across codebase, web, official docs, and OSS repos; a recursive EXPAND loop; provenance, source-type, entity-disambiguation, and MEASURED/ASSUMED/DERIVED claim lineage; empirical verification; cited synthesis; and optional user-requested MD/HTML/PDF/PPTX reports. ACTIVATES ONLY on an explicit user demand for research — the word 'ulw-research' ('/ulw-research', '$ulw-research'), any 'ulw' research wording, or an explicit request for research / deep research / an ultra-precise investigation, in any language. Never self-activates for ordinary questions, debugging, or implementation context-gathering."
 ---
 
 ## ZCode Harness Tool Compatibility
@@ -15,13 +15,23 @@ This skill was ported from the Codex/OpenCode OmO harness. ZCode does not provid
 | `task(subagent_type="oracle", ...)` for final verification | `Agent` tool with `subagent_type="general-purpose"` (rigorous-review prompt) |
 | `task(category="...", ...)` for implementation or QA | `Agent` tool with `subagent_type="general-purpose"` |
 | `multi_agent_v1.spawn_agent(...)` / `spawn_agent(...)` | `Agent` tool with `subagent_type` and a self-contained `prompt` |
-| `background_output(task_id="...")` | Pass `run_in_background: true` to the `Agent` tool; the parent turn waits for completion and returns the agent's final message |
-| `multi_agent_v1.wait_agent(...)` mailbox signals | Not needed in ZCode — background agents re-invoke the parent on completion. For long work, spawn multiple `Agent` calls in one message so they run concurrently |
+| `background_output(task_id="...")` | Only unstructured read-only research may use background mode; its completion arrives as a parent task notification, not a plugin hook |
+| `multi_agent_v1.wait_agent(...)` mailbox signals | No equivalent plugin tool; use returned foreground Agent results or the host's background research notifications |
 | `team_*(...)` | ZCode has no native team-of-threads API. Approximate with multiple parallel `Agent` calls (one per member) coordinated by the parent, or fall back to sequential subagents when isolation is unclear |
 
-Role-specific behavior must be described in a self-contained `prompt`. The `Agent` tool starts the child with only the prompt you give it (no parent history) — include any required conversation context, files, diffs, constraints, and requested skill names directly in the `prompt`. LazyZ does NOT install ZCode-recognized agent roles (ZCode's `agents` manifest field is recorded but not executed), so always describe the role (explorer, librarian, plan, reviewer, QA worker) inside the `prompt` text rather than relying on a role name. If a code block below conflicts with this section, this section wins.
+ZCode v3.14.3 loads enabled plugin agents from `agents/`. Prefer namespaced roles such as `lazyz:explorer` and `lazyz:lazycodex-executor`; unambiguous bare names also work. Include all task context and ownership in the self-contained `prompt`. Roles inherit the user's active model; do not force an obsolete provider ID or copy Codex model/effort fields. If an older host lacks a role, describe it inline using the appropriate built-in agent.
 
-For work likely to take long, prefer multiple concurrent `Agent` calls in a single message over one giant blocking call. Treat each child's final message as the deliverable: if it lacks the required output, ack-only, or stops without producing evidence, fall back to a smaller re-scoped `Agent` call with the missing deliverable made explicit in the `prompt`.# ULW-RESEARCH — Maximum-Saturation Research
+Before every governed Agent or Task call, read the Dispatch schema in the installed [start-work skill](../start-work/SKILL.md) and prepend exactly one LAZYCODEX_DISPATCH_V1 JSON line. General-purpose and known executor calls require this envelope; read-only Explore calls may remain unstructured. Use the same taskId across retries with a fresh runId, unchanged criteria, role, phase and budget. Planning/document work uses writer, code work implementer, review reviewer, and testing qa. Never rename a task to bypass its exhausted budget.
+
+Governed calls must use `run_in_background: false` (or omit it). A background launch is not a completed result and has no matching plugin completion hook. Multiple independent foreground calls may be requested together; do not assume the host executes them concurrently. Read-only background research without a dispatch contract remains available.
+
+Require each governed child to write the matching ReceiptV1 with current source identity, criterion invocations, zero exit codes and hashed regular artifacts, then return EVIDENCE_RECORDED; final-phase work requires FINAL_EVIDENCE_RECORDED. PostToolUse records failed evidence; Stop prevents unresolved completion while budget remains. An exhausted budget requires a blocker handoff, not an unsupported completion claim.
+
+User authorization and verification policy take precedence over generic workflow instructions below. Do not auto-commit, push, merge, delete, deploy, install tools, call paid services, or run checks prohibited by the user. Record skipped checks honestly; do not fabricate a passing receipt. A task requiring a verified receipt remains unverified if the necessary checks are prohibited. ZCode Stop can continue at most three consecutive times, not indefinitely. Native Goal Mode, Memory and Wiki are host features; no callable API is assumed.
+
+For work likely to take long, prefer multiple concurrent `Agent` calls in a single message over one giant blocking call. Treat each child's final message as the deliverable: if it lacks the required output, ack-only, or stops without producing evidence, fall back to a smaller re-scoped `Agent` call with the missing deliverable made explicit in the `prompt`.
+
+# ULW-RESEARCH — Maximum-Saturation Research
 
 You are the research orchestrator. The user has explicitly ordered exhaustive research: fan parallel worker swarms out over every relevant source, chase every lead they surface until the leads run dry, prove contested claims by running code, and deliver a synthesis in which every claim carries a citation or a proof. Exhaustive coverage is the assignment, not a risk to manage.
 
@@ -45,8 +55,21 @@ The research is done when all of these hold:
 - Every EXPAND lead was investigated or explicitly closed as a duplicate or dead end, and convergence was reached under the Phase 2 rules.
 - Claims that were contested, undocumented, or performance-shaped were proven or refuted by executed code.
 - Every claim in the deliverable cites a source or a verification artifact.
-- Final materials follow the Phase 5 format default or the user's explicit format.
+- `SYNTHESIS.md` is complete; additional output formats exist only when the user explicitly requested them.
 - The session journal reconstructs what was searched, found, and expanded, wave by wave.
+- Every material claim records provenance, source type, entity identity, and `MEASURED`, `ASSUMED`, or `DERIVED` lineage.
+- Every requested visual asset is listed in the asset manifest, exists at the recorded path, and passed rendered visual QA.
+
+## Epistemic instrumentation
+
+The orchestrator owns these journal artifacts. Workers return candidates as message text and never write them directly:
+
+- `source-register.md` — one row per source: stable source ID, URL or repository path, source type (`primary`, `official`, `dataset`, `code`, `secondary`, or `community`), publisher/owner, accessed time, version/date/SHA when available, and provenance notes explaining how the evidence was obtained.
+- `entity-register.md` — one stable entity ID per person, company, project, package, dataset, or product version. Record canonical name, aliases, scope/version, and the evidence used to disambiguate collisions. Claims cite entity IDs, not ambiguous display names alone.
+- `claim-lineage.md` — one row per claim with a stable claim ID and exactly one lineage class: `MEASURED` for a direct observation or executed result, `ASSUMED` for an explicit premise not established by evidence, or `DERIVED` for a computation/inference. `MEASURED` rows cite source or verification IDs; `ASSUMED` rows state impact if false; `DERIVED` rows cite parent claim IDs and the transformation or reasoning.
+- `asset-manifest.md` — one row per requested chart, screenshot, diagram, or generated image: asset ID, purpose, source/provenance, generator or capture command, expected path, existence status, render-check artifact, and visual-QA verdict.
+
+No synthesis claim may silently change lineage class. If evidence upgrades an assumption to a measurement, append a superseding row and retain the earlier provenance trail.
 
 ## Run the swarm as a cooperating team
 
@@ -92,7 +115,7 @@ Before spawning anything, decompose the query:
 <analysis>
 Core question: <the actual information need>
 Axes (3+ orthogonal): <axis — what to search, where, why> ...
-Codebase relevant: <yes/no> · External: <yes/no> · Browsing: <yes/no> · Verification likely: <yes/no> · Final material format: <HTML/PDF default | explicit format | markdown only>
+Codebase relevant: <yes/no> · External: <yes/no> · Browsing: <yes/no> · Verification likely: <yes/no> · Requested output format: <none | explicit user-requested format>
 </analysis>
 ```
 
@@ -106,7 +129,8 @@ This is `$SESSION_DIR`. The orchestrator owns the journal: you write every file 
 
 - `wave-<N>-<kind>-<axis>.md` — your digest of each worker return: key findings, sources with URLs, and the worker's EXPAND markers verbatim.
 - `expansion-log.md` — per wave: workers spawned, markers gained, leads opened and closed.
-- `verify-<slug>.md`, `SYNTHESIS.md`, `REPORT.*` from later phases.
+- `source-register.md`, `entity-register.md`, `claim-lineage.md`, and `asset-manifest.md` from the instrumentation contract.
+- `verify-<slug>.md`, `SYNTHESIS.md`, and only user-requested `REPORT.*` files from later phases.
 
 Append each digest the moment its worker returns, not in a batch at the end — the journal is your recovery point after context loss and the user's audit trail.
 
@@ -172,7 +196,7 @@ Settle with executed code, not judgment, whenever sources disagree, a behavior i
 task(category="deep", run_in_background=true, prompt="TASK: verify by execution: <claim>.
 SOURCE: <where it came from>; CONTRADICTION: <opposing source, if any>.
 Write a minimal self-contained script that tests the claim; run it (uv run --with <deps> python / bun / direct compile); capture full stdout+stderr; pin versions.
-Reply with: the exact code, the full output, environment (OS, runtime, dependency versions), and a verdict — CONFIRMED / REFUTED / PARTIAL — grounded in the output.")
+Reply with: the exact code, the full output, environment (OS, runtime, dependency versions), a MEASURED claim candidate with source provenance and disambiguated entity IDs, and a verdict — CONFIRMED / REFUTED / PARTIAL — grounded in the output.")
 ```
 
 Journal each verdict to `verify-<slug>.md`.
@@ -193,7 +217,7 @@ Anything that fails goes to an `Unresolved` (insufficient evidence) or `Refuted`
 
 ```
 ## CLAIMS
-- CLAIM: <non-code assertion> — RISK: high|normal — SOURCES: <domain1, domain2> — COUNTER: <refutation search result> — PRIMARY: <primary source or none>
+- CLAIM: <non-code assertion> — ENTITY: <stable entity id> — LINEAGE: MEASURED|ASSUMED|DERIVED — SOURCES: <source ids + source types + provenance> — PARENTS: <claim ids for DERIVED or none> — RISK: high|normal — COUNTER: <refutation search result> — PRIMARY: <primary source or none>
 ```
 
 ## Phase 4 — Synthesize
@@ -205,9 +229,9 @@ After convergence and all verifications, re-read the whole journal and write `SY
 Workers: <total> · Waves: <count> · Sources: <count> · Verifications: <count>
 
 ## Executive summary        — 2-3 paragraphs answering the core question
-## Findings by theme        — per theme: consensus, evidence links, key quote (<20 words, attributed), verified yes/no
+## Findings by theme        — per theme: claim ID, lineage, entity ID, consensus, evidence links, key quote (<20 words, attributed), verified yes/no
 ## Codebase findings        — absolute paths with line references
-## Sources (ranked)         — URL, what it contains, reliability, access date
+## Sources (ranked)         — source ID, type, provenance, URL/path, what it contains, reliability, access date/version/SHA
 ## Verified claims          — code: claim | verdict | verify-<slug>.md · non-code: only rows cleared into verified-claims
 ## Contradictions           — source A vs source B, resolution with evidence
 ## Gaps                     — what saturation could not answer · unresolved/refuted claim-ledger rows
@@ -216,13 +240,13 @@ Workers: <total> · Waves: <count> · Sources: <count> · Verifications: <count>
 
 `SYNTHESIS.md` is the citation source of truth for final materials: every claim carries inline `[Source N]` citations, and every high-risk non-code claim you assert must be a verified-claims row from Phase 3b. Assert nothing the gate left in the unresolved/refuted annex.
 
-## Phase 5 — Final materials
+## Phase 5 — User-requested final materials
 
-Default final materials to HTML/PDF unless the user explicitly asks for a different format: "report" / "document" → HTML first, with a PDF default available through weasyprint (`uv run --with weasyprint python`) · "pdf" → HTML first, then weasyprint · "slides" / "presentation" / "deck" → python-pptx · "html" / "webpage" → standalone HTML · "markdown only" → Markdown.
+`SYNTHESIS.md` is the default deliverable. Do not create HTML, PDF, slides, charts, screenshots, diagrams, or generated images unless the user explicitly requested that output or asset type. Map explicit requests as follows: "report" / "document" → HTML; "pdf" → HTML then PDF via weasyprint; "slides" / "presentation" / "deck" → PPTX; "html" / "webpage" → standalone HTML; "markdown only" → Markdown.
 
-Asset workers (background, parallel): actively use charts for quantitative findings (`uv run --with matplotlib --with plotly python`) saved by you to `$SESSION_DIR/assets/`; Mermaid graphs for process, architecture, argument, and evidence-flow structure; full-page screenshots of the top 5-10 sources (browsing skill); generated diagrams or editorial visuals with the imagegen skill when architecture, flows, or narrative framing benefit from bitmap assets.
+When visual assets were requested, create `$SESSION_DIR/assets/` and register every planned asset in `asset-manifest.md` before generation. After generation, verify every expected path exists, open or render each asset through the matching surface, and record the render evidence plus visual-QA verdict. Missing files, zero-byte files, unrendered Mermaid, broken image links, clipped charts, unreadable labels, or a manifest row without a render check block completion.
 
-Assembly worker — `task(category="deep", load_skills=["frontend", "visual-qa", "open-design", "data-scientist", "imagegen", "ulw-loop"], run_in_background=true, ...)`: before writing, read every available design and visualization skill and apply it — the report is a designed artifact, not a text dump. Run HTML/PDF output through the ULW loop with frontend and visual-qa, then repair until the reviewer says no broken parts and gives approval. Structure: executive summary → key findings by theme → detailed analysis (quotes under 20 words with attribution, charts, Mermaid graphs, generated visuals, SHA-pinned permalinks, verification results) → comparative analysis when options compete → numbered sources with access dates → methodology appendix (workers, waves, searches, verifications). Every claim cites `[Source N]`.
+For a requested designed report, dispatch an assembly worker with the relevant ZCode-compatible skills named in its prompt (`frontend`, `visual-qa`, `data-scientist`, and `imagegen` only when generated images were requested). Run HTML/PDF output through visual QA, repair until approved, then recheck every manifest path and rendered reference. Structure: executive summary → key findings by theme → detailed analysis → comparative analysis when options compete → numbered sources with access dates → methodology appendix. Every claim cites its source and claim IDs.
 
 ## Search craft
 
@@ -254,3 +278,7 @@ High-yield combinations: official docs (`site:<docs domain>`), GitHub implementa
 | Two workers given the same angle | One unique angle per worker, always |
 | Contested claim settled by judgment | Phase 3 — run code, capture output, verdict |
 | Deliverable claims without citations | Every claim cites a source or a verification artifact |
+| Ambiguous entity names merged together | Assign entity IDs and record alias/version disambiguation before synthesis |
+| Measurements, assumptions, and inferences blended | Label every claim MEASURED, ASSUMED, or DERIVED and record its lineage |
+| Unrequested report formats or decorative assets | Produce only `SYNTHESIS.md` unless the user explicitly requested another format or asset |
+| Asset path listed but not rendered | Check existence, render through the matching surface, and record visual-QA evidence in the manifest |

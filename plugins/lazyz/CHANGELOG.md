@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.11.0 publication repairs — 2026-10-18
+
+- Remove implicit installs from LSP builders and regenerate MCP source bundles.
+- Declare esbuild directly and lock patched js-yaml/source-map-js/Vitest versions.
+- Align `/start-work` with approved-plan execution and test native hook argv.
+- Isolate LSP test contexts, preserve fail-closed core context rules, and handle
+  standalone resource probes without affecting daemon workspace confinement.
+- Load bundled Markdown prompts as text; preserve raw prompt content under Bun.
+- Make vendored tests portable and reconcile frozen capability metadata spelling
+  without changing provider routing or inherited ZCode model selection.
+- Local product check: 1,385 passing tests, component typechecks and compatibility.
+  This does not certify live ZCode, paid providers or the upstream Codex installer.
+
+## 0.11.0 — 2026-10-07
+
+ZCode-native adaptation reviewed against ZCode v3.14.3 and LazyCodex/omo-ai 5.1.22.
+This is a selective update, not a full replacement of the vendored upstream baseline.
+
+- Run all root hooks as native process/argv executors, without shell parsing or a
+  separate Node-version probe on every hook; validate process entrypoints in doctor.
+- Accept documented hook payloads without Codex-only `model` or `turn_id` fields and
+  prefer `ZCODE_PLUGIN_DATA` for persistent plugin state. Namespace rules and LSP
+  caches separately so shared session identifiers cannot overwrite another component.
+- Reset LSP/Git context markers on SessionStart compact/clear. Respect the host's
+  three-block Stop limit and hook-local transcript lifetime.
+- Discover 13 namespaced plugin agents with `model: inherit`. Keep structured work
+  foreground so task receipts can be checked; reject background dispatches before
+  reserving a task. Unstructured read-only research remains background-capable.
+- Separate plan approval from execution, add `/ulw-execute`, register durable goals,
+  and make testing/delegation honor the user's authorization and verification policy.
+- Read at most 512,000 transcript bytes once per ultrawork trigger, and skip that
+  read for ordinary prompts. This bounds I/O; no end-to-end speedup is claimed.
+- Replace unsupported MCP `required` fields with documented enabled/timeout settings.
+  Preserve release allowlists, manifest integrity, receipts, budgets and privacy defaults.
+
+Local check evidence and remaining real-host limits are recorded in the 2026-10-07
+AI review report. No host installation, deployment or provider/model call is implied.
+
 ## 0.1.1 — 2026-07-05
 
 Install-and-go release. The prebuilt `dist/` for all 13 hooks and the three

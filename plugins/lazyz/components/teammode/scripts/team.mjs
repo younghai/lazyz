@@ -13,8 +13,8 @@
 // bun on macOS, Linux, and Windows.
 //
 //   node "<component-root>/scripts/team.mjs" init        --name "<team>" --session-name "<sess>" [--session <id>] [--worktree] [--base-branch dev]
-//   node "<component-root>/scripts/team.mjs" add-member  --team <id> --id A --name "<short role>" --focus "<part/ownership/perspective>" --lens area|ownership|perspective --deliverable "<...>" [--branch <b>]
-//   node "<component-root>/scripts/team.mjs" member-prompt --team <id> --id A
+//   node "<component-root>/scripts/team.mjs" add-member  --team <id> --id A --name "<short role>" --focus "<part/ownership/perspective>" --lens area|ownership|perspective --deliverable "<...>" [--branch <b>] [dispatch options]
+//   node "<component-root>/scripts/team.mjs" member-prompt --team <id> --id A [--role implementer|reviewer|qa|writer] [--phase execute|verify|final] [--max-calls 1..5] [--max-same-failure 1..3]
 //   node "<component-root>/scripts/team.mjs" set-run-id  --team <id> --id A [--run "<runId>"]
 //   node "<component-root>/scripts/team.mjs" set-status  --team <id> --id A --status reported|blocked|active|archived [--note "<...>"]
 //   node "<component-root>/scripts/team.mjs" worktree-add --team <id> --id A [--base-branch <b>]
@@ -30,6 +30,7 @@ import { realpathSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildGuide, buildMemberPrompt } from "./team-guide.mjs";
+import { dispatchOptionsFromFlags } from "./team-dispatch.mjs";
 import {
 	addMember,
 	archive,
@@ -129,6 +130,7 @@ const handlers = {
 	async "add-member"(cwd, flags) {
 		const sessionId = requireFlag(flags, "team");
 		const memberId = requireFlag(flags, "id").trim();
+		const dispatchOptions = dispatchOptionsFromFlags(flags);
 		const memberInput = {
 			id: memberId,
 			name: typeof flags.name === "string" ? flags.name : null,
@@ -142,13 +144,13 @@ const handlers = {
 			await persist(team, dir);
 			return { team, member: team.members.find((m) => m.id === memberId) };
 		});
-		process.stdout.write(`added member ${memberId} to team ${sessionId}.\n\nUse this as the Agent-tool dispatch prompt body for member ${memberId}:\n---\n${buildMemberPrompt(team, memberId)}\n---\n`);
+		process.stdout.write(`added member ${memberId} to team ${sessionId}.\n\nUse this as the Agent-tool dispatch prompt body for member ${memberId}:\n---\n${buildMemberPrompt(team, memberId, dispatchOptions)}\n---\n`);
 	},
 
 	async "member-prompt"(cwd, flags) {
 		const sessionId = requireFlag(flags, "team");
 		const { team } = await loadTeam(cwd, sessionId);
-		process.stdout.write(`${buildMemberPrompt(team, requireFlag(flags, "id"))}\n`);
+		process.stdout.write(`${buildMemberPrompt(team, requireFlag(flags, "id"), dispatchOptionsFromFlags(flags))}\n`);
 	},
 
 	async "set-run-id"(cwd, flags) {

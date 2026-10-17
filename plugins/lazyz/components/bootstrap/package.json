@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/bootstrap",
-	"version": "0.10.2",
+	"version": "0.11.0",
 	"description": "Codex SessionStart bootstrap component that provisions LazyCodex runtime dependencies from a detached worker.",
 	"type": "module",
 	"private": true,
@@ -12,7 +12,8 @@
 	],
 	"scripts": {
 		"build": "node scripts/build.mjs",
-		"test": "bun test test/*.test.ts"
+		"test": "bun test test/*.test.ts",
+		"typecheck": "tsc --noEmit --module ESNext --moduleResolution Bundler --noPropertyAccessFromIndexSignature false --noUncheckedIndexedAccess false --exactOptionalPropertyTypes false"
 	},
 	"engines": {
 		"node": ">=20.0.0"

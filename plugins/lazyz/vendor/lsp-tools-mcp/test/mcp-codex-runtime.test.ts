@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { disposeDefaultLspManager } from "../src/lsp/manager.js";
 import { handleLspMcpRequest, type JsonRpcResponse, runMcpStdioServer } from "../src/mcp.js";
+import { withTempRequestContext } from "./helpers/request-context.js";
 import { fakeLspServerSource } from "./helpers/fake-lsp-server-source.js";
 
 type LogEntry = {
@@ -21,28 +22,30 @@ describe("lsp MCP Codex runtime", () => {
 
 		try {
 			// when
-			const initialize = await handleLspMcpRequest({
-				jsonrpc: "2.0",
-				id: 1,
-				method: "initialize",
-				params: {
-					protocolVersion: "2024-11-05",
-					capabilities: {},
-					clientInfo: { name: "codex", version: "0.0.0" },
-				},
-			});
-			const resources = await handleLspMcpRequest({ jsonrpc: "2.0", id: 2, method: "resources/list" });
-			const resourceTemplates = await handleLspMcpRequest({
-				jsonrpc: "2.0",
-				id: 3,
-				method: "resources/templates/list",
-			});
-			const diagnostics = await handleLspMcpRequest({
-				jsonrpc: "2.0",
-				id: 4,
-				method: "tools/call",
-				params: { name: "diagnostics", arguments: { filePath: fixture.filePath, severity: "error" } },
-			});
+			const [initialize, resources, resourceTemplates, diagnostics] = await withTempRequestContext(
+				() =>
+					Promise.all([
+						handleLspMcpRequest({
+							jsonrpc: "2.0",
+							id: 1,
+							method: "initialize",
+							params: {
+								protocolVersion: "2024-11-05",
+								capabilities: {},
+								clientInfo: { name: "codex", version: "0.0.0" },
+							},
+						}),
+						handleLspMcpRequest({ jsonrpc: "2.0", id: 2, method: "resources/list" }),
+						handleLspMcpRequest({ jsonrpc: "2.0", id: 3, method: "resources/templates/list" }),
+						handleLspMcpRequest({
+							jsonrpc: "2.0",
+							id: 4,
+							method: "tools/call",
+							params: { name: "diagnostics", arguments: { filePath: fixture.filePath, severity: "error" } },
+						}),
+					]),
+				{ cwd: fixture.root },
+			);
 
 			// then
 			expect(initialize?.result?.serverInfo?.["name"]).toBe("lsp");
@@ -70,6 +73,15 @@ describe("lsp MCP Codex runtime", () => {
 
 		const server = runMcpStdioServer(input, output, {
 			idleTimeoutMs: 0,
+			requestContext: {
+				cwd: fixture.root,
+				homeDir: fixture.root,
+				env: {
+					LSP_TOOLS_MCP_PROJECT_CONFIG: process.env["LSP_TOOLS_MCP_PROJECT_CONFIG"],
+					LSP_TOOLS_MCP_USER_CONFIG: process.env["LSP_TOOLS_MCP_USER_CONFIG"],
+					LSP_TOOLS_MCP_INSTALL_DECISIONS: join(fixture.root, "lsp-install-decisions.json"),
+				},
+			},
 			log: (event, fields) => {
 				logs.push(fields === undefined ? { event } : { event, fields });
 			},
@@ -91,15 +103,17 @@ describe("lsp MCP Codex runtime", () => {
 
 			// then
 			const response = parseJsonRpcResponse(received.join("").trim());
-			expect(response.result?.content?.[0]?.text).toContain("LSP server 'missing' is configured but NOT INSTALLED.");
-			expect(response.result?.content?.[0]?.text).toContain("Command not found: definitely-missing-lsp");
+			const message = response.result?.content?.[0]?.text;
+			expect(message).toContain("'missing'");
+			expect(message).toContain("NOT INSTALLED");
+			expect(message).toContain("Command not found: definitely-missing-lsp");
 			expect(logs).toContainEqual(
 				expect.objectContaining({
 					event: "tool_error",
 					fields: expect.objectContaining({
 						id: "7",
 						method: "tools/call",
-						message: expect.stringContaining("LSP server 'missing' is configured but NOT INSTALLED."),
+						message: expect.stringContaining("NOT INSTALLED"),
 					}),
 				}),
 			);
@@ -109,7 +123,7 @@ describe("lsp MCP Codex runtime", () => {
 	});
 });
 
-function createConfiguredFakeLspFixture(): { readonly filePath: string; readonly dispose: () => Promise<void> } {
+function createConfiguredFakeLspFixture(): RuntimeFixture {
 	const root = mkdtempSync(join(tmpdir(), "lsp-mcp-startup-"));
 	const serverPath = join(root, "fake-lsp-server.mjs");
 	const configPath = join(root, "lsp-client.json");
@@ -131,7 +145,7 @@ function createConfiguredFakeLspFixture(): { readonly filePath: string; readonly
 	return createFixture(root, configPath, filePath);
 }
 
-function createMissingServerFixture(): { readonly filePath: string; readonly dispose: () => Promise<void> } {
+function createMissingServerFixture(): RuntimeFixture {
 	const root = mkdtempSync(join(tmpdir(), "lsp-mcp-missing-"));
 	const configPath = join(root, "lsp-client.json");
 	const filePath = join(root, "sample.missing");
@@ -154,12 +168,13 @@ function createFixture(
 	root: string,
 	configPath: string,
 	filePath: string,
-): { readonly filePath: string; readonly dispose: () => Promise<void> } {
+): RuntimeFixture {
 	const originalProjectConfig = process.env["LSP_TOOLS_MCP_PROJECT_CONFIG"];
 	const originalUserConfig = process.env["LSP_TOOLS_MCP_USER_CONFIG"];
-	process.env["LSP_TOOLS_MCP_PROJECT_CONFIG"] = configPath;
-	process.env["LSP_TOOLS_MCP_USER_CONFIG"] = join(root, "missing-user-config.json");
+	process.env["LSP_TOOLS_MCP_PROJECT_CONFIG"] = join(root, "missing-project-config.json");
+	process.env["LSP_TOOLS_MCP_USER_CONFIG"] = configPath;
 	return {
+		root,
 		filePath,
 		dispose: async () => {
 			restoreEnv("LSP_TOOLS_MCP_PROJECT_CONFIG", originalProjectConfig);
@@ -168,6 +183,12 @@ function createFixture(
 			rmSync(root, { recursive: true, force: true });
 		},
 	};
+}
+
+interface RuntimeFixture {
+	readonly root: string;
+	readonly filePath: string;
+	readonly dispose: () => Promise<void>;
 }
 
 function parseJsonRpcResponse(raw: string): JsonRpcResponse {

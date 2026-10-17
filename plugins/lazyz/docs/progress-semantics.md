@@ -10,7 +10,7 @@ Two execution paths with **different state-file stability**:
 | Path | State file | Writer | Stability |
 | --- | --- | --- | --- |
 | `start-work` | `.omo/boulder.json` (pointer) + `.omo/plans/<slug>.md` (checkboxes) + `.omo/start-work/ledger.jsonl` | LLM following skill prose | **Soft** — fields drift; readers must be defensive |
-| `ulw-loop` | `.omo/ulw-loop/goals.json` + `.omo/ulw-loop/ledger.jsonl` | `omo ulw-loop` TS CLI (atomic write + mutation lock, schema `version: 1`) | **Stable** — schema-validated |
+| `ulw-loop` | `.omo/ulw-loop/goals.json` + `.omo/ulw-loop/ledger.jsonl` | `lazyz ulw-loop` TS CLI (atomic write + mutation lock, schema `version: 1`) | **Stable** — schema-validated |
 
 ## The agreed semantic (user-facing)
 

@@ -1,16 +1,15 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 
 import { parseFrontmatter } from "@oh-my-opencode/utils";
 
 import { parseRuleFrontmatter } from "./parser";
-const corpusPaths = [
-  ".agents/skills/opencode-qa/SKILL.md",
-  ".agents/skills/security-research/SKILL.md",
-  "packages/omo-opencode/src/features/builtin-skills/dev-browser/SKILL.md",
-  "packages/omo-opencode/src/features/builtin-skills/git-master/SKILL.md",
-  ".omo/rules/test-discipline.md",
+const corpusUrls = [
+  new URL("../../../skills/start-work/SKILL.md", import.meta.url),
+  new URL("../../../skills/ulw-loop/SKILL.md", import.meta.url),
+  new URL("../../../skills/debugging/SKILL.md", import.meta.url),
+  new URL("../../../components/rules/bundled-rules/hephaestus.md", import.meta.url),
+  new URL("../../../components/rules/bundled-rules/windows-git-bash.md", import.meta.url),
 ] as const;
 
 const syntheticRuleCorpus = [
@@ -40,7 +39,7 @@ Malformed body`,
 describe("rule frontmatter corpus", () => {
   it("#given real skill and rule files #when parsed #then rule metadata matches utils rule-mode frontmatter", () => {
     // given
-    const contents = corpusPaths.map((relativePath) => readFileSync(join(process.cwd(), relativePath), "utf-8"));
+    const contents = corpusUrls.map((url) => readFileSync(url, "utf-8"));
 
     // when
     const parsed = contents.map((content) => ({
@@ -49,7 +48,7 @@ describe("rule frontmatter corpus", () => {
     }));
 
     // then
-    expect(parsed).toHaveLength(corpusPaths.length);
+    expect(parsed).toHaveLength(corpusUrls.length);
     for (const entry of parsed) {
       expect(entry.rule.metadata).toEqual(entry.utils.data);
       expect(entry.rule.body).toBe(entry.utils.body);

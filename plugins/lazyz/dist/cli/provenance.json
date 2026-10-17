@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "build": {
+    "entryPoint": "runtime/cli.mjs",
+    "format": "esm",
+    "platform": "node",
+    "target": "node20"
+  },
+  "buildConfigSha256": "48d7e0d4308346781e0dcbc5fc9f93057e1550684b7913f8dfda8e2751e9d1c1",
+  "output": {
+    "path": "dist/cli/index.js",
+    "sha256": "dbb5a341f8db45b5283d9ab81c99a5c1e93bbe9e90f73c2de2da20b0af8ae3ab"
+  },
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "d153f40690ba297aab81a6e94e133034485ec9218ff88a66d357c0f008e5f1ec"
+    },
+    {
+      "path": "runtime/arguments.mjs",
+      "sha256": "0bf3d1f5ff213d4a5b45ee8f0204d4b4acfc37e741a2103228a32e73db8f0caa"
+    },
+    {
+      "path": "runtime/artifact-integrity.mjs",
+      "sha256": "6fe5054f71ac0699ecf05e45205d4eb49401e9ce9f34bdb15182c42cf54c881c"
+    },
+    {
+      "path": "runtime/cli.mjs",
+      "sha256": "4889135ac6abd0873c0426e1063c91d9c71c5c258426c4842c89b060a0b8a034"
+    },
+    {
+      "path": "runtime/doctor-environment.mjs",
+      "sha256": "ef4811fec3b8012cddd509b2f68eff49d4182769a18d1e7c9d166c1e1dd87546"
+    },
+    {
+      "path": "runtime/doctor.mjs",
+      "sha256": "af2a2a79b1b7da3818f374567995aedee37ebfc17392e244d51005afd95d5031"
+    },
+    {
+      "path": "runtime/paths.mjs",
+      "sha256": "86f0604a6a7d96cc3ab8cbd4fe85450039b0850365af863d5e0d008b7b6dcc83"
+    },
+    {
+      "path": "runtime/release-payload.mjs",
+      "sha256": "092c0a43132863148601dc8ea7ab22390e6739840eb2fe18cc1b3d06274c7387"
+    },
+    {
+      "path": "runtime/setup-paths.mjs",
+      "sha256": "ab982374967fc51031893bf8667d4d53caf4f59b58df15e68aaa34d904194c0f"
+    },
+    {
+      "path": "runtime/setup.mjs",
+      "sha256": "56fd022cc1d13d586ea7f21352171f0f574f0e5f570bdbb57f0343849e321009"
+    },
+    {
+      "path": "runtime/zcode-contract.mjs",
+      "sha256": "4362214d7309abec9bbd4b0ce3a43a2b1b5d62251b6eb0517b2e3c6a6bad9801"
+    },
+    {
+      "path": "scripts/build-cli.mjs",
+      "sha256": "3dff3c367fcb0020813f8a568c90185ff8af35cc272644a9e527ad7f0105bd29"
+    }
+  ]
+}

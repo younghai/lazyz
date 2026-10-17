@@ -1,33 +1,21 @@
 #!/usr/bin/env node
 
+// src/cli.ts
+import { argv, stderr } from "node:process";
+
 // ../lsp-core/src/lsp/cleanup-errors.ts
-function reportBestEffortCleanupError(operation, error) {
-  if (process.env["CODEX_LSP_DEBUG_CLEANUP"] !== "1")
-    return;
+function writeCleanupError(message) {
+  process.stderr.write(`${message}
+`);
+}
+function reportBestEffortCleanupError(operation, error, logger = writeCleanupError) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`[codex-lsp] ignored ${operation} failure during cleanup: ${message}`);
+  logger(`[lsp] ignored ${operation} failure during cleanup: ${message}`);
 }
 
 // ../lsp-core/src/lsp/client.ts
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { pathToFileURL as pathToFileURL2 } from "node:url";
-
-// ../lsp-core/src/request-context.ts
-import { AsyncLocalStorage } from "node:async_hooks";
-var storage = new AsyncLocalStorage;
-function runWithRequestContext(context, fn) {
-  return storage.run(context, fn);
-}
-function contextCwd() {
-  return storage.getStore()?.cwd ?? process.cwd();
-}
-function contextEnv(key) {
-  const store = storage.getStore();
-  if (store?.env)
-    return store.env[key];
-  return process.env[key];
-}
+import { resolve as resolve5 } from "node:path";
+import { pathToFileURL as pathToFileURL3 } from "node:url";
 
 // ../lsp-core/src/lsp/connection.ts
 import { pathToFileURL } from "node:url";
@@ -46,22 +34,15 @@ var STOP_SIGKILL_GRACE_MS = 1000;
 
 // ../lsp-core/src/lsp/errors.ts
 class LspConnectionClosedError extends Error {
-  serverId;
-  root;
-  name = "LspConnectionClosedError";
   constructor(serverId, root, message) {
     super(message ?? `LSP connection closed for ${serverId} at ${root}`);
     this.serverId = serverId;
     this.root = root;
+    this.name = "LspConnectionClosedError";
   }
 }
 
 class LspProcessExitedError extends Error {
-  serverId;
-  root;
-  exitCode;
-  stderrTail;
-  name = "LspProcessExitedError";
   constructor(serverId, root, exitCode, stderrTail) {
     const stderrSuffix = stderrTail ? `
 stderr tail: ${stderrTail}` : "";
@@ -70,41 +51,49 @@ stderr tail: ${stderrTail}` : "";
     this.root = root;
     this.exitCode = exitCode;
     this.stderrTail = stderrTail;
+    this.name = "LspProcessExitedError";
   }
 }
 
 class LspRequestTimeoutError extends Error {
-  method;
-  stderrTail;
-  name = "LspRequestTimeoutError";
   constructor(method, stderrTail) {
     const stderrSuffix = stderrTail ? `
 recent stderr: ${stderrTail}` : "";
     super(`LSP request timeout (method: ${method})${stderrSuffix}`);
     this.method = method;
     this.stderrTail = stderrTail;
+    this.name = "LspRequestTimeoutError";
   }
 }
 
 class LspInvalidPathError extends Error {
-  name = "LspInvalidPathError";
+  constructor() {
+    super(...arguments);
+    this.name = "LspInvalidPathError";
+  }
 }
 
 class LspServerLookupError extends Error {
-  name = "LspServerLookupError";
+  constructor(message, lookup) {
+    super(message);
+    this.lookup = lookup;
+    this.name = "LspServerLookupError";
+  }
 }
 
 class LspServerInitializingError extends Error {
-  originalError;
-  name = "LspServerInitializingError";
   constructor(originalError) {
     super(`LSP server is still initializing. Please retry in a few seconds. Original error: ${originalError.message}`);
     this.originalError = originalError;
+    this.name = "LspServerInitializingError";
   }
 }
 
 class LspProcessSpawnError extends Error {
-  name = "LspProcessSpawnError";
+  constructor() {
+    super(...arguments);
+    this.name = "LspProcessSpawnError";
+  }
 }
 function isLspDeadConnectionError(err) {
   return err instanceof LspConnectionClosedError || err instanceof LspProcessExitedError;
@@ -120,20 +109,31 @@ var METHOD_NOT_FOUND = -32601;
 var INTERNAL_ERROR = -32603;
 
 class JsonRpcConnection {
-  reader;
-  writer;
-  pendingRequests = new Map;
-  notificationHandlers = new Map;
-  requestHandlers = new Map;
-  closeHandlers = [];
-  errorHandlers = [];
-  inputBuffer = Buffer.alloc(0);
-  nextRequestId = 1;
-  listening = false;
-  disposed = false;
   constructor(reader, writer) {
     this.reader = reader;
     this.writer = writer;
+    this.pendingRequests = new Map;
+    this.notificationHandlers = new Map;
+    this.requestHandlers = new Map;
+    this.closeHandlers = [];
+    this.errorHandlers = [];
+    this.inputBuffer = Buffer.alloc(0);
+    this.nextRequestId = 1;
+    this.listening = false;
+    this.disposed = false;
+    this.handleData = (chunk) => {
+      const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, "utf8");
+      this.inputBuffer = Buffer.concat([this.inputBuffer, chunkBuffer]);
+      this.drainInputBuffer();
+    };
+    this.handleClose = () => {
+      for (const handler of this.closeHandlers) {
+        handler();
+      }
+    };
+    this.handleStreamError = (error) => {
+      this.emitError(error);
+    };
   }
   listen() {
     if (this.listening)
@@ -157,27 +157,79 @@ class JsonRpcConnection {
   onError(handler) {
     this.errorHandlers.push(handler);
   }
-  async sendRequest(method, params) {
+  async sendRequest(method, params, options = {}) {
     if (this.disposed)
       throw new Error("JSON-RPC connection is disposed");
     const id = this.nextRequestId;
     this.nextRequestId += 1;
+    const key = String(id);
     const message = params === undefined ? { jsonrpc: "2.0", id, method } : { jsonrpc: "2.0", id, method, params };
+    let requestWritten = false;
+    let cancelAfterWrite = false;
+    let settled = false;
+    const writeCancel = () => this.writeMessage({ jsonrpc: "2.0", method: "$/cancelRequest", params: { id } });
     const responsePromise = new Promise((resolve, reject) => {
-      this.pendingRequests.set(String(id), {
+      const cleanup = () => {
+        options.signal?.removeEventListener("abort", onAbort);
+      };
+      const settleCancel = () => {
+        if (settled)
+          return;
+        settled = true;
+        this.pendingRequests.delete(key);
+        cleanup();
+        const rejectCancelled = () => reject(abortError(options.signal));
+        if (!requestWritten) {
+          cancelAfterWrite = true;
+          rejectCancelled();
+          return;
+        }
+        writeCancel().then(rejectCancelled, (error) => {
+          this.emitError(toError(error));
+          rejectCancelled();
+        });
+      };
+      const onAbort = () => settleCancel();
+      this.pendingRequests.set(key, {
         resolve(result) {
+          settled = true;
+          cleanup();
           resolve(result);
         },
-        reject
+        reject(error) {
+          settled = true;
+          cleanup();
+          reject(error);
+        },
+        cleanup
       });
+      if (options.signal?.aborted) {
+        settleCancel();
+        return;
+      }
+      options.signal?.addEventListener("abort", onAbort, { once: true });
     });
+    if (settled)
+      return responsePromise;
     try {
       await this.writeMessage(message);
+      requestWritten = true;
+      if (cancelAfterWrite)
+        await writeCancel();
     } catch (error) {
-      this.pendingRequests.delete(String(id));
+      if (settled)
+        return responsePromise;
+      const pending = this.pendingRequests.get(key);
+      if (pending) {
+        pending.cleanup();
+        this.pendingRequests.delete(key);
+      }
       throw error;
     }
     return responsePromise;
+  }
+  pendingRequestCount() {
+    return this.pendingRequests.size;
   }
   async sendNotification(method, params) {
     if (this.disposed)
@@ -195,25 +247,13 @@ class JsonRpcConnection {
     this.reader.off("error", this.handleStreamError);
     this.writer.off("error", this.handleStreamError);
     for (const pending of this.pendingRequests.values()) {
+      pending.cleanup();
       pending.reject(new Error("JSON-RPC connection disposed"));
     }
     this.pendingRequests.clear();
     this.notificationHandlers.clear();
     this.requestHandlers.clear();
   }
-  handleData = (chunk) => {
-    const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, "utf8");
-    this.inputBuffer = Buffer.concat([this.inputBuffer, chunkBuffer]);
-    this.drainInputBuffer();
-  };
-  handleClose = () => {
-    for (const handler of this.closeHandlers) {
-      handler();
-    }
-  };
-  handleStreamError = (error) => {
-    this.emitError(error);
-  };
   drainInputBuffer() {
     while (true) {
       const headerEnd = this.inputBuffer.indexOf(HEADER_SEPARATOR);
@@ -270,6 +310,7 @@ class JsonRpcConnection {
     if (!pending)
       return;
     this.pendingRequests.delete(String(id));
+    pending.cleanup();
     if ("error" in message) {
       pending.reject(jsonRpcErrorToError(message["error"]));
       return;
@@ -283,7 +324,11 @@ class JsonRpcConnection {
     try {
       handler(params);
     } catch (error) {
-      this.emitError(toError(error));
+      if (error instanceof Error) {
+        this.emitError(error);
+        return;
+      }
+      this.emitError(new Error(String(error)));
     }
   }
   handleRequest(message) {
@@ -323,6 +368,14 @@ ${body}`;
       handler(error);
     }
   }
+}
+function abortError(signal) {
+  const reason = signal?.reason;
+  if (reason instanceof Error)
+    return reason;
+  const error = new Error(typeof reason === "string" ? reason : "LSP request cancelled");
+  error.name = "AbortError";
+  return error;
 }
 function parseContentLength(headers) {
   for (const line of headers.split(`\r
@@ -510,7 +563,7 @@ function spawnProcess(command, options) {
   return wrap(proc);
 }
 
-// ../lsp-core/src/lsp/transport.ts
+// ../lsp-core/src/lsp/transport-protocol.ts
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -530,22 +583,43 @@ function parseDiagnosticsParams(params) {
   if (!isRecord(params) || typeof params["uri"] !== "string")
     return null;
   const diagnostics = Array.isArray(params["diagnostics"]) ? params["diagnostics"].filter(isDiagnostic) : [];
-  return { uri: params["uri"], diagnostics };
+  const version = typeof params["version"] === "number" ? params["version"] : undefined;
+  return { uri: params["uri"], diagnostics, ...version === undefined ? {} : { version } };
+}
+function createLspSpawnEnv(_root, input) {
+  return { ...input };
+}
+function isDiagnostic(value) {
+  return isRecord(value) && isRange(value["range"]) && typeof value["message"] === "string";
+}
+function isRange(value) {
+  return isRecord(value) && isPosition(value["start"]) && isPosition(value["end"]);
+}
+function isPosition(value) {
+  return isRecord(value) && typeof value["line"] === "number" && typeof value["character"] === "number";
+}
+
+// ../lsp-core/src/lsp/transport.ts
+class LspClientNotStartedError extends Error {
+  constructor(serverId, root) {
+    super("LSP client not started");
+    this.serverId = serverId;
+    this.root = root;
+    this.name = "LspClientNotStartedError";
+  }
 }
 
 class LspClientTransport {
-  root;
-  server;
-  proc = null;
-  connection = null;
-  stderrBuffer = [];
-  processExited = false;
-  diagnosticsStore = new Map;
-  requestTimeoutMs;
-  initializeTimeoutMs;
   constructor(root, server, timeouts = {}) {
     this.root = root;
     this.server = server;
+    this.proc = null;
+    this.connection = null;
+    this.stderrBuffer = [];
+    this.processExited = false;
+    this.diagnosticsStore = new Map;
+    this.workspaceApplyEditHandler = null;
+    this.diagnosticPullSupported = false;
     this.requestTimeoutMs = timeouts.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
     this.initializeTimeoutMs = timeouts.initializeTimeoutMs ?? INIT_TIMEOUT_MS;
   }
@@ -554,6 +628,21 @@ class LspClientTransport {
   }
   command() {
     return [...this.server.command];
+  }
+  setWorkspaceApplyEditHandler(handler) {
+    this.workspaceApplyEditHandler = handler;
+  }
+  hasWorkspaceApplyEditHandler() {
+    return this.workspaceApplyEditHandler !== null;
+  }
+  setDiagnosticPullSupported(supported) {
+    this.diagnosticPullSupported = supported;
+  }
+  isDiagnosticPullSupported() {
+    return this.diagnosticPullSupported;
+  }
+  handlePublishDiagnostics(params) {
+    this.diagnosticsStore.set(params.uri, [...params.diagnostics]);
   }
   async start() {
     const env = createLspSpawnEnv(this.root, {
@@ -565,7 +654,6 @@ class LspClientTransport {
       env
     });
     this.startStderrReading();
-    await new Promise((resolve) => setTimeout(resolve, 100));
     if (this.proc.exitCode !== null) {
       const stderr = this.stderrBuffer.join(`
 `);
@@ -575,7 +663,7 @@ class LspClientTransport {
     this.connection.onNotification("textDocument/publishDiagnostics", (params) => {
       const diagnosticsParams = parseDiagnosticsParams(params);
       if (diagnosticsParams?.uri) {
-        this.diagnosticsStore.set(diagnosticsParams.uri, diagnosticsParams.diagnostics);
+        this.handlePublishDiagnostics(diagnosticsParams);
       }
     });
     this.connection.onRequest("workspace/configuration", (params) => {
@@ -588,6 +676,9 @@ class LspClientTransport {
     });
     this.connection.onRequest("client/registerCapability", () => null);
     this.connection.onRequest("window/workDoneProgress/create", () => null);
+    if (this.workspaceApplyEditHandler) {
+      this.connection.onRequest("workspace/applyEdit", this.workspaceApplyEditHandler);
+    }
     this.connection.onClose(() => {
       this.processExited = true;
     });
@@ -616,30 +707,25 @@ class LspClientTransport {
   }
   async sendRequest(method, ...args) {
     if (!this.connection)
-      throw new Error("LSP client not started");
+      throw new LspClientNotStartedError(this.server.id, this.root);
     if (this.processExited || this.proc && this.proc.exitCode !== null) {
       const stderrTail = this.stderrBuffer.slice(-10).join(`
 `);
       throw new LspProcessExitedError(this.server.id, this.root, this.proc?.exitCode ?? null, stderrTail || undefined);
     }
-    const timeoutMs = args[1]?.timeoutMs ?? this.requestTimeoutMs;
-    let timeoutHandle = null;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutHandle = setTimeout(() => {
-        const stderrTail = this.stderrBuffer.slice(-5).join(`
+    const options = args[1];
+    const timeoutMs = options?.timeoutMs ?? this.requestTimeoutMs;
+    const timeoutController = new AbortController;
+    const timeoutHandle = setTimeout(() => {
+      const stderrTail = this.stderrBuffer.slice(-5).join(`
 `);
-        reject(new LspRequestTimeoutError(method, stderrTail || undefined));
-      }, timeoutMs);
-    });
+      timeoutController.abort(new LspRequestTimeoutError(method, stderrTail || undefined));
+    }, timeoutMs);
+    const combinedSignal = combineAbortSignals(options?.signal, timeoutController.signal);
     try {
-      const requestPromise = args.length === 0 ? this.connection.sendRequest(method) : this.connection.sendRequest(method, args[0]);
-      const result = await Promise.race([requestPromise, timeoutPromise]);
-      if (timeoutHandle !== null)
-        clearTimeout(timeoutHandle);
+      const result = args.length === 0 ? await this.connection.sendRequest(method, undefined, { signal: combinedSignal.signal }) : await this.connection.sendRequest(method, args[0], { signal: combinedSignal.signal });
       return result;
     } catch (error) {
-      if (timeoutHandle !== null)
-        clearTimeout(timeoutHandle);
       if (this.processExited || this.proc && this.proc.exitCode !== null) {
         throw new LspProcessExitedError(this.server.id, this.root, this.proc?.exitCode ?? null, this.stderrBuffer.slice(-10).join(`
 `) || undefined);
@@ -648,6 +734,9 @@ class LspClientTransport {
         throw new LspConnectionClosedError(this.server.id, this.root, error.message);
       }
       throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
+      combinedSignal.dispose();
     }
   }
   async sendNotification(method, ...args) {
@@ -676,17 +765,17 @@ class LspClientTransport {
       try {
         await this.sendRequest("shutdown");
       } catch (error) {
-        reportBestEffortCleanupError("shutdown request", error);
+        reportBestEffortCleanupError("shutdown request", error instanceof Error ? error : String(error));
       }
       try {
         await this.sendNotification("exit");
       } catch (error) {
-        reportBestEffortCleanupError("exit notification", error);
+        reportBestEffortCleanupError("exit notification", error instanceof Error ? error : String(error));
       }
       try {
         this.connection.dispose();
       } catch (error) {
-        reportBestEffortCleanupError("connection dispose", error);
+        reportBestEffortCleanupError("connection dispose", error instanceof Error ? error : String(error));
       }
       this.connection = null;
     }
@@ -717,11 +806,11 @@ class LspClientTransport {
               new Promise((resolve) => setTimeout(resolve, STOP_SIGKILL_GRACE_MS))
             ]);
           } catch (error) {
-            reportBestEffortCleanupError("hard process kill", error);
+            reportBestEffortCleanupError("hard process kill", error instanceof Error ? error : String(error));
           }
         }
       } catch (error) {
-        reportBestEffortCleanupError("process stop", error);
+        reportBestEffortCleanupError("process stop", error instanceof Error ? error : String(error));
       }
     }
     this.processExited = true;
@@ -731,26 +820,45 @@ class LspClientTransport {
     return this.diagnosticsStore.get(uri) ?? [];
   }
 }
-function createLspSpawnEnv(_root, input) {
-  return { ...input };
-}
-function isDiagnostic(value) {
-  return isRecord(value) && isRange(value["range"]) && typeof value["message"] === "string";
-}
-function isRange(value) {
-  return isRecord(value) && isPosition(value["start"]) && isPosition(value["end"]);
-}
-function isPosition(value) {
-  return isRecord(value) && typeof value["line"] === "number" && typeof value["character"] === "number";
+function combineAbortSignals(primary, secondary) {
+  const controller = new AbortController;
+  const abortFrom = (signal) => {
+    if (!controller.signal.aborted)
+      controller.abort(signal.reason);
+  };
+  const onPrimaryAbort = () => {
+    if (primary)
+      abortFrom(primary);
+  };
+  const onSecondaryAbort = () => abortFrom(secondary);
+  if (primary?.aborted)
+    abortFrom(primary);
+  else
+    primary?.addEventListener("abort", onPrimaryAbort, { once: true });
+  if (secondary.aborted)
+    abortFrom(secondary);
+  else
+    secondary.addEventListener("abort", onSecondaryAbort, { once: true });
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      primary?.removeEventListener("abort", onPrimaryAbort);
+      secondary.removeEventListener("abort", onSecondaryAbort);
+    }
+  };
 }
 
 // ../lsp-core/src/lsp/connection.ts
-var INITIALIZE_SETTLE_MS = 300;
+function supportsDiagnosticPull(capabilities) {
+  if (capabilities === undefined)
+    return false;
+  return Object.hasOwn(capabilities, "diagnosticProvider");
+}
 
 class LspClientConnection extends LspClientTransport {
   async initialize() {
     const rootUri = pathToFileURL(this.root).href;
-    await this.sendRequest("initialize", {
+    const result = await this.sendRequest("initialize", {
       processId: process.pid,
       rootUri,
       rootPath: this.root,
@@ -764,8 +872,7 @@ class LspClientConnection extends LspClientTransport {
           publishDiagnostics: {},
           rename: {
             prepareSupport: true,
-            prepareSupportDefaultBehavior: 1,
-            honorsChangeAnnotations: true
+            prepareSupportDefaultBehavior: 1
           },
           codeAction: {
             codeActionLiteralSupport: {
@@ -794,21 +901,27 @@ class LspClientConnection extends LspClientTransport {
           symbol: {},
           workspaceFolders: true,
           configuration: true,
-          applyEdit: true,
+          ...this.hasWorkspaceApplyEditHandler() ? { applyEdit: true } : {},
           workspaceEdit: {
-            documentChanges: true
+            documentChanges: true,
+            resourceOperations: ["create", "rename", "delete"]
           }
         }
       },
       initializationOptions: this.server.initialization
     }, { timeoutMs: this.initializeTimeoutMs });
+    this.setDiagnosticPullSupported(supportsDiagnosticPull(result?.capabilities));
     await this.sendNotification("initialized");
     await this.sendNotification("workspace/didChangeConfiguration", {
       settings: { json: { validate: { enable: true } } }
     });
-    await new Promise((r) => setTimeout(r, INITIALIZE_SETTLE_MS));
   }
 }
+
+// ../lsp-core/src/lsp/workspace-document-state.ts
+import { readFileSync, realpathSync } from "node:fs";
+import { relative, resolve } from "node:path";
+import { pathToFileURL as pathToFileURL2 } from "node:url";
 
 // ../lsp-core/src/lsp/effective-extension.ts
 import { basename, extname } from "node:path";
@@ -992,82 +1105,1409 @@ function getLanguageId(ext) {
   return EXT_TO_LANG[ext] ?? "plaintext";
 }
 
+// ../lsp-core/src/lsp/workspace-document-state.ts
+var WATCHED_FILE_BATCH_SIZE = 128;
+var DEFAULT_VERSIONLESS_PUBLISH_QUIESCENCE_MS = 250;
+function canonicalPath(filePath) {
+  const absolute = resolve(filePath);
+  try {
+    return realpathSync(absolute);
+  } catch {
+    return absolute;
+  }
+}
+function isSameOrDescendant(candidate, parent) {
+  const suffix = relative(parent, candidate);
+  return suffix === "" || !suffix.startsWith("..") && suffix !== "..";
+}
+function movedPath(candidate, oldPath, newPath) {
+  const suffix = relative(oldPath, candidate);
+  return suffix === "" ? newPath : resolve(newPath, suffix);
+}
+
+class WorkspaceDocumentState {
+  constructor(sendNotification, clearDiagnostics, options = {}) {
+    this.sendNotification = sendNotification;
+    this.clearDiagnostics = clearDiagnostics;
+    this.openDocuments = new Map;
+    this.openByUri = new Map;
+    this.openPromises = new Map;
+    this.now = options.now ?? (() => Date.now());
+    this.versionlessPublishQuiescenceMs = options.versionlessPublishQuiescenceMs ?? DEFAULT_VERSIONLESS_PUBLISH_QUIESCENCE_MS;
+  }
+  async openFile(filePath) {
+    const path = canonicalPath(filePath);
+    const existingOpen = this.openPromises.get(path);
+    if (existingOpen) {
+      await existingOpen;
+      return this.openFile(path);
+    }
+    const text = readFileSync(path, "utf-8");
+    const existing = this.openDocuments.get(path);
+    if (!existing)
+      return this.openDocumentSingleFlight(path, text);
+    if (existing.text === text)
+      return;
+    await this.changeDocument(existing, text);
+  }
+  getVersion(filePath) {
+    return this.openDocuments.get(canonicalPath(filePath))?.version;
+  }
+  getStoredDiagnostics(uri) {
+    const state = this.openByUri.get(uri);
+    if (!state)
+      return [];
+    return state.lastPublish?.diagnostics ?? state.pullCache?.diagnostics ?? [];
+  }
+  captureDiagnosticSnapshot(filePath) {
+    const state = this.openDocuments.get(canonicalPath(filePath));
+    if (!state)
+      return null;
+    return {
+      path: state.path,
+      uri: state.uri,
+      version: state.version,
+      documentGeneration: state.generation,
+      publishGeneration: state.publishGeneration
+    };
+  }
+  isCurrentSnapshot(snapshot) {
+    const state = this.openDocuments.get(snapshot.path);
+    return state !== undefined && state.uri === snapshot.uri && state.version === snapshot.version && state.generation === snapshot.documentGeneration;
+  }
+  getPullCache(snapshot) {
+    const state = this.openByUri.get(snapshot.uri);
+    if (!state?.pullCache || state.pullCache.documentVersion !== snapshot.version)
+      return null;
+    return state.pullCache;
+  }
+  recordPullDiagnostics(snapshot, report) {
+    const state = this.openByUri.get(snapshot.uri);
+    if (!state)
+      return;
+    state.pullCache = {
+      documentVersion: snapshot.version,
+      diagnostics: [...report.diagnostics],
+      ...report.resultId === undefined ? {} : { resultId: report.resultId }
+    };
+  }
+  recordPublishedDiagnostics(params) {
+    const state = this.openByUri.get(params.uri);
+    if (!state)
+      return;
+    state.publishGeneration += 1;
+    state.lastPublish = {
+      diagnostics: [...params.diagnostics],
+      publishGeneration: state.publishGeneration,
+      documentGenerationAtArrival: state.generation,
+      arrivedAt: this.now(),
+      ...params.version === undefined ? {} : { version: params.version }
+    };
+    this.notifyWaiters(state);
+  }
+  resolvePushDiagnostics(snapshot) {
+    const state = this.openByUri.get(snapshot.uri);
+    if (!state?.lastPublish)
+      return { status: "missing" };
+    const publish = state.lastPublish;
+    if (publish.version !== undefined) {
+      return publish.version === snapshot.version ? { status: "ready", diagnostics: publish.diagnostics } : { status: "missing" };
+    }
+    if (publish.documentGenerationAtArrival < snapshot.documentGeneration)
+      return { status: "missing" };
+    const readyAt = publish.arrivedAt + this.versionlessPublishQuiescenceMs;
+    const waitMs = Math.max(0, readyAt - this.now());
+    return waitMs === 0 ? { status: "ready", diagnostics: publish.diagnostics } : { status: "wait", waitMs };
+  }
+  waitForDiagnosticsActivity(snapshot, timeoutMs) {
+    const state = this.openByUri.get(snapshot.uri);
+    if (!state || timeoutMs <= 0)
+      return Promise.resolve();
+    return new Promise((resolveActivity) => {
+      let settled = false;
+      const finish = () => {
+        if (settled)
+          return;
+        settled = true;
+        clearTimeout(timer);
+        state.waiters.delete(finish);
+        resolveActivity();
+      };
+      const timer = setTimeout(finish, timeoutMs);
+      if (typeof timer.unref === "function")
+        timer.unref();
+      state.waiters.add(finish);
+    });
+  }
+  validateVersions(operations) {
+    const versions = new Map([...this.openDocuments].map(([path, state]) => [path, state.version]));
+    for (const operation of operations) {
+      if (operation.kind === "text") {
+        const current = versions.get(operation.path);
+        if (operation.documentVersion !== null && current !== operation.documentVersion) {
+          const observed = current === undefined ? "closed document" : `open document version ${current}`;
+          return {
+            changeIndex: operation.changeIndex,
+            message: `document version ${operation.documentVersion} does not match ${observed} for ${operation.path}`
+          };
+        }
+        if (current !== undefined)
+          versions.set(operation.path, current + 1);
+        continue;
+      }
+      if (operation.kind === "rename") {
+        const moved = [...versions].filter(([path]) => isSameOrDescendant(path, operation.oldPath));
+        for (const [path] of moved)
+          versions.delete(path);
+        for (const [path] of moved)
+          versions.set(movedPath(path, operation.oldPath, operation.newPath), 1);
+        continue;
+      }
+      if (operation.kind === "delete") {
+        for (const path of [...versions.keys()]) {
+          if (isSameOrDescendant(path, operation.path))
+            versions.delete(path);
+        }
+        continue;
+      }
+      if (operation.kind === "create" && operation.replaced && versions.has(operation.path)) {
+        versions.set(operation.path, 1);
+      }
+    }
+    return null;
+  }
+  async synchronize(delta) {
+    const watched = [];
+    for (const mutation of delta.operations)
+      await this.synchronizeMutation(mutation, watched);
+    for (let index = 0;index < watched.length; index += WATCHED_FILE_BATCH_SIZE) {
+      await this.sendNotification("workspace/didChangeWatchedFiles", {
+        changes: watched.slice(index, index + WATCHED_FILE_BATCH_SIZE)
+      });
+    }
+  }
+  async synchronizeMutation(mutation, watched) {
+    if (mutation.kind === "text") {
+      const state = this.openDocuments.get(mutation.path);
+      if (state)
+        await this.changeDocument(state, mutation.afterText);
+      else
+        watched.push({ uri: pathToFileURL2(mutation.path).href, type: 2 });
+      return;
+    }
+    if (mutation.kind === "create") {
+      const state = this.openDocuments.get(mutation.path);
+      if (state) {
+        await this.closeDocument(state);
+        await this.openDocumentSingleFlight(mutation.path, readFileSync(mutation.path, "utf-8"));
+      } else {
+        watched.push({ uri: pathToFileURL2(mutation.path).href, type: mutation.replaced ? 2 : 1 });
+      }
+      return;
+    }
+    if (mutation.kind === "rename") {
+      const moved = [...this.openDocuments.values()].filter((state) => isSameOrDescendant(state.path, mutation.oldPath));
+      for (const state of moved)
+        await this.closeDocument(state);
+      for (const state of moved) {
+        const path = movedPath(state.path, mutation.oldPath, mutation.newPath);
+        await this.openDocumentSingleFlight(path, readFileSync(path, "utf-8"));
+      }
+      if (moved.length === 0) {
+        watched.push({ uri: pathToFileURL2(mutation.oldPath).href, type: 3 });
+        watched.push({ uri: pathToFileURL2(mutation.newPath).href, type: 1 });
+      }
+      return;
+    }
+    const removed = [...this.openDocuments.values()].filter((state) => isSameOrDescendant(state.path, mutation.path));
+    for (const state of removed)
+      await this.closeDocument(state);
+    if (removed.length === 0)
+      watched.push({ uri: pathToFileURL2(mutation.path).href, type: 3 });
+  }
+  async openDocumentSingleFlight(path, text) {
+    const existing = this.openPromises.get(path);
+    if (existing)
+      return existing;
+    const open = (async () => {
+      const state = {
+        path,
+        uri: pathToFileURL2(path).href,
+        languageId: getLanguageId(effectiveExtension(path)),
+        text,
+        version: 1,
+        generation: 1,
+        publishGeneration: 0,
+        waiters: new Set
+      };
+      this.openDocuments.set(path, state);
+      this.openByUri.set(state.uri, state);
+      this.notifyWaiters(state);
+      await this.sendNotification("textDocument/didOpen", {
+        textDocument: { uri: state.uri, languageId: state.languageId, version: state.version, text }
+      });
+    })().finally(() => {
+      this.openPromises.delete(path);
+    });
+    this.openPromises.set(path, open);
+    return open;
+  }
+  async changeDocument(state, text) {
+    state.text = text;
+    state.version += 1;
+    state.generation += 1;
+    this.clearDiagnostics(state.uri);
+    this.notifyWaiters(state);
+    await this.sendNotification("textDocument/didChange", {
+      textDocument: { uri: state.uri, version: state.version },
+      contentChanges: [{ text }]
+    });
+    await this.sendNotification("textDocument/didSave", { textDocument: { uri: state.uri }, text });
+  }
+  async closeDocument(state) {
+    this.openDocuments.delete(state.path);
+    this.openByUri.delete(state.uri);
+    this.clearDiagnostics(state.uri);
+    this.notifyWaiters(state);
+    await this.sendNotification("textDocument/didClose", { textDocument: { uri: state.uri } });
+  }
+  notifyWaiters(state) {
+    for (const waiter of [...state.waiters])
+      waiter();
+  }
+}
+
+// ../lsp-core/src/lsp/workspace-apply-edit-failure.ts
+var CONCURRENT_FAILURE_REASON_BY_PHASE = {
+  applying: "workspace/applyEdit is already in progress for this workspace mutation",
+  settled: "workspace/applyEdit was already handled for this workspace mutation"
+};
+function workspaceApplyEditConcurrentFailureReason(phase) {
+  return CONCURRENT_FAILURE_REASON_BY_PHASE[phase];
+}
+
+// ../lsp-core/src/lsp/workspace-edit-commit.ts
+import { existsSync as existsSync3, lstatSync as lstatSync2, renameSync, rmSync, writeFileSync } from "node:fs";
+
+// ../lsp-core/src/lsp/workspace-edit-path.ts
+import { existsSync as existsSync2, lstatSync, readFileSync as readFileSync2, readdirSync, realpathSync as realpathSync2 } from "node:fs";
+import { dirname, isAbsolute, relative as relative2, resolve as resolve2 } from "node:path";
+import { fileURLToPath } from "node:url";
+
+class WorkspaceEditPathError extends Error {
+  constructor(path, detail) {
+    super(`${detail}: ${path}`);
+    this.path = path;
+    this.detail = detail;
+    this.name = "WorkspaceEditPathError";
+  }
+}
+function isPathInsideWorkspace(filePath, workspaceRoot) {
+  const relativePath = relative2(workspaceRoot, filePath);
+  return relativePath === "" || !relativePath.startsWith("..") && !isAbsolute(relativePath);
+}
+function canonicalizeMissingPath(filePath) {
+  let ancestor = filePath;
+  while (!existsSync2(ancestor)) {
+    const parent = dirname(ancestor);
+    if (parent === ancestor)
+      throw new WorkspaceEditPathError(filePath, "no existing ancestor");
+    ancestor = parent;
+  }
+  return resolve2(realpathSync2(ancestor), relative2(ancestor, filePath));
+}
+function canonicalWorkspaceRoot(workspaceRoot) {
+  try {
+    const canonical = realpathSync2(resolve2(workspaceRoot));
+    if (!lstatSync(canonical).isDirectory()) {
+      return { success: false, error: `workspace root is not a directory: ${workspaceRoot}` };
+    }
+    return {
+      success: true,
+      path: canonical,
+      requestedPath: resolve2(workspaceRoot),
+      followedSymbolicLink: existsSync2(resolve2(workspaceRoot)) && lstatSync(resolve2(workspaceRoot)).isSymbolicLink()
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `workspace root ${workspaceRoot}: ${detail}` };
+  }
+}
+function uriToCanonicalWorkspacePath(uri, workspaceRoot) {
+  let requestedPath;
+  try {
+    const parsed = new URL(uri);
+    if (parsed.protocol !== "file:" || parsed.search !== "" || parsed.hash !== "") {
+      return { success: false, error: `non-file URI ${uri}` };
+    }
+    requestedPath = resolve2(fileURLToPath(parsed));
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `non-file URI ${uri}: ${detail}` };
+  }
+  try {
+    const canonical = existsSync2(requestedPath) ? realpathSync2(requestedPath) : canonicalizeMissingPath(requestedPath);
+    if (!isPathInsideWorkspace(canonical, workspaceRoot)) {
+      return { success: false, error: `${requestedPath}: outside workspace ${workspaceRoot}` };
+    }
+    return {
+      success: true,
+      path: canonical,
+      requestedPath,
+      followedSymbolicLink: existsSync2(requestedPath) && lstatSync(requestedPath).isSymbolicLink()
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `${requestedPath}: ${detail}` };
+  }
+}
+function snapshotPath(path, includeChildren) {
+  if (!existsSync2(path))
+    return { kind: "missing" };
+  const stats = lstatSync(path);
+  if (stats.isFile())
+    return { kind: "file", content: readFileSync2(path, "utf-8") };
+  if (stats.isDirectory()) {
+    return includeChildren ? { kind: "directory", children: readdirSync(path).sort() } : { kind: "directory" };
+  }
+  throw new WorkspaceEditPathError(path, "unsupported filesystem entry");
+}
+
+// ../lsp-core/src/lsp/workspace-edit-commit.ts
+var DEFAULT_IO = {
+  writeFile(path, content) {
+    writeFileSync(path, content, "utf-8");
+  },
+  rename(oldPath, newPath) {
+    renameSync(oldPath, newPath);
+  },
+  remove(path, recursive) {
+    rmSync(path, { recursive, force: false });
+  }
+};
+function snapshotsEqual(expected, actual) {
+  if (expected.kind !== actual.kind)
+    return false;
+  if (expected.kind === "file" && actual.kind === "file")
+    return expected.content === actual.content;
+  if (expected.kind === "directory" && actual.kind === "directory" && expected.children !== undefined) {
+    return JSON.stringify(expected.children) === JSON.stringify(actual.children);
+  }
+  return true;
+}
+function liveSnapshot(path, expected) {
+  return snapshotPath(path, expected.kind === "directory" && expected.children !== undefined);
+}
+function firstOperationIndex(plan) {
+  return plan.operations[0]?.changeIndex ?? 0;
+}
+function failedCommit(plan, failure) {
+  const { message, changeIndex, mutations = [], filesModified = [], totalEdits = 0, lateAbort = false } = failure;
+  return {
+    result: {
+      success: false,
+      filesModified,
+      totalEdits,
+      errors: [`change ${changeIndex}: ${message}`],
+      failedChange: changeIndex,
+      ...lateAbort ? { lateAbort: true } : {}
+    },
+    delta: mutationDelta(mutations),
+    fingerprint: plan.fingerprint
+  };
+}
+function verifySnapshots(plan) {
+  for (const [path, expected] of plan.snapshots) {
+    let actual;
+    try {
+      actual = liveSnapshot(path, expected);
+    } catch (error) {
+      const changeIndex = plan.firstChangeByPath.get(path) ?? firstOperationIndex(plan);
+      const detail = error instanceof Error ? error.message : String(error);
+      return failedCommit(plan, { message: `cannot verify snapshot for ${path}: ${detail}`, changeIndex });
+    }
+    if (!snapshotsEqual(expected, actual)) {
+      const changeIndex = plan.firstChangeByPath.get(path) ?? firstOperationIndex(plan);
+      return failedCommit(plan, { message: `workspace state changed before commit: ${path}`, changeIndex });
+    }
+  }
+  return null;
+}
+function addModifiedPath(paths, path) {
+  if (!paths.includes(path))
+    paths.push(path);
+}
+function reportedPath(plan, path) {
+  return plan.reportedPathByCanonical.get(path) ?? path;
+}
+function changedPathsForMutation(mutation) {
+  return mutation.kind === "rename" ? [mutation.oldPath, mutation.newPath] : [mutation.path];
+}
+function mutationDelta(operations) {
+  const changedPaths = new Set;
+  for (const operation of operations) {
+    for (const path of changedPathsForMutation(operation))
+      changedPaths.add(path);
+  }
+  return { operations, changedPaths: [...changedPaths].sort() };
+}
+function resolveIo(overrides) {
+  return {
+    writeFile: overrides?.writeFile ?? DEFAULT_IO.writeFile,
+    rename: overrides?.rename ?? DEFAULT_IO.rename,
+    remove: overrides?.remove ?? DEFAULT_IO.remove
+  };
+}
+function commitOperation(context, operation) {
+  const { plan, io, accumulator } = context;
+  if (operation.kind === "noop")
+    return;
+  if (operation.kind === "text") {
+    io.writeFile(operation.path, operation.afterText);
+    accumulator.mutations.push({
+      kind: "text",
+      path: operation.path,
+      beforeText: operation.beforeText,
+      afterText: operation.afterText
+    });
+    addModifiedPath(accumulator.filesModified, reportedPath(plan, operation.path));
+    accumulator.totalEdits += operation.editCount;
+    return;
+  }
+  if (operation.kind === "create") {
+    io.writeFile(operation.path, "");
+    accumulator.mutations.push({ kind: "create", path: operation.path, replaced: operation.replaced });
+    addModifiedPath(accumulator.filesModified, reportedPath(plan, operation.path));
+    return;
+  }
+  if (operation.kind === "rename") {
+    if (operation.replaceDestination) {
+      const targetKind = existsSync3(operation.newPath) && lstatSync2(operation.newPath).isDirectory() ? "directory" : "file";
+      io.remove(operation.newPath, targetKind === "directory");
+      accumulator.mutations.push({ kind: "delete", path: operation.newPath, targetKind });
+      addModifiedPath(accumulator.filesModified, reportedPath(plan, operation.newPath));
+    }
+    io.rename(operation.oldPath, operation.newPath);
+    accumulator.mutations.push({
+      kind: "rename",
+      oldPath: operation.oldPath,
+      newPath: operation.newPath,
+      sourceKind: operation.sourceKind
+    });
+    addModifiedPath(accumulator.filesModified, reportedPath(plan, operation.newPath));
+    return;
+  }
+  io.remove(operation.path, operation.recursive);
+  accumulator.mutations.push({
+    kind: "delete",
+    path: operation.path,
+    targetKind: operation.targetKind
+  });
+  addModifiedPath(accumulator.filesModified, reportedPath(plan, operation.path));
+}
+function commitWorkspaceEditPlan(plan, options = {}) {
+  if (options.signal?.aborted) {
+    return failedCommit(plan, { message: "cancelled before commit", changeIndex: firstOperationIndex(plan) });
+  }
+  const stale = verifySnapshots(plan);
+  if (stale)
+    return stale;
+  if (options.signal?.aborted) {
+    return failedCommit(plan, { message: "cancelled before commit", changeIndex: firstOperationIndex(plan) });
+  }
+  const io = resolveIo(options.io);
+  const accumulator = { mutations: [], filesModified: [], totalEdits: 0 };
+  const context = { plan, io, accumulator };
+  let lateAbort = false;
+  for (const operation of plan.operations) {
+    try {
+      commitOperation(context, operation);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return failedCommit(plan, {
+        message: `I/O failure during ${operation.kind}: ${detail}`,
+        changeIndex: operation.changeIndex,
+        mutations: accumulator.mutations,
+        filesModified: accumulator.filesModified,
+        totalEdits: accumulator.totalEdits,
+        lateAbort: lateAbort || options.signal?.aborted === true
+      });
+    }
+    if (options.signal?.aborted)
+      lateAbort = true;
+  }
+  const result = {
+    success: true,
+    filesModified: accumulator.filesModified,
+    totalEdits: accumulator.totalEdits,
+    errors: [],
+    ...lateAbort ? { lateAbort: true } : {}
+  };
+  return { result, delta: mutationDelta(accumulator.mutations), fingerprint: plan.fingerprint };
+}
+
+// ../lsp-core/src/lsp/workspace-edit-fingerprint.ts
+import { createHash } from "node:crypto";
+function canonicalFingerprint(operations) {
+  const canonical = operations.map((operation) => {
+    switch (operation.kind) {
+      case "text":
+        return {
+          kind: operation.kind,
+          changeIndex: operation.changeIndex,
+          path: operation.path,
+          edits: operation.edits,
+          version: operation.version
+        };
+      case "rename":
+        return {
+          kind: operation.kind,
+          changeIndex: operation.changeIndex,
+          oldPath: operation.oldPath,
+          newPath: operation.newPath,
+          overwrite: operation.overwrite,
+          ignoreIfExists: operation.ignoreIfExists
+        };
+      case "create":
+        return {
+          kind: operation.kind,
+          changeIndex: operation.changeIndex,
+          path: operation.path,
+          overwrite: operation.overwrite,
+          ignoreIfExists: operation.ignoreIfExists
+        };
+      case "delete":
+        return {
+          kind: operation.kind,
+          changeIndex: operation.changeIndex,
+          path: operation.path,
+          recursive: operation.recursive,
+          ignoreIfNotExists: operation.ignoreIfNotExists
+        };
+    }
+  });
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+// ../lsp-core/src/lsp/workspace-edit-types.ts
+class WorkspaceEditValidationError extends Error {
+  constructor(changeIndex, detail) {
+    super(`change ${changeIndex}: ${detail}`);
+    this.changeIndex = changeIndex;
+    this.detail = detail;
+    this.name = "WorkspaceEditValidationError";
+  }
+}
+
+// ../lsp-core/src/lsp/workspace-edit-parse-helpers.ts
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parsePosition(value) {
+  if (!isRecord2(value) || typeof value["line"] !== "number" || typeof value["character"] !== "number") {
+    return null;
+  }
+  return { line: value["line"], character: value["character"] };
+}
+function parseRange(value) {
+  if (!isRecord2(value))
+    return null;
+  const start = parsePosition(value["start"]);
+  const end = parsePosition(value["end"]);
+  return start && end ? { start, end } : null;
+}
+function parseTextEdits(value, changeIndex) {
+  if (!Array.isArray(value)) {
+    throw new WorkspaceEditValidationError(changeIndex, "text edits must be an array");
+  }
+  const edits = [];
+  for (const candidate of value) {
+    if (!isRecord2(candidate) || typeof candidate["newText"] !== "string") {
+      throw new WorkspaceEditValidationError(changeIndex, "text edit requires range and newText");
+    }
+    if ("annotationId" in candidate) {
+      throw new WorkspaceEditValidationError(changeIndex, "annotated text edits are unsupported");
+    }
+    const range = parseRange(candidate["range"]);
+    if (!range)
+      throw new WorkspaceEditValidationError(changeIndex, "text edit range is malformed");
+    edits.push({ range, newText: candidate["newText"] });
+  }
+  return edits;
+}
+function parseBooleanOption(options, key, changeIndex) {
+  const value = options[key];
+  if (value === undefined)
+    return false;
+  if (typeof value !== "boolean") {
+    throw new WorkspaceEditValidationError(changeIndex, `${key} must be boolean`);
+  }
+  return value;
+}
+function parseOptions(value, allowed, changeIndex) {
+  if (value === undefined)
+    return {};
+  if (!isRecord2(value))
+    throw new WorkspaceEditValidationError(changeIndex, "resource options must be an object");
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key))
+      throw new WorkspaceEditValidationError(changeIndex, `unsupported resource option ${key}`);
+  }
+  const parsed = {};
+  for (const key of allowed)
+    parsed[key] = parseBooleanOption(value, key, changeIndex);
+  return parsed;
+}
+
+// ../lsp-core/src/lsp/workspace-edit-resource-parser.ts
+function parseResourceChange(input) {
+  const kind = input.change["kind"];
+  if (kind === "create" || kind === "delete") {
+    parseSinglePathResource(input, kind);
+    return;
+  }
+  if (kind !== "rename") {
+    throw new WorkspaceEditValidationError(input.changeIndex, `unsupported resource operation ${String(kind)}`);
+  }
+  parseRename(input);
+}
+function parseSinglePathResource(input, kind) {
+  const { change, changeIndex, workspaceRoot, target } = input;
+  if (typeof change["uri"] !== "string")
+    throw new WorkspaceEditValidationError(changeIndex, `${kind}.uri is required`);
+  const resolvedPath = uriToCanonicalWorkspacePath(change["uri"], workspaceRoot);
+  if (!resolvedPath.success) {
+    target.failures.push({ changeIndex, message: resolvedPath.error });
+    return;
+  }
+  if (kind === "create") {
+    const options = parseOptions(change["options"], ["overwrite", "ignoreIfExists"], changeIndex);
+    target.operations.push({
+      kind,
+      changeIndex,
+      path: resolvedPath.path,
+      reportedPath: resolvedPath.requestedPath,
+      overwrite: options["overwrite"] ?? false,
+      ignoreIfExists: options["ignoreIfExists"] ?? false,
+      followedSymbolicLink: resolvedPath.followedSymbolicLink
+    });
+    return;
+  }
+  const options = parseOptions(change["options"], ["recursive", "ignoreIfNotExists"], changeIndex);
+  target.operations.push({
+    kind,
+    changeIndex,
+    path: resolvedPath.path,
+    reportedPath: resolvedPath.requestedPath,
+    recursive: options["recursive"] ?? false,
+    ignoreIfNotExists: options["ignoreIfNotExists"] ?? false,
+    followedSymbolicLink: resolvedPath.followedSymbolicLink
+  });
+}
+function parseRename(input) {
+  const { change, changeIndex, workspaceRoot, target } = input;
+  if (typeof change["oldUri"] !== "string" || typeof change["newUri"] !== "string") {
+    throw new WorkspaceEditValidationError(changeIndex, "rename requires oldUri and newUri");
+  }
+  const oldPath = uriToCanonicalWorkspacePath(change["oldUri"], workspaceRoot);
+  const newPath = uriToCanonicalWorkspacePath(change["newUri"], workspaceRoot);
+  if (!oldPath.success || !newPath.success) {
+    target.failures.push({
+      changeIndex,
+      message: !oldPath.success ? oldPath.error : !newPath.success ? newPath.error : "invalid rename path"
+    });
+    return;
+  }
+  const options = parseOptions(change["options"], ["overwrite", "ignoreIfExists"], changeIndex);
+  target.operations.push({
+    kind: "rename",
+    changeIndex,
+    oldPath: oldPath.path,
+    newPath: newPath.path,
+    reportedOldPath: oldPath.requestedPath,
+    reportedNewPath: newPath.requestedPath,
+    overwrite: options["overwrite"] ?? false,
+    ignoreIfExists: options["ignoreIfExists"] ?? false,
+    followedSymbolicLink: oldPath.followedSymbolicLink || newPath.followedSymbolicLink
+  });
+}
+
+// ../lsp-core/src/lsp/workspace-edit-parser.ts
+function failureResult(failures) {
+  const sorted = [...failures].sort((left, right) => left.changeIndex - right.changeIndex);
+  const first = sorted[0];
+  return {
+    success: false,
+    filesModified: [],
+    totalEdits: 0,
+    errors: sorted.map((failure) => `change ${failure.changeIndex}: ${failure.message}`),
+    ...first ? { failedChange: first.changeIndex } : {}
+  };
+}
+function parseWorkspaceEdit(edit, workspaceRoot) {
+  if (!isRecord2(edit))
+    return { operations: [], failures: [{ changeIndex: 0, message: "No edit provided" }] };
+  if (edit["changeAnnotations"] !== undefined) {
+    return { operations: [], failures: [{ changeIndex: 0, message: "change annotations are unsupported" }] };
+  }
+  const hasChanges = edit["changes"] !== undefined;
+  const hasDocumentChanges = edit["documentChanges"] !== undefined;
+  if (hasChanges && hasDocumentChanges) {
+    return {
+      operations: [],
+      failures: [{ changeIndex: 0, message: "changes and documentChanges cannot be combined" }]
+    };
+  }
+  const target = { operations: [], failures: [] };
+  if (hasChanges)
+    return parseChanges(edit["changes"], workspaceRoot, target);
+  return parseDocumentChanges(edit["documentChanges"], workspaceRoot, target);
+}
+function parseChanges(value, workspaceRoot, target) {
+  if (!isRecord2(value))
+    return { ...target, failures: [{ changeIndex: 0, message: "changes must be an object" }] };
+  const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+  for (const [changeIndex, [uri, rawEdits]] of entries.entries()) {
+    const resolvedPath = uriToCanonicalWorkspacePath(uri, workspaceRoot);
+    if (!resolvedPath.success) {
+      target.failures.push({ changeIndex, message: resolvedPath.error });
+      continue;
+    }
+    try {
+      target.operations.push({
+        kind: "text",
+        changeIndex,
+        path: resolvedPath.path,
+        reportedPath: resolvedPath.requestedPath,
+        edits: parseTextEdits(rawEdits, changeIndex),
+        version: null
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceEditValidationError) {
+        target.failures.push({ changeIndex, message: error.detail });
+        continue;
+      }
+      throw error;
+    }
+  }
+  return target;
+}
+function parseDocumentChanges(value, workspaceRoot, target) {
+  if (value === undefined)
+    return target;
+  if (!Array.isArray(value)) {
+    return { ...target, failures: [{ changeIndex: 0, message: "documentChanges must be an array" }] };
+  }
+  for (const [changeIndex, change] of value.entries()) {
+    try {
+      parseDocumentChange({ change, changeIndex, workspaceRoot, target });
+    } catch (error) {
+      if (error instanceof WorkspaceEditValidationError) {
+        target.failures.push({ changeIndex, message: error.detail });
+        continue;
+      }
+      throw error;
+    }
+  }
+  return target;
+}
+function parseDocumentChange(input) {
+  const { change, changeIndex, workspaceRoot, target } = input;
+  if (!isRecord2(change))
+    throw new WorkspaceEditValidationError(changeIndex, "document change must be an object");
+  if ("annotationId" in change) {
+    throw new WorkspaceEditValidationError(changeIndex, "annotated resource operations are unsupported");
+  }
+  if (typeof change["kind"] === "string") {
+    parseResourceChange({ change, changeIndex, workspaceRoot, target });
+    return;
+  }
+  const identifier = change["textDocument"];
+  if (!isRecord2(identifier) || typeof identifier["uri"] !== "string") {
+    throw new WorkspaceEditValidationError(changeIndex, "textDocument.uri is required");
+  }
+  const version = identifier["version"];
+  if (version !== null && (!Number.isInteger(version) || typeof version !== "number" || version < 0)) {
+    throw new WorkspaceEditValidationError(changeIndex, "document version must be null or a non-negative integer");
+  }
+  const resolvedPath = uriToCanonicalWorkspacePath(identifier["uri"], workspaceRoot);
+  if (!resolvedPath.success) {
+    target.failures.push({ changeIndex, message: resolvedPath.error });
+    return;
+  }
+  target.operations.push({
+    kind: "text",
+    changeIndex,
+    path: resolvedPath.path,
+    reportedPath: resolvedPath.requestedPath,
+    edits: parseTextEdits(change["edits"], changeIndex),
+    version
+  });
+}
+
+// ../lsp-core/src/lsp/workspace-edit-simulation.ts
+import { dirname as dirname2, relative as relative3, resolve as resolve3 } from "node:path";
+
+// ../lsp-core/src/lsp/workspace-edit-text.ts
+function comparePosition(left, right) {
+  return left.line === right.line ? left.character - right.character : left.line - right.line;
+}
+function positionsEqual(left, right) {
+  return left.line === right.line && left.character === right.character;
+}
+function rangesEqual(left, right) {
+  return positionsEqual(left.start, right.start) && positionsEqual(left.end, right.end);
+}
+function isEmptyRange(range) {
+  return positionsEqual(range.start, range.end);
+}
+function formatRange(range) {
+  return `${range.start.line + 1}:${range.start.character + 1}-${range.end.line + 1}:${range.end.character + 1}`;
+}
+function validatePosition(position, label, context) {
+  const { lines, changeIndex } = context;
+  if (!Number.isInteger(position.line) || !Number.isInteger(position.character)) {
+    throw new WorkspaceEditValidationError(changeIndex, `${label} position must use integer line and character`);
+  }
+  if (position.line < 0 || position.character < 0) {
+    throw new WorkspaceEditValidationError(changeIndex, `${label} position cannot be negative`);
+  }
+  const line = lines[position.line];
+  if (line === undefined) {
+    throw new WorkspaceEditValidationError(changeIndex, `${label} line ${position.line} is outside the document`);
+  }
+  if (position.character > line.length) {
+    throw new WorkspaceEditValidationError(changeIndex, `${label} character ${position.character} is outside line ${position.line}`);
+  }
+}
+function validateRange(range, lines, changeIndex) {
+  const context = { lines, changeIndex };
+  validatePosition(range.start, "start", context);
+  validatePosition(range.end, "end", context);
+  if (comparePosition(range.start, range.end) > 0) {
+    throw new WorkspaceEditValidationError(changeIndex, `range ${formatRange(range)} ends before it starts`);
+  }
+}
+function sortAndDeduplicate(edits) {
+  const sorted = edits.map((edit, index) => ({ edit, index })).sort((left, right) => {
+    const positionOrder = comparePosition(right.edit.range.start, left.edit.range.start);
+    return positionOrder === 0 ? right.index - left.index : positionOrder;
+  });
+  const unique = [];
+  for (const entry of sorted) {
+    const previous = unique.at(-1);
+    if (previous !== undefined && !isEmptyRange(entry.edit.range) && rangesEqual(previous.range, entry.edit.range) && previous.newText === entry.edit.newText) {
+      continue;
+    }
+    unique.push(entry.edit);
+  }
+  return unique;
+}
+function validateNoOverlap(edits, changeIndex) {
+  for (let index = 0;index < edits.length - 1; index += 1) {
+    const later = edits[index];
+    const earlier = edits[index + 1];
+    if (later === undefined || earlier === undefined)
+      continue;
+    if (comparePosition(earlier.range.end, later.range.start) > 0) {
+      throw new WorkspaceEditValidationError(changeIndex, `overlapping edits ${formatRange(earlier.range)} and ${formatRange(later.range)}`);
+    }
+  }
+}
+function applyNormalizedTextEdits(content, edits) {
+  const lines = content.split(`
+`);
+  for (const edit of edits) {
+    const { start, end } = edit.range;
+    const startLine = lines[start.line];
+    const endLine = lines[end.line];
+    if (startLine === undefined || endLine === undefined)
+      continue;
+    const replacement = startLine.slice(0, start.character) + edit.newText + endLine.slice(end.character);
+    lines.splice(start.line, end.line - start.line + 1, ...replacement.split(`
+`));
+  }
+  return lines.join(`
+`);
+}
+function normalizeTextEdits(content, edits, changeIndex) {
+  const lines = content.split(`
+`);
+  for (const edit of edits) {
+    validateRange(edit.range, lines, changeIndex);
+  }
+  const normalized = sortAndDeduplicate(edits);
+  validateNoOverlap(normalized, changeIndex);
+  return { edits: normalized, text: applyNormalizedTextEdits(content, normalized) };
+}
+
+// ../lsp-core/src/lsp/workspace-edit-simulation.ts
+function isSameOrDescendant2(candidate, parent) {
+  const relativePath = relative3(parent, candidate);
+  return relativePath === "" || !relativePath.startsWith("..") && relativePath !== "..";
+}
+function removeVirtualSubtree(virtual, path) {
+  for (const candidate of [...virtual.keys()]) {
+    if (isSameOrDescendant2(candidate, path))
+      virtual.delete(candidate);
+  }
+  virtual.set(path, { kind: "missing" });
+}
+function moveVirtualSubtree(virtual, oldPath, newPath) {
+  const moved = [...virtual.entries()].filter(([candidate]) => isSameOrDescendant2(candidate, oldPath));
+  removeVirtualSubtree(virtual, oldPath);
+  removeVirtualSubtree(virtual, newPath);
+  for (const [candidate, entry] of moved) {
+    const suffix = relative3(oldPath, candidate);
+    virtual.set(suffix === "" ? newPath : resolve3(newPath, suffix), entry);
+  }
+}
+function virtualDirectoryHasChildren(virtual, path) {
+  for (const [candidate, entry] of virtual) {
+    if (candidate !== path && entry.kind !== "missing" && isSameOrDescendant2(candidate, path))
+      return true;
+  }
+  return false;
+}
+function requireVirtualParent(virtual, path, changeIndex) {
+  if (virtual.get(dirname2(path))?.kind !== "directory") {
+    throw new WorkspaceEditValidationError(changeIndex, `parent directory does not exist for ${path}`);
+  }
+}
+function simulateOperations(parsed, snapshots) {
+  const virtual = new Map(snapshots);
+  const planned = [];
+  const failures = [];
+  for (const operation of parsed) {
+    try {
+      planned.push(simulateOperation(operation, virtual));
+    } catch (error) {
+      if (error instanceof WorkspaceEditValidationError) {
+        failures.push({ changeIndex: operation.changeIndex, message: error.detail });
+        continue;
+      }
+      throw error;
+    }
+  }
+  return { operations: planned, failures };
+}
+function simulateOperation(operation, virtual) {
+  switch (operation.kind) {
+    case "text":
+      return simulateText(operation, virtual);
+    case "create":
+      return simulateCreate(operation, virtual);
+    case "rename":
+      return simulateRename(operation, virtual);
+    case "delete":
+      return simulateDelete(operation, virtual);
+  }
+}
+function rejectSymbolicLink(operation) {
+  if (operation.followedSymbolicLink) {
+    throw new WorkspaceEditValidationError(operation.changeIndex, "resource operations through symbolic links are unsupported");
+  }
+}
+function simulateText(operation, virtual) {
+  const entry = virtual.get(operation.path);
+  if (entry?.kind !== "file")
+    throw new WorkspaceEditValidationError(operation.changeIndex, `${operation.path} is not a file`);
+  const normalized = normalizeTextEdits(entry.content, operation.edits, operation.changeIndex);
+  virtual.set(operation.path, { kind: "file", content: normalized.text });
+  return {
+    kind: "text",
+    changeIndex: operation.changeIndex,
+    path: operation.path,
+    beforeText: entry.content,
+    afterText: normalized.text,
+    editCount: normalized.edits.length,
+    documentVersion: operation.version
+  };
+}
+function simulateCreate(operation, virtual) {
+  rejectSymbolicLink(operation);
+  requireVirtualParent(virtual, operation.path, operation.changeIndex);
+  const target = virtual.get(operation.path) ?? { kind: "missing" };
+  if (target.kind !== "missing") {
+    if (operation.overwrite && target.kind === "file") {
+      virtual.set(operation.path, { kind: "file", content: "" });
+      return { kind: "create", changeIndex: operation.changeIndex, path: operation.path, replaced: true };
+    }
+    if (operation.ignoreIfExists)
+      return { kind: "noop", changeIndex: operation.changeIndex };
+    throw new WorkspaceEditValidationError(operation.changeIndex, `create target already exists: ${operation.path}`);
+  }
+  virtual.set(operation.path, { kind: "file", content: "" });
+  return { kind: "create", changeIndex: operation.changeIndex, path: operation.path, replaced: false };
+}
+function simulateRename(operation, virtual) {
+  rejectSymbolicLink(operation);
+  const source = virtual.get(operation.oldPath) ?? { kind: "missing" };
+  if (source.kind === "missing") {
+    throw new WorkspaceEditValidationError(operation.changeIndex, `rename source does not exist: ${operation.oldPath}`);
+  }
+  if (operation.oldPath === operation.newPath)
+    return { kind: "noop", changeIndex: operation.changeIndex };
+  if (isSameOrDescendant2(operation.newPath, operation.oldPath)) {
+    throw new WorkspaceEditValidationError(operation.changeIndex, "cannot rename a path into its own subtree");
+  }
+  requireVirtualParent(virtual, operation.newPath, operation.changeIndex);
+  const destination = virtual.get(operation.newPath) ?? { kind: "missing" };
+  if (destination.kind !== "missing" && !operation.overwrite) {
+    if (operation.ignoreIfExists)
+      return { kind: "noop", changeIndex: operation.changeIndex };
+    throw new WorkspaceEditValidationError(operation.changeIndex, `rename target already exists: ${operation.newPath}`);
+  }
+  moveVirtualSubtree(virtual, operation.oldPath, operation.newPath);
+  return {
+    kind: "rename",
+    changeIndex: operation.changeIndex,
+    oldPath: operation.oldPath,
+    newPath: operation.newPath,
+    sourceKind: source.kind,
+    replaceDestination: destination.kind !== "missing"
+  };
+}
+function simulateDelete(operation, virtual) {
+  rejectSymbolicLink(operation);
+  const target = virtual.get(operation.path) ?? { kind: "missing" };
+  if (target.kind === "missing") {
+    if (operation.ignoreIfNotExists)
+      return { kind: "noop", changeIndex: operation.changeIndex };
+    throw new WorkspaceEditValidationError(operation.changeIndex, `delete target does not exist: ${operation.path}`);
+  }
+  if (target.kind === "directory" && !operation.recursive && virtualDirectoryHasChildren(virtual, operation.path)) {
+    throw new WorkspaceEditValidationError(operation.changeIndex, `directory is not empty: ${operation.path}`);
+  }
+  removeVirtualSubtree(virtual, operation.path);
+  return {
+    kind: "delete",
+    changeIndex: operation.changeIndex,
+    path: operation.path,
+    targetKind: target.kind,
+    recursive: operation.recursive
+  };
+}
+
+// ../lsp-core/src/lsp/workspace-edit-snapshot.ts
+import { existsSync as existsSync4, lstatSync as lstatSync3, readdirSync as readdirSync2 } from "node:fs";
+import { dirname as dirname3, resolve as resolve4 } from "node:path";
+class WorkspaceSnapshotBuilder {
+  constructor(workspaceRoot) {
+    this.workspaceRoot = workspaceRoot;
+    this.snapshots = new Map;
+  }
+  build(operations) {
+    this.add(this.workspaceRoot, false);
+    for (const operation of operations) {
+      switch (operation.kind) {
+        case "rename":
+          this.add(operation.oldPath, true);
+          this.add(operation.newPath, true);
+          break;
+        case "delete":
+          this.add(operation.path, true);
+          break;
+        case "text":
+        case "create":
+          this.add(operation.path, false);
+          break;
+      }
+    }
+    return this.snapshots;
+  }
+  add(path, includeChildren) {
+    let candidate = path;
+    while (true) {
+      const existing = this.snapshots.get(candidate);
+      if (existing === undefined || includeChildren && existing.kind === "directory" && existing.children === undefined) {
+        this.snapshots.set(candidate, snapshotPath(candidate, includeChildren && candidate === path));
+      }
+      if (candidate === this.workspaceRoot)
+        break;
+      candidate = dirname3(candidate);
+    }
+    if (!includeChildren || !existsSync4(path) || !lstatSync3(path).isDirectory())
+      return;
+    for (const child of readdirSync2(path))
+      this.add(resolve4(path, child), true);
+  }
+}
+function snapshotOperations(operations, workspaceRoot) {
+  return new WorkspaceSnapshotBuilder(workspaceRoot).build(operations);
+}
+
+// ../lsp-core/src/lsp/workspace-edit-plan.ts
+class PlanPathIndex {
+  constructor() {
+    this.firstChangeByPath = new Map;
+    this.reportedPathByCanonical = new Map;
+  }
+  build(operations) {
+    for (const operation of operations) {
+      switch (operation.kind) {
+        case "rename":
+          this.add(operation.oldPath, operation.reportedOldPath, operation.changeIndex);
+          this.add(operation.newPath, operation.reportedNewPath, operation.changeIndex);
+          break;
+        case "text":
+        case "create":
+        case "delete":
+          this.add(operation.path, operation.reportedPath, operation.changeIndex);
+          break;
+      }
+    }
+  }
+  add(path, reportedPath, changeIndex) {
+    if (!this.firstChangeByPath.has(path))
+      this.firstChangeByPath.set(path, changeIndex);
+    if (!this.reportedPathByCanonical.has(path))
+      this.reportedPathByCanonical.set(path, reportedPath);
+  }
+}
+function fingerprintWorkspaceEdit(edit, workspaceRoot) {
+  const root = canonicalWorkspaceRoot(workspaceRoot);
+  if (!root.success)
+    return { success: false, result: failureResult([{ changeIndex: 0, message: root.error }]) };
+  const parsed = parseWorkspaceEdit(edit, root.path);
+  if (parsed.failures.length > 0)
+    return { success: false, result: failureResult(parsed.failures) };
+  return { success: true, fingerprint: canonicalFingerprint(parsed.operations) };
+}
+function planWorkspaceEdit(edit, workspaceRoot) {
+  const root = canonicalWorkspaceRoot(workspaceRoot);
+  if (!root.success)
+    return { success: false, result: failureResult([{ changeIndex: 0, message: root.error }]) };
+  const parsed = parseWorkspaceEdit(edit, root.path);
+  if (parsed.failures.length > 0)
+    return { success: false, result: failureResult(parsed.failures) };
+  let snapshots;
+  try {
+    snapshots = snapshotOperations(parsed.operations, root.path);
+  } catch (error) {
+    return {
+      success: false,
+      result: failureResult([{ changeIndex: 0, message: error instanceof Error ? error.message : String(error) }])
+    };
+  }
+  const simulated = simulateOperations(parsed.operations, snapshots);
+  if (simulated.failures.length > 0)
+    return { success: false, result: failureResult(simulated.failures) };
+  const paths = new PlanPathIndex;
+  paths.build(parsed.operations);
+  const plan = {
+    workspaceRoot: root.path,
+    operations: simulated.operations,
+    snapshots,
+    firstChangeByPath: paths.firstChangeByPath,
+    reportedPathByCanonical: paths.reportedPathByCanonical,
+    fingerprint: canonicalFingerprint(parsed.operations)
+  };
+  return { success: true, plan };
+}
+
+// ../lsp-core/src/lsp/workspace-mutation-controller.ts
+function failure(message, failedChange, base) {
+  return {
+    success: false,
+    filesModified: base?.filesModified ?? [],
+    totalEdits: base?.totalEdits ?? 0,
+    errors: [message],
+    ...failedChange === undefined ? {} : { failedChange },
+    ...base?.lateAbort ? { lateAbort: true } : {}
+  };
+}
+function responseFor(result) {
+  if (result.success)
+    return { applied: true };
+  return {
+    applied: false,
+    failureReason: result.errors[0] ?? "workspace edit failed",
+    ...result.failedChange === undefined ? {} : { failedChange: result.failedChange }
+  };
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+class WorkspaceMutationController {
+  constructor(workspaceRoot, documents) {
+    this.workspaceRoot = workspaceRoot;
+    this.documents = documents;
+    this.activeLease = null;
+    this.nextLeaseId = 1;
+  }
+  setIo(io) {
+    this.io = io;
+  }
+  acquire(signal) {
+    if (this.activeLease)
+      return { success: false, result: failure("workspace mutation is already in progress") };
+    if (signal?.aborted)
+      return { success: false, result: failure("cancelled before mutating request") };
+    const lease = {
+      id: this.nextLeaseId,
+      phase: "idle",
+      ...signal === undefined ? {} : { signal }
+    };
+    this.nextLeaseId += 1;
+    this.activeLease = lease;
+    return { success: true, lease };
+  }
+  release(lease) {
+    if (this.activeLease?.id !== lease.id)
+      return;
+    this.activeLease.phase = "sealed";
+    this.activeLease = null;
+  }
+  isBeforeCommit(lease) {
+    return this.activeLease?.id === lease.id && this.activeLease.phase === "idle";
+  }
+  async handleApplyEdit(params) {
+    const lease = this.activeLease;
+    if (!lease)
+      return { applied: false, failureReason: "workspace/applyEdit requires an active workspace mutation" };
+    if (lease.phase !== "idle") {
+      return {
+        applied: false,
+        failureReason: workspaceApplyEditConcurrentFailureReason(lease.phase === "applying" ? "applying" : "settled")
+      };
+    }
+    lease.phase = "applying";
+    lease.applyCompletion = new Promise((resolve) => {
+      lease.resolveApply = resolve;
+    });
+    const edit = isRecord3(params) ? params["edit"] : undefined;
+    const record = edit === undefined ? { fingerprint: null, result: failure("workspace/applyEdit params.edit is required", 0) } : await this.applyEdit(edit, lease);
+    lease.serverApply = record;
+    lease.phase = "settled";
+    lease.resolveApply?.();
+    return responseFor(record.result);
+  }
+  async reconcileRename(leaseToken, edit) {
+    const lease = this.requireActiveLease(leaseToken);
+    if (!lease)
+      return { edit, apply: failure("workspace mutation lease ended before rename reconciliation") };
+    if (lease.phase === "applying")
+      await lease.applyCompletion;
+    if (lease.serverApply)
+      return this.reconcileServerApply(lease.serverApply, edit);
+    lease.phase = "sealed";
+    if (!edit)
+      return { edit, apply: failure("No edit provided") };
+    const applied = await this.applyEdit(edit, lease);
+    return { edit, apply: applied.result };
+  }
+  reconcileServerApply(record, edit) {
+    if (!edit)
+      return { edit, apply: record.result };
+    const fingerprint = fingerprintWorkspaceEdit(edit, this.workspaceRoot);
+    if (fingerprint.success && record.fingerprint !== null && fingerprint.fingerprint === record.fingerprint) {
+      return { edit, apply: record.result };
+    }
+    return {
+      edit,
+      apply: failure("rename result conflicts with server-applied workspace edit", 0, record.result)
+    };
+  }
+  async applyEdit(edit, lease) {
+    const planned = planWorkspaceEdit(edit, this.workspaceRoot);
+    if (!planned.success)
+      return { fingerprint: null, result: planned.result };
+    const versionFailure = this.documents.validateVersions(planned.plan.operations);
+    if (versionFailure) {
+      return {
+        fingerprint: planned.plan.fingerprint,
+        result: failure(versionFailure.message, versionFailure.changeIndex)
+      };
+    }
+    const commit = commitWorkspaceEditPlan(planned.plan, {
+      ...lease.signal === undefined ? {} : { signal: lease.signal },
+      ...this.io === undefined ? {} : { io: this.io }
+    });
+    let result = commit.result;
+    if (commit.delta.operations.length > 0) {
+      try {
+        await this.documents.synchronize(commit.delta);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        result = failure(`document synchronization failed after filesystem commit: ${message}`, undefined, result);
+      }
+    }
+    if (lease.signal?.aborted && !result.lateAbort)
+      result = { ...result, lateAbort: true };
+    return { fingerprint: planned.plan.fingerprint, result };
+  }
+  requireActiveLease(lease) {
+    return this.activeLease?.id === lease.id ? this.activeLease : null;
+  }
+}
+
 // ../lsp-core/src/lsp/client.ts
-var POST_OPEN_DELAY_MS = 1000;
-var POST_DIAGNOSTICS_WAIT_MS = 500;
+var DIAGNOSTICS_FRESHNESS_TIMEOUT_MS = 3000;
+var VERSIONLESS_PUBLISH_QUIESCENCE_MS = 250;
 
 class LspClient extends LspClientConnection {
-  openedFiles = new Set;
-  documentVersions = new Map;
-  lastSyncedText = new Map;
-  diagnosticPullErrors = [];
+  constructor(root, server, options = {}) {
+    super(root, server, options);
+    this.diagnosticPullErrors = [];
+    this.diagnosticsFreshnessTimeoutMs = options.diagnosticsFreshnessTimeoutMs ?? DIAGNOSTICS_FRESHNESS_TIMEOUT_MS;
+    this.documents = new WorkspaceDocumentState((method, params) => this.sendNotification(method, params), (uri) => this.diagnosticsStore.delete(uri), {
+      versionlessPublishQuiescenceMs: options.versionlessPublishQuiescenceMs ?? VERSIONLESS_PUBLISH_QUIESCENCE_MS
+    });
+    this.workspaceMutations = new WorkspaceMutationController(root, this.documents);
+    this.setWorkspaceApplyEditHandler((params) => this.workspaceMutations.handleApplyEdit(params));
+  }
   getDiagnosticPullErrors() {
     return this.diagnosticPullErrors;
   }
   async openFile(filePath) {
-    const absPath = resolve(contextCwd(), filePath);
-    const uri = pathToFileURL2(absPath).href;
-    const text = readFileSync(absPath, "utf-8");
-    if (!this.openedFiles.has(absPath)) {
-      const ext = effectiveExtension(absPath);
-      const languageId = getLanguageId(ext);
-      const version = 1;
-      await this.sendNotification("textDocument/didOpen", {
-        textDocument: {
-          uri,
-          languageId,
-          version,
-          text
-        }
-      });
-      this.openedFiles.add(absPath);
-      this.documentVersions.set(uri, version);
-      this.lastSyncedText.set(uri, text);
-      await new Promise((r) => setTimeout(r, POST_OPEN_DELAY_MS));
-      return;
-    }
-    const prevText = this.lastSyncedText.get(uri);
-    if (prevText === text) {
-      return;
-    }
-    const nextVersion = (this.documentVersions.get(uri) ?? 1) + 1;
-    this.documentVersions.set(uri, nextVersion);
-    this.lastSyncedText.set(uri, text);
-    await this.sendNotification("textDocument/didChange", {
-      textDocument: { uri, version: nextVersion },
-      contentChanges: [{ text }]
-    });
-    await this.sendNotification("textDocument/didSave", {
-      textDocument: { uri },
-      text
-    });
+    const absPath = this.resolveWorkspacePath(filePath);
+    await this.documents.openFile(absPath);
   }
-  async definition(filePath, line, character) {
-    const absPath = resolve(contextCwd(), filePath);
+  getOpenDocumentVersion(filePath) {
+    return this.documents.getVersion(this.resolveWorkspacePath(filePath));
+  }
+  getStoredDiagnostics(uri) {
+    return [...this.documents.getStoredDiagnostics(uri)];
+  }
+  setWorkspaceEditIo(io) {
+    this.workspaceMutations.setIo(io);
+  }
+  handlePublishDiagnostics(params) {
+    super.handlePublishDiagnostics(params);
+    this.documents.recordPublishedDiagnostics(params);
+  }
+  async definition(filePath, line, character, signal) {
+    const absPath = this.resolveWorkspacePath(filePath);
     await this.openFile(absPath);
+    const options = signal === undefined ? {} : { signal };
     return this.sendRequest("textDocument/definition", {
-      textDocument: { uri: pathToFileURL2(absPath).href },
+      textDocument: { uri: pathToFileURL3(absPath).href },
       position: { line: line - 1, character }
-    });
+    }, options);
   }
-  async references(filePath, line, character, includeDeclaration = true) {
-    const absPath = resolve(contextCwd(), filePath);
+  async references(filePath, line, character, includeDeclaration = true, signal) {
+    const absPath = this.resolveWorkspacePath(filePath);
     await this.openFile(absPath);
+    const options = signal === undefined ? {} : { signal };
     return this.sendRequest("textDocument/references", {
-      textDocument: { uri: pathToFileURL2(absPath).href },
+      textDocument: { uri: pathToFileURL3(absPath).href },
       position: { line: line - 1, character },
       context: { includeDeclaration }
-    });
+    }, options);
   }
-  async documentSymbols(filePath) {
-    const absPath = resolve(contextCwd(), filePath);
+  async documentSymbols(filePath, signal) {
+    const absPath = this.resolveWorkspacePath(filePath);
     await this.openFile(absPath);
+    const options = signal === undefined ? {} : { signal };
     return this.sendRequest("textDocument/documentSymbol", {
-      textDocument: { uri: pathToFileURL2(absPath).href }
-    });
+      textDocument: { uri: pathToFileURL3(absPath).href }
+    }, options);
   }
-  async workspaceSymbols(query) {
-    return this.sendRequest("workspace/symbol", { query });
+  async workspaceSymbols(query, signal) {
+    const options = signal === undefined ? {} : { signal };
+    return this.sendRequest("workspace/symbol", { query }, options);
   }
   isUnsupportedDiagnosticPullError(error) {
     if (!(error instanceof Error))
@@ -1077,42 +2517,178 @@ class LspClient extends LspClientConnection {
       return true;
     return /unsupported|not supported|method not found|unknown request/i.test(error.message);
   }
-  async diagnostics(filePath) {
-    const absPath = resolve(contextCwd(), filePath);
-    const uri = pathToFileURL2(absPath).href;
-    await this.openFile(absPath);
-    await new Promise((r) => setTimeout(r, POST_DIAGNOSTICS_WAIT_MS));
-    try {
-      const result = await this.sendRequest("textDocument/diagnostic", {
-        textDocument: { uri }
-      });
-      if (result.items) {
-        return { items: result.items };
+  freshnessTimeout(absPath) {
+    return {
+      items: [],
+      transientError: {
+        kind: "freshness_timeout",
+        message: `Timed out waiting for fresh diagnostics for ${absPath} within ${this.diagnosticsFreshnessTimeoutMs}ms.`
       }
-    } catch (error) {
-      if (!this.isUnsupportedDiagnosticPullError(error)) {
-        this.diagnosticPullErrors.push(error instanceof Error ? error : new Error(String(error)));
-      }
+    };
+  }
+  parseDiagnosticPullReport(value) {
+    if (value.kind === "unchanged") {
+      return {
+        type: "unchanged",
+        ...value.resultId === undefined ? {} : { resultId: value.resultId }
+      };
     }
-    return { items: this.getStoredDiagnostics(uri) };
+    return {
+      type: "full",
+      diagnostics: value.items ?? [],
+      ...value.resultId === undefined ? {} : { resultId: value.resultId }
+    };
   }
-  async prepareRename(filePath, line, character) {
-    const absPath = resolve(contextCwd(), filePath);
+  async diagnostics(filePath, signal) {
+    signal?.throwIfAborted();
+    const absPath = this.resolveWorkspacePath(filePath);
+    const uri = pathToFileURL3(absPath).href;
     await this.openFile(absPath);
+    const deadlineAt = Date.now() + this.diagnosticsFreshnessTimeoutMs;
+    for (;; ) {
+      signal?.throwIfAborted();
+      const snapshot = this.documents.captureDiagnosticSnapshot(absPath);
+      if (!snapshot)
+        return this.freshnessTimeout(absPath);
+      const push = this.documents.resolvePushDiagnostics(snapshot);
+      if (push.status === "ready")
+        return { items: [...push.diagnostics] };
+      let pushFallbackOnly = !this.isDiagnosticPullSupported();
+      if (!pushFallbackOnly) {
+        const cached = this.documents.getPullCache(snapshot);
+        try {
+          const remainingMs = deadlineAt - Date.now();
+          if (remainingMs <= 0)
+            return this.freshnessTimeout(absPath);
+          const result = await this.sendRequest("textDocument/diagnostic", {
+            textDocument: { uri },
+            ...cached?.resultId === undefined ? {} : { previousResultId: cached.resultId }
+          }, { timeoutMs: remainingMs, ...signal === undefined ? {} : { signal } });
+          if (!this.documents.isCurrentSnapshot(snapshot))
+            continue;
+          const report = this.parseDiagnosticPullReport(result);
+          if (report.type === "full") {
+            this.documents.recordPullDiagnostics(snapshot, {
+              kind: "full",
+              diagnostics: report.diagnostics,
+              ...report.resultId === undefined ? {} : { resultId: report.resultId }
+            });
+            return { items: [...report.diagnostics] };
+          }
+          if (cached !== null && cached.documentVersion === snapshot.version && cached.resultId === report.resultId) {
+            return { items: [...cached.diagnostics] };
+          }
+        } catch (error) {
+          if (this.isUnsupportedDiagnosticPullError(error)) {
+            this.setDiagnosticPullSupported(false);
+            pushFallbackOnly = true;
+          } else if (error instanceof LspRequestTimeoutError) {
+            pushFallbackOnly = true;
+          } else {
+            this.diagnosticPullErrors.push(error instanceof Error ? error : new Error(String(error)));
+            throw error;
+          }
+        }
+      }
+      if (!pushFallbackOnly)
+        continue;
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) {
+        if (!this.isDiagnosticPullSupported() && snapshot.publishGeneration === 0) {
+          const cached = this.documents.getPullCache(snapshot);
+          return { items: cached === null ? [] : [...cached.diagnostics] };
+        }
+        return this.freshnessTimeout(absPath);
+      }
+      const waitMs = push.status === "wait" ? Math.min(push.waitMs, remainingMs) : remainingMs;
+      await waitForDiagnosticsActivity(this.documents.waitForDiagnosticsActivity(snapshot, waitMs), signal);
+    }
+  }
+  async prepareRename(filePath, line, character, signal) {
+    const absPath = this.resolveWorkspacePath(filePath);
+    await this.openFile(absPath);
+    const options = signal === undefined ? {} : { signal };
     return this.sendRequest("textDocument/prepareRename", {
-      textDocument: { uri: pathToFileURL2(absPath).href },
+      textDocument: { uri: pathToFileURL3(absPath).href },
       position: { line: line - 1, character }
-    });
+    }, options);
   }
-  async rename(filePath, line, character, newName) {
-    const absPath = resolve(contextCwd(), filePath);
+  async rename(filePath, line, character, newName, signal) {
+    const absPath = this.resolveWorkspacePath(filePath);
     await this.openFile(absPath);
-    return this.sendRequest("textDocument/rename", {
-      textDocument: { uri: pathToFileURL2(absPath).href },
-      position: { line: line - 1, character },
-      newName
-    });
+    const acquired = this.workspaceMutations.acquire(signal);
+    if (!acquired.success)
+      return { edit: null, apply: acquired.result };
+    const preCommitSignal = createPreCommitAbortSignal(signal, () => this.workspaceMutations.isBeforeCommit(acquired.lease));
+    try {
+      const renameParams = {
+        textDocument: { uri: pathToFileURL3(absPath).href },
+        position: { line: line - 1, character },
+        newName
+      };
+      const edit = preCommitSignal === undefined ? await this.sendRequest("textDocument/rename", renameParams) : await this.sendRequest("textDocument/rename", renameParams, {
+        signal: preCommitSignal.signal
+      });
+      return await this.workspaceMutations.reconcileRename(acquired.lease, edit);
+    } finally {
+      preCommitSignal?.dispose();
+      this.workspaceMutations.release(acquired.lease);
+    }
   }
+  resolveWorkspacePath(filePath) {
+    return resolve5(this.root, filePath);
+  }
+}
+function waitForDiagnosticsActivity(wait, signal) {
+  if (!signal)
+    return wait;
+  if (signal.aborted)
+    return Promise.reject(abortError2(signal));
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(abortError2(signal));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    wait.then(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, (error) => {
+      signal.removeEventListener("abort", onAbort);
+      reject(error);
+    });
+  });
+}
+function createPreCommitAbortSignal(source, isBeforeCommit) {
+  if (!source)
+    return;
+  const controller = new AbortController;
+  const onAbort = () => {
+    if (isBeforeCommit() && !controller.signal.aborted)
+      controller.abort(preCommitAbortReason(source));
+  };
+  if (source.aborted)
+    onAbort();
+  else
+    source.addEventListener("abort", onAbort, { once: true });
+  return {
+    signal: controller.signal,
+    dispose: () => source.removeEventListener("abort", onAbort)
+  };
+}
+function preCommitAbortReason(source) {
+  const reason = source.reason;
+  if (reason instanceof Error && reason.name !== "AbortError")
+    return reason;
+  return new Error("LSP request cancelled before workspace edit commit");
+}
+function abortError2(signal) {
+  const reason = signal.reason;
+  if (reason instanceof Error)
+    return reason;
+  const error = new Error(typeof reason === "string" ? reason : "operation cancelled");
+  error.name = "AbortError";
+  return error;
 }
 
 // ../lsp-core/src/lsp/process-signal-cleanup.ts
@@ -1144,7 +2720,7 @@ async function stopClientBestEffort(client) {
 function awaitWithSignal(promise, signal) {
   if (!signal)
     return promise;
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
     const onAbort = () => {
       if (settled)
@@ -1162,7 +2738,7 @@ function awaitWithSignal(promise, signal) {
         return;
       settled = true;
       signal.removeEventListener("abort", onAbort);
-      resolve2(value);
+      resolve(value);
     }, (err) => {
       if (settled)
         return;
@@ -1174,16 +2750,11 @@ function awaitWithSignal(promise, signal) {
 }
 
 class LspManager {
-  clients = new Map;
-  reaperHandle = null;
-  signalDisposer = null;
-  disposed = false;
-  idleTimeoutMs;
-  initTimeoutMs;
-  reaperIntervalMs;
-  clientFactory;
-  now;
   constructor(options = {}) {
+    this.clients = new Map;
+    this.reaperHandle = null;
+    this.signalDisposer = null;
+    this.disposed = false;
     this.idleTimeoutMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
     this.initTimeoutMs = options.initTimeoutMs ?? INIT_TIMEOUT_MS;
     this.reaperIntervalMs = options.reaperIntervalMs ?? REAPER_INTERVAL_MS;
@@ -1453,16 +3024,45 @@ async function* readStdioJsonRpcMessages(input) {
     yield parseJsonPayload(trailing, "line");
   }
 }
-function writeStdioJsonRpcResponse(output, response, responseMode) {
+async function writeStdioJsonRpcResponse(output, response, responseMode) {
   const body = JSON.stringify(response);
-  if (responseMode === "framed") {
-    output.write(`Content-Length: ${Buffer.byteLength(body, "utf8")}\r
+  const payload = responseMode === "framed" ? `Content-Length: ${Buffer.byteLength(body, "utf8")}\r
 \r
-${body}`);
-    return;
-  }
-  output.write(`${body}
-`);
+${body}` : `${body}
+`;
+  await writeChunk(output, payload);
+}
+function writeChunk(output, chunk) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onError = (error) => {
+      if (settled)
+        return;
+      settled = true;
+      reject(error);
+    };
+    output.once("error", onError);
+    try {
+      output.write(chunk, (error) => {
+        if (settled)
+          return;
+        settled = true;
+        if (error) {
+          queueMicrotask(() => output.removeListener("error", onError));
+          reject(error);
+          return;
+        }
+        output.removeListener("error", onError);
+        resolve();
+      });
+    } catch (error) {
+      output.removeListener("error", onError);
+      if (settled)
+        return;
+      settled = true;
+      reject(error);
+    }
+  });
 }
 function readNextMessage(buffer) {
   if (buffer.length === 0)
@@ -1545,56 +3145,133 @@ function bufferFromChunk(chunk) {
 
 // ../mcp-stdio-core/src/server.ts
 var DEFAULT_IDLE_TIMEOUT_MS = 10 * 60000;
+var DEFAULT_PARENT_POLL_INTERVAL_MS = 30000;
 var noopLog = () => {};
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return !hasErrorCode(error, "ESRCH");
+  }
+}
 async function runJsonRpcStdioServer(config) {
   const log = config.log ?? noopLog;
   const idleTimeoutMs = config.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
-  const idleTimer = createIdleTimer(idleTimeoutMs, log, config.onIdleTimeout);
+  let isClosed = false;
+  const idleTimer = createIdleTimer(idleTimeoutMs, log, () => {
+    isClosed = true;
+    config.onIdleTimeout?.();
+  });
+  const watchdog = createParentWatchdog(config.parentWatchdog, (parentPid, pollIntervalMs) => {
+    isClosed = true;
+    log("parent_exit", { parent_pid: parentPid, poll_interval_ms: pollIntervalMs });
+    config.onParentExit?.();
+    config.input.destroy();
+  });
   log("stdio_started", { cwd: process.cwd(), idle_timeout_ms: idleTimeoutMs });
   idleTimer.arm();
   try {
     for await (const message of readStdioJsonRpcMessages(config.input)) {
-      if (idleTimer.closed())
+      if (isClosed)
         break;
       idleTimer.arm();
       if (message.kind === "parse_error") {
-        handleParseError(message, config, log);
+        if (!await handleParseError(message, config, log))
+          break;
         continue;
       }
-      await handleRequest(message, config, log);
+      if (!await handleRequest(message, config, log))
+        break;
     }
+  } catch (error) {
+    if (!(isClosed && hasErrorCode(error, "ERR_STREAM_PREMATURE_CLOSE")))
+      throw error;
   } finally {
     idleTimer.clear();
+    watchdog.clear();
     log("stdio_stopped");
   }
 }
-function handleParseError(message, config, log) {
+async function handleParseError(message, config, log) {
   log("parse_error", { message: message.message });
   const response = config.parseErrorResponse?.(message.message) ?? errorResponse(null, -32700, "Parse error", message.message);
-  if (response !== undefined) {
-    writeStdioJsonRpcResponse(config.output, response, message.responseMode);
-  }
+  if (response === undefined)
+    return true;
+  return writeResponse(response, {
+    output: config.output,
+    responseMode: message.responseMode,
+    log
+  });
 }
 async function handleRequest(message, config, log) {
   const parsed = message.payload;
   const id = isPlainRecord(parsed) ? jsonRpcId(parsed["id"]) : null;
   const method = isPlainRecord(parsed) && typeof parsed["method"] === "string" ? parsed["method"] : null;
   log("request", { id: id === null ? null : String(id), method });
+  let response;
   try {
-    const response = await config.handler(parsed, config.handlerOptions);
-    if (response === undefined)
-      return;
-    writeStdioJsonRpcResponse(config.output, response, message.responseMode);
-    log("response", { id: String(response.id), method, is_error: response.error !== undefined });
+    response = await config.handler(parsed, config.handlerOptions);
   } catch (error) {
     if (config.onHandlerError === undefined)
       throw error;
     config.onHandlerError(error);
+    return true;
+  }
+  if (response === undefined)
+    return true;
+  if (!await writeResponse(response, {
+    output: config.output,
+    responseMode: message.responseMode,
+    log
+  }))
+    return false;
+  log("response", { id: String(response.id), method, is_error: response.error !== undefined });
+  return true;
+}
+async function writeResponse(response, context) {
+  try {
+    await writeStdioJsonRpcResponse(context.output, response, context.responseMode);
+    return true;
+  } catch (error) {
+    if (!isTerminalOutputError(error))
+      throw error;
+    context.log("output_error", { message: messageFromError(error) });
+    return false;
   }
 }
-function createIdleTimer(idleTimeoutMs, log, onIdleTimeout) {
+function isTerminalOutputError(error) {
+  if (!(error instanceof Error) || !("code" in error))
+    return false;
+  return error.code === "EPIPE" || error.code === "ERR_STREAM_DESTROYED" || error.code === "ERR_STREAM_WRITE_AFTER_END";
+}
+function hasErrorCode(error, code) {
+  return error instanceof Error && "code" in error && error.code === code;
+}
+function createParentWatchdog(config, onDeadParent) {
+  if (config === undefined)
+    return { clear: () => {} };
+  const pollIntervalMs = config.pollIntervalMs ?? DEFAULT_PARENT_POLL_INTERVAL_MS;
+  if (pollIntervalMs <= 0)
+    return { clear: () => {} };
+  const parentPid = config.parentPid ?? process.ppid;
+  const probeAlive = config.probeAlive ?? isProcessAlive;
+  let fired = false;
+  const timer = setInterval(() => {
+    if (fired || probeAlive(parentPid))
+      return;
+    fired = true;
+    onDeadParent(parentPid, pollIntervalMs);
+  }, pollIntervalMs);
+  timer.unref();
+  return {
+    clear: () => {
+      clearInterval(timer);
+    }
+  };
+}
+function createIdleTimer(idleTimeoutMs, log, onTimeout) {
   let timer = null;
-  let isClosed = false;
   return {
     arm: () => {
       if (timer !== null)
@@ -1602,9 +3279,8 @@ function createIdleTimer(idleTimeoutMs, log, onIdleTimeout) {
       if (idleTimeoutMs <= 0)
         return;
       timer = setTimeout(() => {
-        isClosed = true;
         log("idle_timeout", { idle_timeout_ms: idleTimeoutMs });
-        onIdleTimeout?.();
+        onTimeout();
       }, idleTimeoutMs);
       timer.unref();
     },
@@ -1613,33 +3289,203 @@ function createIdleTimer(idleTimeoutMs, log, onIdleTimeout) {
         return;
       clearTimeout(timer);
       timer = null;
-    },
-    closed: () => isClosed
+    }
   };
 }
-// ../lsp-core/src/tools/diagnostics.ts
-import { resolve as resolve4 } from "node:path";
-
 // ../lsp-core/src/lsp/client-wrapper.ts
-import { existsSync as existsSync5, statSync as statSync2 } from "node:fs";
-import { dirname as dirname2, join as join5, resolve as resolve2 } from "node:path";
+import { existsSync as existsSync9, statSync as statSync3 } from "node:fs";
+import { dirname as dirname6, join as join4, resolve as resolve7 } from "node:path";
+
+// ../lsp-core/src/request-context.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+import { existsSync as existsSync5, realpathSync as realpathSync3, statSync as statSync2 } from "node:fs";
+import { homedir } from "node:os";
+import { basename as basename2, delimiter as delimiter2, dirname as dirname4, isAbsolute as isAbsolute2, join as join2, relative as relative4, resolve as resolve6 } from "node:path";
+
+class LspRequestContextParseError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "LspRequestContextParseError";
+  }
+}
+
+class LspRequestContextUnavailableError extends Error {
+  constructor() {
+    super("LSP request context is required. Standalone MCP startup must install one with runWithRequestContext(createStandaloneMcpRequestContext()).");
+    this.name = "LspRequestContextUnavailableError";
+  }
+}
+var storage = new AsyncLocalStorage;
+var CONTEXT_FIELDS = new Set(["cwd", "projectConfigPaths", "userConfigPath", "installDecisionsPath", "capabilities"]);
+var CAPABILITY_FIELDS = new Set(["installDecisionTool"]);
+function runWithRequestContext(context, fn) {
+  return storage.run(context, fn);
+}
+function lspRequestContext() {
+  const context = storage.getStore();
+  if (!context)
+    throw new LspRequestContextUnavailableError;
+  return context;
+}
+function contextCwd() {
+  return lspRequestContext().cwd;
+}
+function contextEnv(key) {
+  const context = lspRequestContext();
+  if (key === "LSP_TOOLS_MCP_PROJECT_CONFIG")
+    return context.projectConfigPaths.join(delimiter2);
+  if (key === "LSP_TOOLS_MCP_USER_CONFIG")
+    return context.userConfigPath;
+  if (key === "LSP_TOOLS_MCP_INSTALL_DECISIONS")
+    return context.installDecisionsPath;
+  return;
+}
+function createStandaloneMcpRequestContext(input = {}) {
+  const env = input.env ?? process.env;
+  const cwd = canonicalCwd(input.cwd ?? process.cwd());
+  const home = input.homeDir ?? homedir();
+  const projectConfigPaths = translateProjectConfigEnv(env["LSP_TOOLS_MCP_PROJECT_CONFIG"], cwd);
+  const userConfigPath = translateHomeConfigEnv(env["LSP_TOOLS_MCP_USER_CONFIG"], home, ".codex/lsp-client.json");
+  const installDecisionsPath = translateHomeConfigEnv(env["LSP_TOOLS_MCP_INSTALL_DECISIONS"], home, ".codex/lsp-install-decisions.json");
+  return parseLspRequestContext({
+    cwd,
+    projectConfigPaths,
+    userConfigPath,
+    installDecisionsPath,
+    capabilities: { installDecisionTool: true }
+  });
+}
+function parseLspRequestContext(value) {
+  if (!isRecord4(value)) {
+    throw new LspRequestContextParseError("invalid_context", "LSP request context must be an object.");
+  }
+  rejectUnknownFields(value, CONTEXT_FIELDS, "context");
+  const cwd = stringField(value, "cwd");
+  const projectConfigPaths = stringArrayField(value, "projectConfigPaths");
+  const userConfigPath = stringField(value, "userConfigPath");
+  const installDecisionsPath = stringField(value, "installDecisionsPath");
+  const capabilities = capabilitiesField(value["capabilities"]);
+  const canonical = canonicalCwd(cwd);
+  for (const path of projectConfigPaths) {
+    requireAbsolutePath(path, "projectConfigPaths");
+    const projectPath = canonicalizeExistingOrNearestAncestor(path);
+    if (!isPathInside(canonical, projectPath)) {
+      throw new LspRequestContextParseError("project_config_outside_cwd", `Project LSP config path must be inside cwd: ${path}`);
+    }
+  }
+  requireAbsolutePath(userConfigPath, "userConfigPath");
+  requireAbsolutePath(installDecisionsPath, "installDecisionsPath");
+  return {
+    cwd: canonical,
+    projectConfigPaths: projectConfigPaths.map((path) => canonicalizeExistingOrNearestAncestor(path)),
+    userConfigPath,
+    installDecisionsPath,
+    capabilities
+  };
+}
+function translateProjectConfigEnv(value, cwd) {
+  if (value === undefined || value.length === 0)
+    return [join2(cwd, ".codex", "lsp-client.json")];
+  return value.split(delimiter2).filter((entry) => entry.length > 0).map((entry) => isAbsolute2(entry) ? entry : join2(cwd, entry));
+}
+function translateHomeConfigEnv(value, home, fallback) {
+  if (value === undefined || value.length === 0)
+    return join2(home, fallback);
+  return isAbsolute2(value) ? value : join2(home, value);
+}
+function canonicalCwd(cwd) {
+  const resolved = resolve6(cwd);
+  if (!existsSync5(resolved) || !statSync2(resolved).isDirectory()) {
+    throw new LspRequestContextParseError("invalid_cwd", `LSP request cwd must be an existing directory: ${cwd}`);
+  }
+  return realpathSync3(resolved);
+}
+function canonicalizeExistingOrNearestAncestor(path) {
+  let current = resolve6(path);
+  const suffix = [];
+  while (true) {
+    try {
+      const existing = realpathSync3(current);
+      return suffix.length === 0 ? existing : join2(existing, ...suffix);
+    } catch (error) {
+      if (!isMissingPathError(error))
+        throw error;
+      const parent = dirname4(current);
+      if (parent === current)
+        throw error;
+      suffix.unshift(basename2(current));
+      current = parent;
+    }
+  }
+}
+function capabilitiesField(value) {
+  if (!isRecord4(value)) {
+    throw new LspRequestContextParseError("invalid_capabilities", "LSP request capabilities must be an object.");
+  }
+  rejectUnknownFields(value, CAPABILITY_FIELDS, "capabilities");
+  const installDecisionTool = value["installDecisionTool"];
+  if (typeof installDecisionTool !== "boolean") {
+    throw new LspRequestContextParseError("invalid_install_decision_capability", "LSP request capabilities.installDecisionTool must be a boolean.");
+  }
+  return { installDecisionTool };
+}
+function stringField(value, field) {
+  const fieldValue = value[field];
+  if (typeof fieldValue !== "string" || fieldValue.length === 0) {
+    throw new LspRequestContextParseError("invalid_field", `LSP request context.${field} must be a non-empty string.`);
+  }
+  return fieldValue;
+}
+function stringArrayField(value, field) {
+  const fieldValue = value[field];
+  if (!Array.isArray(fieldValue) || !fieldValue.every((item) => typeof item === "string" && item.length > 0)) {
+    throw new LspRequestContextParseError("invalid_field", `LSP request context.${field} must be a non-empty string array.`);
+  }
+  return fieldValue;
+}
+function requireAbsolutePath(path, field) {
+  if (!isAbsolute2(path)) {
+    throw new LspRequestContextParseError("relative_path", `LSP request context.${field} must be absolute: ${path}`);
+  }
+}
+function isPathInside(parent, child) {
+  const childPath = resolve6(child);
+  const relativePath = relative4(parent, childPath);
+  return relativePath === "" || !relativePath.startsWith("..") && !isAbsolute2(relativePath);
+}
+function isMissingPathError(error) {
+  const code = errorCode(error);
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+function rejectUnknownFields(value, allowed, scope) {
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) {
+    throw new LspRequestContextParseError("unknown_field", `Unknown LSP request ${scope} field: ${unknown.join(", ")}`);
+  }
+}
+function isRecord4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function errorCode(error) {
+  if (!error || typeof error !== "object" || !("code" in error))
+    return;
+  const code = Reflect.get(error, "code");
+  return typeof code === "string" ? code : undefined;
+}
 
 // ../lsp-core/src/lsp/server-install-state.ts
-import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, renameSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, isAbsolute, join as join2 } from "node:path";
+import { existsSync as existsSync6, mkdirSync, readFileSync as readFileSync3, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname5 } from "node:path";
 function getInstallDecisionsPath() {
-  const override = contextEnv("LSP_TOOLS_MCP_INSTALL_DECISIONS");
-  if (!override)
-    return join2(homedir(), ".codex", "lsp-install-decisions.json");
-  return isAbsolute(override) ? override : join2(homedir(), override);
+  return lspRequestContext().installDecisionsPath;
 }
 function loadInstallDecisions() {
   const path = getInstallDecisionsPath();
-  if (!existsSync2(path))
+  if (!existsSync6(path))
     return {};
   try {
-    const parsed = JSON.parse(readFileSync2(path, "utf8"));
+    const parsed = JSON.parse(readFileSync3(path, "utf8"));
     return isInstallDecisions(parsed) ? parsed : {};
   } catch {
     return {};
@@ -1658,28 +3504,26 @@ function isInstallDecision(value) {
 }
 function writeInstallDecisions(decisions) {
   const path = getInstallDecisionsPath();
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(dirname5(path), { recursive: true });
   const tmpPath = `${path}.tmp`;
-  writeFileSync(tmpPath, `${JSON.stringify(decisions, null, 2)}
+  writeFileSync2(tmpPath, `${JSON.stringify(decisions, null, 2)}
 `, "utf8");
-  renameSync(tmpPath, path);
+  renameSync2(tmpPath, path);
 }
 function isInstallDecisions(value) {
-  return isRecord2(value) && Object.values(value).every(isInstallDecisionRecord);
+  return isRecord5(value) && Object.values(value).every(isInstallDecisionRecord);
 }
 function isInstallDecisionRecord(value) {
-  if (!isRecord2(value))
+  if (!isRecord5(value))
     return false;
   return isInstallDecision(value["decision"]) && typeof value["decidedAt"] === "string";
 }
-function isRecord2(value) {
+function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // ../lsp-core/src/lsp/config-loader.ts
-import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
-import { homedir as homedir2 } from "node:os";
-import { delimiter as delimiter2, isAbsolute as isAbsolute2, join as join3 } from "node:path";
+import { existsSync as existsSync7, readFileSync as readFileSync4 } from "node:fs";
 
 // ../lsp-core/src/lsp/server-definitions.ts
 var LSP_INSTALL_HINTS = {
@@ -1829,27 +3673,17 @@ var BUILTIN_SERVERS = {
 };
 
 // ../lsp-core/src/lsp/config-loader.ts
-function resolveProjectConfigPath(path) {
-  return isAbsolute2(path) ? path : join3(contextCwd(), path);
-}
 function getProjectConfigPaths() {
-  const projectOverride = contextEnv("LSP_TOOLS_MCP_PROJECT_CONFIG");
-  if (projectOverride) {
-    return projectOverride.split(delimiter2).filter(Boolean).map(resolveProjectConfigPath);
-  }
-  return [join3(contextCwd(), ".codex", "lsp-client.json")];
+  return lspRequestContext().projectConfigPaths;
 }
 function getUserConfigPath() {
-  const userOverride = contextEnv("LSP_TOOLS_MCP_USER_CONFIG");
-  if (!userOverride)
-    return join3(homedir2(), ".codex", "lsp-client.json");
-  return isAbsolute2(userOverride) ? userOverride : join3(homedir2(), userOverride);
+  return lspRequestContext().userConfigPath;
 }
 function loadJsonFile(path) {
-  if (!existsSync3(path))
+  if (!existsSync7(path))
     return null;
   try {
-    const parsed = JSON.parse(readFileSync3(path, "utf-8"));
+    const parsed = JSON.parse(readFileSync4(path, "utf-8"));
     return isConfigJson(parsed) ? parsed : null;
   } catch {
     return null;
@@ -1893,10 +3727,10 @@ function getMergedServers() {
       }
       if (seen.has(id))
         continue;
-      const server2 = createServerFromEntry(id, entry, source);
-      if (!server2)
+      const server = createServerFromEntry(id, entry, source);
+      if (!server)
         continue;
-      servers.push(server2);
+      servers.push(server);
       seen.add(id);
     }
   }
@@ -1928,7 +3762,7 @@ function createServerFromEntry(id, entry, source) {
   if (source === "project") {
     if (!builtin)
       return null;
-    const server3 = createServer({
+    const server = createServer({
       id,
       command: builtin.command,
       extensions: entry.extensions ?? builtin.extensions,
@@ -1936,35 +3770,35 @@ function createServerFromEntry(id, entry, source) {
       source
     });
     if (entry.initialization !== undefined) {
-      server3.initialization = entry.initialization;
+      server.initialization = entry.initialization;
     }
-    return server3;
+    return server;
   }
   if (entry.command && entry.extensions) {
-    const server3 = createServer({
+    const server = createServer({
       id,
       command: entry.command,
       extensions: entry.extensions,
       priority: entry.priority ?? 0,
       source
     });
-    applyOptionalServerFields(server3, entry);
-    return server3;
+    applyOptionalServerFields(server, entry);
+    return server;
   }
   if (!builtin)
     return null;
-  const server2 = createServer({
+  const server = createServer({
     id,
     command: entry.command ?? builtin.command,
     extensions: entry.extensions ?? builtin.extensions,
     priority: entry.priority ?? 0,
     source
   });
-  applyOptionalServerFields(server2, entry);
-  return server2;
+  applyOptionalServerFields(server, entry);
+  return server;
 }
 function createServer(input) {
-  const server2 = {
+  const server = {
     id: input.id,
     command: input.command,
     extensions: input.extensions,
@@ -1972,32 +3806,32 @@ function createServer(input) {
     source: input.source
   };
   if (input.env !== undefined) {
-    server2.env = input.env;
+    server.env = input.env;
   }
   if (input.initialization !== undefined) {
-    server2.initialization = input.initialization;
+    server.initialization = input.initialization;
   }
-  return server2;
+  return server;
 }
-function applyOptionalServerFields(server2, entry) {
+function applyOptionalServerFields(server, entry) {
   if (entry.env !== undefined) {
-    server2.env = entry.env;
+    server.env = entry.env;
   }
   if (entry.initialization !== undefined) {
-    server2.initialization = entry.initialization;
+    server.initialization = entry.initialization;
   }
 }
 function isConfigJson(value) {
-  if (!isRecord3(value))
+  if (!isRecord6(value))
     return false;
   const lsp = value["lsp"];
-  return lsp === undefined || isRecord3(lsp);
+  return lsp === undefined || isRecord6(lsp);
 }
 function parseLspEntry(value) {
   return isLspEntry(value) ? value : null;
 }
 function isLspEntry(value) {
-  if (!isRecord3(value))
+  if (!isRecord6(value))
     return false;
   const disabled = value["disabled"];
   const command = value["command"];
@@ -2005,15 +3839,15 @@ function isLspEntry(value) {
   const priority = value["priority"];
   const env = value["env"];
   const initialization = value["initialization"];
-  return (disabled === undefined || typeof disabled === "boolean") && (command === undefined || isStringArray(command)) && (extensions === undefined || isStringArray(extensions)) && (priority === undefined || typeof priority === "number") && (env === undefined || isStringRecord(env)) && (initialization === undefined || isRecord3(initialization));
+  return (disabled === undefined || typeof disabled === "boolean") && (command === undefined || isStringArray(command)) && (extensions === undefined || isStringArray(extensions)) && (priority === undefined || typeof priority === "number") && (env === undefined || isStringRecord(env)) && (initialization === undefined || isRecord6(initialization));
 }
 function isStringArray(value) {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 function isStringRecord(value) {
-  return isRecord3(value) && Object.values(value).every((item) => typeof item === "string");
+  return isRecord6(value) && Object.values(value).every((item) => typeof item === "string");
 }
-function isRecord3(value) {
+function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function getDisabledServerIds() {
@@ -2034,8 +3868,8 @@ function getDisabledServerIds() {
 }
 
 // ../lsp-core/src/lsp/server-installation.ts
-import { existsSync as existsSync4 } from "node:fs";
-import { delimiter as delimiter3, join as join4 } from "node:path";
+import { existsSync as existsSync8 } from "node:fs";
+import { delimiter as delimiter3, join as join3 } from "node:path";
 function isServerInstalled(command, _workingDirectory) {
   if (command.length === 0)
     return false;
@@ -2043,7 +3877,7 @@ function isServerInstalled(command, _workingDirectory) {
   if (!cmd)
     return false;
   if (cmd.includes("/") || cmd.includes("\\")) {
-    if (existsSync4(cmd))
+    if (existsSync8(cmd))
       return true;
   }
   const isWindows = process.platform === "win32";
@@ -2064,7 +3898,7 @@ function isServerInstalled(command, _workingDirectory) {
   const paths = pathEnv.split(delimiter3);
   for (const p of paths) {
     for (const suffix of exts) {
-      if (existsSync4(join4(p, cmd + suffix))) {
+      if (existsSync8(join3(p, cmd + suffix))) {
         return true;
       }
     }
@@ -2077,21 +3911,21 @@ function isServerInstalled(command, _workingDirectory) {
 // ../lsp-core/src/lsp/server-resolution.ts
 function findServerForExtension(ext) {
   const servers = getMergedServers();
-  for (const server2 of servers) {
-    if (server2.extensions.includes(ext) && isServerInstalled(server2.command)) {
+  for (const server of servers) {
+    if (server.extensions.includes(ext) && isServerInstalled(server.command)) {
       const resolvedServer = {
-        id: server2.id,
-        command: server2.command,
-        extensions: server2.extensions,
-        priority: server2.priority
+        id: server.id,
+        command: server.command,
+        extensions: server.extensions,
+        priority: server.priority
       };
-      if (server2.env !== undefined) {
+      if (server.env !== undefined) {
         return {
           status: "found",
           server: {
             ...resolvedServer,
-            env: server2.env,
-            ...server2.initialization === undefined ? {} : { initialization: server2.initialization }
+            env: server.env,
+            ...server.initialization === undefined ? {} : { initialization: server.initialization }
           }
         };
       }
@@ -2099,20 +3933,20 @@ function findServerForExtension(ext) {
         status: "found",
         server: {
           ...resolvedServer,
-          ...server2.initialization === undefined ? {} : { initialization: server2.initialization }
+          ...server.initialization === undefined ? {} : { initialization: server.initialization }
         }
       };
     }
   }
-  for (const server2 of servers) {
-    if (server2.extensions.includes(ext)) {
-      const installHint = LSP_INSTALL_HINTS[server2.id] ?? `Install '${server2.command[0]}' and ensure it's in your PATH`;
+  for (const server of servers) {
+    if (server.extensions.includes(ext)) {
+      const installHint = LSP_INSTALL_HINTS[server.id] ?? `Install '${server.command[0]}' and ensure it's in your PATH`;
       return {
         status: "not_installed",
         server: {
-          id: server2.id,
-          command: server2.command,
-          extensions: server2.extensions
+          id: server.id,
+          command: server.command,
+          extensions: server.extensions
         },
         installHint
       };
@@ -2130,18 +3964,18 @@ function getAllServers() {
   const disabled = getDisabledServerIds();
   const result = [];
   const seen = new Set;
-  for (const server2 of servers) {
-    if (seen.has(server2.id))
+  for (const server of servers) {
+    if (seen.has(server.id))
       continue;
     result.push({
-      id: server2.id,
-      installed: isServerInstalled(server2.command),
-      extensions: server2.extensions,
+      id: server.id,
+      installed: isServerInstalled(server.command),
+      extensions: server.extensions,
       disabled: false,
-      source: server2.source,
-      priority: server2.priority
+      source: server.source,
+      priority: server.priority
     });
-    seen.add(server2.id);
+    seen.add(server.id);
   }
   for (const id of disabled) {
     if (seen.has(id))
@@ -2163,39 +3997,50 @@ function getAllServers() {
 var WORKSPACE_MARKERS = [".git", "package.json", "pyproject.toml", "Cargo.toml", "go.mod", "pom.xml", "build.gradle"];
 function isDirectoryPath(filePath) {
   try {
-    return statSync2(filePath).isDirectory();
+    return statSync3(filePath).isDirectory();
   } catch {
     return false;
   }
 }
 function findWorkspaceRoot(filePath) {
-  const abs = resolve2(contextCwd(), filePath);
+  const abs = resolvePathInsideContext(filePath);
   let dir = abs;
   if (!isDirectoryPath(dir)) {
-    dir = dirname2(dir);
+    dir = dirname6(dir);
   }
   let prevDir = "";
   while (dir !== prevDir) {
     for (const marker of WORKSPACE_MARKERS) {
-      if (existsSync5(join5(dir, marker))) {
+      if (existsSync9(join4(dir, marker))) {
         return dir;
       }
     }
     prevDir = dir;
-    dir = dirname2(dir);
+    dir = dirname6(dir);
   }
-  return dirname2(abs);
+  return dirname6(abs);
+}
+function resolvePathInsideContext(filePath) {
+  const cwd = contextCwd();
+  const abs = resolve7(cwd, filePath);
+  const canonical = canonicalizeExistingOrNearestAncestor(abs);
+  if (!isPathInside(cwd, canonical)) {
+    throw new LspInvalidPathError(`LSP file path must be inside request cwd: ${filePath}`);
+  }
+  return canonical;
 }
 function formatServerLookupError(result) {
   if (result.status === "not_installed") {
     return formatNotInstalled(result);
   }
+  const context = lspRequestContext();
+  const firstProjectConfigPath = context.projectConfigPaths[0] ?? "<project lsp config>";
   return [
     `No LSP server configured for extension: ${result.extension}`,
     "",
     `Available servers: ${result.availableServers.slice(0, 10).join(", ")}${result.availableServers.length > 10 ? "..." : ""}`,
     "",
-    "Configure a custom server in '.codex/lsp-client.json':",
+    `Configure a custom server in '${firstProjectConfigPath}' or '${context.userConfigPath}':`,
     "  {",
     '    "lsp": {',
     '      "my-server": {',
@@ -2208,16 +4053,17 @@ function formatServerLookupError(result) {
 `);
 }
 function formatNotInstalled(result) {
-  const { server: server2, installHint } = result;
-  const extensions = server2.extensions.join(", ");
-  const decision = loadInstallDecision(server2.id)?.decision;
+  const { server, installHint } = result;
+  const extensions = server.extensions.join(", ");
+  const decision = loadInstallDecision(server.id)?.decision;
+  const context = lspRequestContext();
   if (decision === "declined") {
-    return `LSP server '${server2.id}' (${extensions}) is NOT INSTALLED; user previously declined installation — proceed without LSP.`;
+    return `LSP server '${server.id}' (${extensions}) is NOT INSTALLED; user previously declined installation — proceed without LSP.`;
   }
   const header = [
-    `LSP server '${server2.id}' for ${extensions} is NOT INSTALLED.`,
+    `LSP server '${server.id}' for ${extensions} is NOT INSTALLED.`,
     "",
-    `Command not found: ${server2.command[0]}`,
+    `Command not found: ${server.command[0]}`,
     ""
   ];
   if (decision === "allowed") {
@@ -2225,6 +4071,17 @@ function formatNotInstalled(result) {
       ...header,
       "The user has pre-authorized LSP installation. Run the install command, then retry this tool:",
       `  ${installHint}`
+    ].join(`
+`);
+  }
+  if (!context.capabilities.installDecisionTool) {
+    return [
+      ...header,
+      "To install, run:",
+      `  ${installHint}`,
+      "",
+      "ACTION REQUIRED — ASK THE USER whether to install this LSP server.",
+      "Install-decision recording is unavailable in this harness; proceed without LSP if the user declines."
     ].join(`
 `);
   }
@@ -2236,7 +4093,8 @@ function formatNotInstalled(result) {
     "ACTION REQUIRED — ASK THE USER whether to install this LSP server.",
     "- If the user agrees: run the install command above, then retry this tool.",
     "- If the user declines, OR has NOT explicitly asked for LSP installation:",
-    `    call lsp_install_decision { server_id: "${server2.id}", decision: "declined" },`,
+    `    call lsp_install_decision { server_id: "${server.id}", decision: "declined" },`,
+    `    which writes to ${context.installDecisionsPath},`,
     "    then ignore this message and proceed WITHOUT LSP."
   ].join(`
 `);
@@ -2250,46 +4108,46 @@ var READ_ONLY_RETRY_TOOLS = new Set([
   "prepareRename"
 ]);
 async function withLspClient(filePath, fn, toolName, options = {}) {
-  const absPath = resolve2(contextCwd(), filePath);
+  const absPath = resolvePathInsideContext(filePath);
   if (isDirectoryPath(absPath)) {
     throw new LspInvalidPathError("Directory paths are not supported by this LSP tool. " + "Use lsp.diagnostics with a directory path for directory diagnostics.");
   }
   const ext = effectiveExtension(absPath);
   const result = findServerForExtension(ext);
   if (result.status !== "found") {
-    throw new LspServerLookupError(formatServerLookupError(result));
+    throw new LspServerLookupError(formatServerLookupError(result), result);
   }
-  const server2 = result.server;
+  const server = result.server;
   const root = findWorkspaceRoot(absPath);
-  const manager2 = options.manager ?? getLspManager();
+  const manager = options.manager ?? getLspManager();
   const acquireAndCall = async (allowRetry) => {
-    const client = await manager2.getClient(root, server2, options.signal);
+    const client = await manager.getClient(root, server, options.signal);
     try {
       return await fn(client, root);
     } catch (err) {
       if (allowRetry && READ_ONLY_RETRY_TOOLS.has(toolName) && isLspDeadConnectionError(err)) {
-        manager2.invalidateClient(root, server2.id, client);
+        manager.invalidateClient(root, server.id, client);
         return acquireAndCall(false);
       }
       if (err instanceof LspRequestTimeoutError) {
-        if (manager2.isServerInitializing(root, server2.id)) {
+        if (manager.isServerInitializing(root, server.id)) {
           throw new LspServerInitializingError(err);
         }
       }
       throw err;
     } finally {
-      manager2.releaseClient(root, server2.id);
+      manager.releaseClient(root, server.id);
     }
   };
   return acquireAndCall(true);
 }
 
 // ../lsp-core/src/lsp/directory-diagnostics.ts
-import { existsSync as existsSync6, lstatSync, readdirSync } from "node:fs";
-import { join as join6, resolve as resolve3 } from "node:path";
+import { existsSync as existsSync10, lstatSync as lstatSync4, readdirSync as readdirSync3 } from "node:fs";
+import { join as join5, resolve as resolve8 } from "node:path";
 
 // ../lsp-core/src/lsp/formatters.ts
-import { fileURLToPath } from "node:url";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 var DIAGNOSTIC_SEVERITY_FILTERS = {
   error: 1,
   warning: 2,
@@ -2297,14 +4155,14 @@ var DIAGNOSTIC_SEVERITY_FILTERS = {
   hint: 4
 };
 function uriToPath(uri) {
-  return fileURLToPath(uri);
+  return fileURLToPath2(uri);
 }
 function formatLocation(loc) {
   if ("targetUri" in loc) {
-    const uri2 = uriToPath(loc.targetUri);
-    const line2 = loc.targetRange.start.line + 1;
-    const char2 = loc.targetRange.start.character;
-    return `${uri2}:${line2}:${char2}`;
+    const uri = uriToPath(loc.targetUri);
+    const line = loc.targetRange.start.line + 1;
+    const char = loc.targetRange.start.character;
+    return `${uri}:${line}:${char}`;
   }
   const uri = uriToPath(loc.uri);
   const line = loc.range.start.line + 1;
@@ -2383,6 +4241,9 @@ function formatApplyResult(result) {
     for (const file of result.filesModified) {
       lines.push(`  - ${file}`);
     }
+    if (result.lateAbort) {
+      lines.push("Cancellation arrived after the filesystem commit began; the committed edit completed.");
+    }
   } else {
     lines.push("Failed to apply some changes:");
     for (const err of result.errors) {
@@ -2398,6 +4259,7 @@ function formatApplyResult(result) {
 
 // ../lsp-core/src/lsp/directory-diagnostics.ts
 var SKIP_DIRECTORIES = new Set(["node_modules", ".git", "dist", "build", ".next", "out"]);
+var DIRECTORY_DIAGNOSTICS_MAX_CONCURRENCY = 4;
 function collectFilesWithExtension(dir, extension, maxFiles) {
   const files = [];
   function walk(currentDir) {
@@ -2405,17 +4267,17 @@ function collectFilesWithExtension(dir, extension, maxFiles) {
       return;
     let entries = [];
     try {
-      entries = readdirSync(currentDir);
+      entries = readdirSync3(currentDir);
     } catch {
       return;
     }
     for (const entry of entries) {
       if (files.length >= maxFiles)
         return;
-      const fullPath = join6(currentDir, entry);
+      const fullPath = join5(currentDir, entry);
       let stat;
       try {
-        stat = lstatSync(fullPath);
+        stat = lstatSync4(fullPath);
       } catch {
         continue;
       }
@@ -2433,54 +4295,67 @@ function collectFilesWithExtension(dir, extension, maxFiles) {
   walk(dir);
   return files;
 }
-async function aggregateDiagnosticsForDirectory(directory, extension, severity, maxFiles = DEFAULT_MAX_DIRECTORY_FILES) {
+async function aggregateDiagnosticsForDirectory(directory, extension, severity, maxFiles = DEFAULT_MAX_DIRECTORY_FILES, options = {}) {
   if (!extension.startsWith(".")) {
     throw new LspInvalidPathError(`Extension must start with a dot (e.g., ".ts", not "${extension}"). Use ".${extension}" instead.`);
   }
-  const absDir = resolve3(contextCwd(), directory);
-  if (!existsSync6(absDir)) {
+  const absDir = resolve8(options.workspaceRoot ?? contextCwd(), directory);
+  if (!existsSync10(absDir)) {
     throw new LspInvalidPathError(`Directory does not exist: ${absDir}`);
   }
-  const serverResult = findServerForExtension(extension);
+  const serverResult = options.server === undefined ? findServerForExtension(extension) : { status: "found", server: options.server };
   if (serverResult.status !== "found") {
     throw new LspServerLookupError(formatServerLookupError(serverResult));
   }
-  const server2 = serverResult.server;
-  const allFiles = collectFilesWithExtension(absDir, extension, maxFiles + 1);
+  const server = serverResult.server;
+  const allFiles = (options.listFiles ?? collectFilesWithExtension)(absDir, extension, maxFiles + 1);
   const wasCapped = allFiles.length > maxFiles;
   const filesToProcess = allFiles.slice(0, maxFiles);
   if (filesToProcess.length === 0) {
-    return [
+    const output = [
       `Directory: ${absDir}`,
       `Extension: ${extension}`,
       "Files scanned: 0",
       `No files found with extension "${extension}".`
     ].join(`
 `);
+    return { output, totalDiagnostics: 0, fileFailures: [] };
   }
-  const root = findWorkspaceRoot(absDir);
-  const manager2 = getLspManager();
+  const root = options.workspaceRoot ?? findWorkspaceRoot(absDir);
+  const manager = options.manager ?? getLspManager();
   const allDiagnostics = [];
   const fileErrors = [];
-  const client = await manager2.getClient(root, server2);
+  const maxConcurrency = Math.max(1, options.maxConcurrency ?? DIRECTORY_DIAGNOSTICS_MAX_CONCURRENCY);
+  options.signal?.throwIfAborted();
+  const client = await manager.getClient(root, server, options.signal);
   try {
-    for (const file of filesToProcess) {
-      try {
-        const result = await client.diagnostics(file);
-        const filtered = filterDiagnosticsBySeverity(result.items, severity);
-        allDiagnostics.push(...filtered.map((diagnostic) => ({
-          filePath: file,
-          diagnostic
-        })));
-      } catch (e) {
-        fileErrors.push({
-          file,
-          error: e instanceof Error ? e.message : String(e)
-        });
+    let nextIndex = 0;
+    const workers = Array.from({ length: Math.min(maxConcurrency, filesToProcess.length) }, async () => {
+      for (;; ) {
+        if (options.signal?.aborted)
+          return;
+        const file = filesToProcess[nextIndex];
+        nextIndex += 1;
+        if (file === undefined)
+          return;
+        try {
+          const result = await client.diagnostics(file, options.signal);
+          const filtered = filterDiagnosticsBySeverity(result.items, severity);
+          allDiagnostics.push(...filtered.map((diagnostic) => ({
+            filePath: file,
+            diagnostic
+          })));
+        } catch (e) {
+          fileErrors.push({
+            file,
+            error: e instanceof Error ? e.message : String(e)
+          });
+        }
       }
-    }
+    });
+    await Promise.all(workers);
   } finally {
-    manager2.releaseClient(root, server2.id);
+    manager.releaseClient(root, server.id);
   }
   const displayDiagnostics = allDiagnostics.slice(0, DEFAULT_MAX_DIAGNOSTICS);
   const wasDiagCapped = allDiagnostics.length > DEFAULT_MAX_DIAGNOSTICS;
@@ -2506,13 +4381,13 @@ async function aggregateDiagnosticsForDirectory(directory, extension, severity, 
       lines.push("", `... (${allDiagnostics.length - DEFAULT_MAX_DIAGNOSTICS} more diagnostics not shown)`);
     }
   }
-  return lines.join(`
-`);
+  return { output: lines.join(`
+`), totalDiagnostics: allDiagnostics.length, fileFailures: fileErrors };
 }
 
 // ../lsp-core/src/lsp/infer-extension.ts
-import { lstatSync as lstatSync2, readdirSync as readdirSync2 } from "node:fs";
-import { join as join7 } from "node:path";
+import { lstatSync as lstatSync5, readdirSync as readdirSync4 } from "node:fs";
+import { join as join6 } from "node:path";
 var SKIP_DIRECTORIES2 = new Set(["node_modules", ".git", "dist", "build", ".next", "out"]);
 var MAX_SCAN_ENTRIES = 500;
 function inferExtensionFromDirectory(directory) {
@@ -2523,17 +4398,17 @@ function inferExtensionFromDirectory(directory) {
       return;
     let entries;
     try {
-      entries = readdirSync2(dir);
+      entries = readdirSync4(dir);
     } catch {
       return;
     }
     for (const entry of entries) {
       if (scanned >= MAX_SCAN_ENTRIES)
         return;
-      const fullPath = join7(dir, entry);
+      const fullPath = join6(dir, entry);
       let stat;
       try {
-        stat = lstatSync2(fullPath);
+        stat = lstatSync5(fullPath);
       } catch {
         continue;
       }
@@ -2607,13 +4482,48 @@ function missingDependencyResult(error, details) {
     details: {
       ...details,
       error: message,
-      errorKind: "missing_dependency"
+      errorKind: "missing_dependency",
+      ...availabilityDetails(error)
     }
   };
 }
+function availabilityDetails(error) {
+  const availability = missingDependencyAvailability(error);
+  return availability === null ? {} : { availability };
+}
+function missingDependencyAvailability(error) {
+  if (!(error instanceof LspServerLookupError) || error.lookup === undefined)
+    return null;
+  const context = lspRequestContext();
+  switch (error.lookup.status) {
+    case "not_configured":
+      return {
+        kind: "not_configured",
+        extension: error.lookup.extension,
+        availableServers: [...error.lookup.availableServers],
+        projectConfigPaths: [...context.projectConfigPaths],
+        userConfigPath: context.userConfigPath,
+        installDecisionTool: context.capabilities.installDecisionTool
+      };
+    case "not_installed":
+      return {
+        kind: "not_installed",
+        serverId: error.lookup.server.id,
+        command: [...error.lookup.server.command],
+        extensions: [...error.lookup.server.extensions],
+        installHint: error.lookup.installHint,
+        installDecisionTool: context.capabilities.installDecisionTool,
+        installDecisionsPath: context.installDecisionsPath
+      };
+    default: {
+      const exhaustive = error.lookup;
+      return exhaustive;
+    }
+  }
+}
 
 // ../lsp-core/src/tools/parameters.ts
-function isRecord4(value) {
+function isRecord7(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function requireString(params, key) {
@@ -2654,8 +4564,8 @@ function clientOptions(signal) {
 }
 
 // ../lsp-core/src/tools/result.ts
-function text(text2, details, isError = false) {
-  return { content: [{ type: "text", text: text2 }], details, isError };
+function text(text, details, isError = false) {
+  return { content: [{ type: "text", text }], details, isError };
 }
 
 // ../lsp-core/src/tools/diagnostics.ts
@@ -2670,12 +4580,12 @@ async function executeLspDiagnostics(params, signal) {
   const filePath = requireString(params, "filePath");
   const severity = severityFilter(params);
   try {
-    const absPath = resolve4(contextCwd(), filePath);
+    const absPath = resolvePathInsideContext(filePath);
     if (isDirectoryPath(absPath)) {
       const extension = inferExtensionFromDirectory(absPath);
       if (!extension) {
         const message = `No supported source files found in directory: ${absPath}`;
-        const details3 = {
+        const details = {
           filePath,
           severity,
           mode: "directory",
@@ -2685,20 +4595,35 @@ async function executeLspDiagnostics(params, signal) {
           error: message,
           errorKind: "no_files"
         };
-        return text(message, details3);
+        return text(message, details);
       }
-      const output2 = await aggregateDiagnosticsForDirectory(absPath, extension, severity);
-      const details2 = {
+      const output = await aggregateDiagnosticsForDirectory(absPath, extension, severity, undefined, signal === undefined ? {} : { signal });
+      const details = {
         filePath,
         severity,
         mode: "directory",
         diagnostics: [],
-        totalDiagnostics: 0,
-        truncated: false
+        totalDiagnostics: output.totalDiagnostics,
+        truncated: false,
+        fileFailures: [...output.fileFailures]
       };
-      return text(output2, details2);
+      return text(output.output, details);
     }
-    const result = await withLspClient(filePath, async (client) => client.diagnostics(filePath), "diagnostics", clientOptions(signal));
+    const result = await withLspClient(filePath, async (client) => client.diagnostics(filePath, signal), "diagnostics", clientOptions(signal));
+    if (result.transientError) {
+      const message = result.transientError.message;
+      const details = {
+        filePath,
+        severity,
+        mode: "file",
+        diagnostics: [],
+        totalDiagnostics: 0,
+        truncated: false,
+        error: message,
+        errorKind: result.transientError.kind
+      };
+      return text(message, details, true);
+    }
     const diagnostics = filterDiagnosticsBySeverity(asDiagnosticArray(result), severity);
     const total = diagnostics.length;
     const truncated = total > DEFAULT_MAX_DIAGNOSTICS;
@@ -2738,7 +4663,7 @@ async function executeLspInstallDecision(params) {
   if (!isInstallDecision(decision)) {
     return text(`Invalid decision '${String(decision)}'. Expected "declined" or "allowed".`, { serverId, errorKind: "invalid_decision" }, true);
   }
-  const serverIds = [...new Set(getMergedServers().map((server2) => server2.id))];
+  const serverIds = [...new Set(getMergedServers().map((server) => server.id))];
   if (!serverIds.includes(serverId)) {
     const preview = serverIds.slice(0, 20).join(", ");
     return text(`Unknown LSP server '${serverId}'. Known servers: ${preview}${serverIds.length > 20 ? "..." : ""}`, { serverId, errorKind: "unknown_server" }, true);
@@ -2759,7 +4684,7 @@ async function executeLspGotoDefinition(params, signal) {
   const line = requireNumber(params, "line");
   const character = requireNumber(params, "character");
   try {
-    const result = await withLspClient(filePath, async (client) => client.definition(filePath, line, character), "definition", clientOptions(signal));
+    const result = await withLspClient(filePath, async (client) => client.definition(filePath, line, character, signal), "definition", clientOptions(signal));
     const locations = !result ? [] : Array.isArray(result) ? result : [result];
     const details = { filePath, line, character, locations };
     if (locations.length === 0)
@@ -2784,7 +4709,7 @@ async function executeLspFindReferences(params, signal) {
   const character = requireNumber(params, "character");
   const includeDeclaration = optionalBoolean(params, "includeDeclaration") ?? true;
   try {
-    const result = await withLspClient(filePath, async (client) => client.references(filePath, line, character, includeDeclaration), "references", clientOptions(signal));
+    const result = await withLspClient(filePath, async (client) => client.references(filePath, line, character, includeDeclaration, signal), "references", clientOptions(signal));
     const references = Array.isArray(result) ? result : [];
     const total = references.length;
     const truncated = total > DEFAULT_MAX_REFERENCES;
@@ -2820,181 +4745,13 @@ async function executeLspFindReferences(params, signal) {
   }
 }
 
-// ../lsp-core/src/lsp/workspace-edit.ts
-import { existsSync as existsSync7, readFileSync as readFileSync4, realpathSync, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname3, isAbsolute as isAbsolute3, relative, resolve as resolve5 } from "node:path";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
-function errorMessage2(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-function isPathInsideWorkspace(filePath, workspaceRoot) {
-  const relativePath = relative(workspaceRoot, filePath);
-  return relativePath === "" || !relativePath.startsWith("..") && !isAbsolute3(relativePath);
-}
-function realpathForValidation(filePath) {
-  if (existsSync7(filePath))
-    return realpathSync(filePath);
-  const parent = dirname3(filePath);
-  return resolve5(realpathSync(parent), relative(parent, filePath));
-}
-function uriToWorkspacePath(uri, workspaceRoot) {
-  let filePath;
-  try {
-    filePath = fileURLToPath2(uri);
-  } catch (error) {
-    return { success: false, error: `non-file URI ${uri}: ${errorMessage2(error)}` };
-  }
-  let validatedPath;
-  try {
-    validatedPath = realpathForValidation(filePath);
-  } catch (error) {
-    return { success: false, error: `${filePath}: ${errorMessage2(error)}` };
-  }
-  if (!isPathInsideWorkspace(validatedPath, workspaceRoot)) {
-    return { success: false, error: `${filePath}: outside workspace ${workspaceRoot}` };
-  }
-  return { success: true, path: filePath };
-}
-function applyTextEditsToFile(filePath, edits) {
-  try {
-    const content = readFileSync4(filePath, "utf-8");
-    const lines = content.split(`
-`);
-    const sortedEdits = [...edits].sort((a, b) => {
-      if (b.range.start.line !== a.range.start.line) {
-        return b.range.start.line - a.range.start.line;
-      }
-      return b.range.start.character - a.range.start.character;
-    });
-    for (const edit of sortedEdits) {
-      const startLine = edit.range.start.line;
-      const startChar = edit.range.start.character;
-      const endLine = edit.range.end.line;
-      const endChar = edit.range.end.character;
-      if (startLine === endLine) {
-        const line = lines[startLine] ?? "";
-        lines[startLine] = line.substring(0, startChar) + edit.newText + line.substring(endChar);
-      } else {
-        const firstLine = lines[startLine] ?? "";
-        const lastLine = lines[endLine] ?? "";
-        const newContent = firstLine.substring(0, startChar) + edit.newText + lastLine.substring(endChar);
-        lines.splice(startLine, endLine - startLine + 1, ...newContent.split(`
-`));
-      }
-    }
-    writeFileSync2(filePath, lines.join(`
-`), "utf-8");
-    return { success: true, editCount: edits.length };
-  } catch (err) {
-    return {
-      success: false,
-      editCount: 0,
-      error: err instanceof Error ? err.message : String(err)
-    };
-  }
-}
-function applyWorkspaceEdit(edit, options = {}) {
-  if (!edit) {
-    return { success: false, filesModified: [], totalEdits: 0, errors: ["No edit provided"] };
-  }
-  const result = { success: true, filesModified: [], totalEdits: 0, errors: [] };
-  const workspaceRoot = realpathSync(options.workspaceRoot ?? contextCwd());
-  if (edit.changes) {
-    for (const [uri, edits] of Object.entries(edit.changes)) {
-      const validatedPath = uriToWorkspacePath(uri, workspaceRoot);
-      if (!validatedPath.success) {
-        result.success = false;
-        result.errors.push(validatedPath.error);
-        continue;
-      }
-      const applyResult = applyTextEditsToFile(validatedPath.path, edits);
-      if (applyResult.success) {
-        result.filesModified.push(validatedPath.path);
-        result.totalEdits += applyResult.editCount;
-      } else {
-        result.success = false;
-        result.errors.push(`${validatedPath.path}: ${applyResult.error}`);
-      }
-    }
-  }
-  if (edit.documentChanges) {
-    for (const change of edit.documentChanges) {
-      if (!("kind" in change)) {
-        const validatedPath = uriToWorkspacePath(change.textDocument.uri, workspaceRoot);
-        if (!validatedPath.success) {
-          result.success = false;
-          result.errors.push(validatedPath.error);
-          continue;
-        }
-        const applyResult = applyTextEditsToFile(validatedPath.path, change.edits);
-        if (applyResult.success) {
-          result.filesModified.push(validatedPath.path);
-          result.totalEdits += applyResult.editCount;
-        } else {
-          result.success = false;
-          result.errors.push(`${validatedPath.path}: ${applyResult.error}`);
-        }
-        continue;
-      }
-      if (change.kind === "create") {
-        try {
-          const validatedPath = uriToWorkspacePath(change.uri, workspaceRoot);
-          if (!validatedPath.success) {
-            result.success = false;
-            result.errors.push(`Create ${change.uri}: ${validatedPath.error}`);
-            continue;
-          }
-          writeFileSync2(validatedPath.path, "", "utf-8");
-          result.filesModified.push(validatedPath.path);
-        } catch (err) {
-          result.success = false;
-          result.errors.push(`Create ${change.uri}: ${String(err)}`);
-        }
-      } else if (change.kind === "rename") {
-        try {
-          const oldPath = uriToWorkspacePath(change.oldUri, workspaceRoot);
-          const newPath = uriToWorkspacePath(change.newUri, workspaceRoot);
-          if (!oldPath.success || !newPath.success) {
-            const error = oldPath.success ? newPath.success ? "invalid URI" : newPath.error : oldPath.error;
-            result.success = false;
-            result.errors.push(`Rename ${change.oldUri}: ${error}`);
-            continue;
-          }
-          const content = readFileSync4(oldPath.path, "utf-8");
-          writeFileSync2(newPath.path, content, "utf-8");
-          unlinkSync(oldPath.path);
-          result.filesModified.push(newPath.path);
-        } catch (err) {
-          result.success = false;
-          result.errors.push(`Rename ${change.oldUri}: ${String(err)}`);
-        }
-      } else if (change.kind === "delete") {
-        try {
-          const validatedPath = uriToWorkspacePath(change.uri, workspaceRoot);
-          if (!validatedPath.success) {
-            result.success = false;
-            result.errors.push(`Delete ${change.uri}: ${validatedPath.error}`);
-            continue;
-          }
-          unlinkSync(validatedPath.path);
-          result.filesModified.push(validatedPath.path);
-        } catch (err) {
-          result.success = false;
-          result.errors.push(`Delete ${change.uri}: ${String(err)}`);
-        }
-      }
-    }
-  }
-  return result;
-}
-
 // ../lsp-core/src/tools/rename.ts
 async function executeLspPrepareRename(params, signal) {
   const filePath = requireString(params, "filePath");
   const line = requireNumber(params, "line");
   const character = requireNumber(params, "character");
   try {
-    const result = await withLspClient(filePath, async (client) => client.prepareRename(filePath, line, character), "prepareRename", clientOptions(signal));
+    const result = await withLspClient(filePath, async (client) => client.prepareRename(filePath, line, character, signal), "prepareRename", clientOptions(signal));
     const details = { filePath, line, character, result };
     return text(formatPrepareRenameResult(result), details);
   } catch (error) {
@@ -3015,13 +4772,9 @@ async function executeLspRename(params, signal) {
   const character = requireNumber(params, "character");
   const newName = requireString(params, "newName");
   try {
-    const edit = await withLspClient(filePath, async (client, workspaceRoot) => ({
-      edit: await client.rename(filePath, line, character, newName),
-      workspaceRoot
-    }), "rename", clientOptions(signal));
-    const apply = applyWorkspaceEdit(edit.edit, { workspaceRoot: edit.workspaceRoot });
-    const details = { filePath, line, character, newName, apply, edit: edit.edit };
-    return text(formatApplyResult(apply), details, !apply.success);
+    const result = await withLspClient(filePath, async (client) => client.rename(filePath, line, character, newName, signal), "rename", clientOptions(signal));
+    const details = { filePath, line, character, newName, apply: result.apply, edit: result.edit };
+    return text(formatApplyResult(result.apply), details, !result.apply.success);
   } catch (error) {
     const missingDependency = missingDependencyResult(error, {
       filePath,
@@ -3050,10 +4803,10 @@ function objectSchema(properties, required = []) {
 async function executeLspStatus() {
   const servers = getAllServers();
   const snapshots = getLspManager().getSnapshot();
-  const installed = servers.filter((server2) => server2.installed && !server2.disabled);
-  const configuredLines = servers.map((server2) => {
-    const state = server2.disabled ? "disabled" : server2.installed ? "installed" : "missing";
-    return `- ${server2.id}: ${state}; source=${server2.source}; extensions=${server2.extensions.join(", ")}`;
+  const installed = servers.filter((server) => server.installed && !server.disabled);
+  const configuredLines = servers.map((server) => {
+    const state = server.disabled ? "disabled" : server.installed ? "installed" : "missing";
+    return `- ${server.id}: ${state}; source=${server.source}; extensions=${server.extensions.join(", ")}`;
   });
   const activeLines = snapshots.map((snapshot) => {
     const state = snapshot.alive ? snapshot.isInitializing ? "initializing" : "alive" : "dead";
@@ -3096,10 +4849,10 @@ async function executeLspSymbols(params, signal) {
           errorKind: "missing_query"
         });
       }
-      const symbols2 = await withLspClient(filePath, async (client) => client.workspaceSymbols(query), "workspaceSymbols", clientOptions(signal));
-      return formatSymbolsResult(filePath, scope, symbols2, limit, query);
+      const symbols = await withLspClient(filePath, async (client) => client.workspaceSymbols(query, signal), "workspaceSymbols", clientOptions(signal));
+      return formatSymbolsResult(filePath, scope, symbols, limit, query);
     }
-    const symbols = await withLspClient(filePath, async (client) => client.documentSymbols(filePath), "documentSymbols", clientOptions(signal));
+    const symbols = await withLspClient(filePath, async (client) => client.documentSymbols(filePath, signal), "documentSymbols", clientOptions(signal));
     return formatSymbolsResult(filePath, scope, symbols, limit);
   } catch (error) {
     const query = optionalString(params, "query");
@@ -3265,12 +5018,12 @@ function matchesToolName(tool, name) {
   return tool.name === name || (tool.aliases?.includes(name) ?? false);
 }
 function coerceToolArguments(value) {
-  return isRecord4(value) ? value : {};
+  return isRecord7(value) ? value : {};
 }
 // ../lsp-core/src/mcp.ts
 var SERVER_NAME = "lsp";
 var SERVER_VERSION = "0.1.0";
-async function handleLspMcpRequest(input) {
+async function handleLspMcpRequest(input, options = {}) {
   if (!isPlainRecord(input)) {
     return errorResponse(null, -32600, "Invalid Request");
   }
@@ -3292,33 +5045,27 @@ async function handleLspMcpRequest(input) {
     return successResponse(id, { tools: LSP_MCP_TOOLS.map(describeTool) });
   }
   if (method === "tools/call") {
-    return handleToolCall(id, input["params"]);
+    return handleToolCall(id, input["params"], options.signal);
   }
   return errorResponse(id, -32601, `Method not found: ${String(method)}`);
 }
-async function runMcpStdioServer(input = process.stdin, output = process.stdout) {
-  await runJsonRpcStdioServer({
-    input,
-    output,
-    idleTimeoutMs: 0,
-    handler: handleLspMcpRequest,
-    handlerOptions: undefined
-  });
-}
-async function handleToolCall(id, params) {
+async function handleToolCall(id, params, signal) {
   if (!isPlainRecord(params) || typeof params["name"] !== "string") {
     return errorResponse(id, -32602, "tools/call requires params.name");
   }
   try {
-    const result = await executeLspTool(params["name"], coerceToolArguments(params["arguments"]));
+    const result = await executeLspTool(params["name"], coerceToolArguments(params["arguments"]), signal);
     return successResponse(id, {
       content: result.content,
       isError: result.isError ?? false,
       details: result.details
     });
   } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
     return successResponse(id, {
-      content: [{ type: "text", text: messageFromError(error) }],
+      content: [{ type: "text", text: error.message }],
       isError: true
     });
   }
@@ -3336,8 +5083,52 @@ function requestedProtocolVersion(params) {
     return "2024-11-05";
   return params["protocolVersion"];
 }
+
+// src/mcp.ts
+async function handleLspMcpRequest2(input, options = {}) {
+  if (isPlainRecord(input)) {
+    const id = jsonRpcId(input["id"]);
+    if (input["method"] === "resources/list")
+      return successResponse(id, { resources: [] });
+    if (input["method"] === "resources/templates/list") {
+      return successResponse(id, { resourceTemplates: [] });
+    }
+  }
+  return handleLspMcpRequest(input, options);
+}
+async function runMcpStdioServer(input = process.stdin, output = process.stdout, options = {}) {
+  const requestContext = createStandaloneMcpRequestContext(options.requestContext);
+  await runJsonRpcStdioServer({
+    input,
+    output,
+    idleTimeoutMs: options.idleTimeoutMs ?? 0,
+    parentWatchdog: options.parentWatchdog ?? {},
+    ...options.log === undefined ? {} : { log: options.log },
+    handler: async (request) => {
+      const response = await runWithRequestContext(requestContext, () => handleLspMcpRequest2(request));
+      logToolError(request, response, options.log);
+      return response;
+    },
+    handlerOptions: undefined
+  });
+}
+function logToolError(input, response, log) {
+  if (log === undefined || !isPlainRecord(input) || input["method"] !== "tools/call")
+    return;
+  if (!isPlainRecord(response?.result))
+    return;
+  const details = response.result["details"];
+  const isMissingDependency = isPlainRecord(details) && details["errorKind"] === "missing_dependency";
+  if (response.result["isError"] !== true && !isMissingDependency)
+    return;
+  const content = response.result["content"];
+  const first = Array.isArray(content) ? content[0] : undefined;
+  const message = isPlainRecord(first) && typeof first["text"] === "string" ? first["text"] : "LSP tool failed";
+  const id = jsonRpcId(input["id"]);
+  log("tool_error", { id: id === null ? null : String(id), method: "tools/call", message });
+}
+
 // src/cli.ts
-import { argv, stderr } from "node:process";
 async function main() {
   const [command = "mcp"] = argv.slice(2);
   try {

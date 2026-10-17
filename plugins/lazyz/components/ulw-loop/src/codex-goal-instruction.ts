@@ -69,7 +69,7 @@ function modeConstraintLines(mode: UlwLoopCodexGoalMode, isFinal: boolean): read
 		];
 	}
 	return [
-		"- Codex goal = the whole omo ulw-loop run; OMO G001/G002/etc. = ledger stories.",
+		"- Codex goal = the whole lazyz ulw-loop run; OMO G001/G002/etc. = ledger stories.",
 		"- First call get_goal. If no active goal exists, call create_goal with the aggregate payload below.",
 		"- If get_goal reports the same aggregate objective as active, continue this OMO story without creating a new Codex goal.",
 		"- If a different active or incomplete Codex goal exists, finish/checkpoint that goal before starting this ulw-loop.",
@@ -107,10 +107,11 @@ function finalSection(plan: UlwLoopPlan, goal: UlwLoopItem, isFinal: boolean, ag
 	if (!isFinal)
 		return "- This is not the final ulw-loop story; do not run the final reviewer/manual-QA/gate-review quality gate yet.";
 	const option = sessionOption(plan);
-	const blockerCommand = `omo ulw-loop record-review-blockers${option} --goal-id ${goal.id} --title "Resolve final code-review blockers" --objective "<blocker-resolution objective>" --evidence "<review findings>" --codex-goal-json "<active get_goal JSON or path>"`;
-	const checkpointCommand = `omo ulw-loop checkpoint${option} --goal-id ${goal.id} --status complete --evidence "<targeted verification/manualQa/gateReview evidence>" --codex-goal-json "<fresh complete get_goal JSON or path>" --quality-gate-json "<quality gate JSON or path>"`;
+	const blockerCommand = `lazyz ulw-loop record-review-blockers${option} --goal-id ${goal.id} --title "Resolve final code-review blockers" --objective "<blocker-resolution objective>" --evidence "<review findings>" --codex-goal-json "<active get_goal JSON or path>"`;
+	const checkpointCommand = `lazyz ulw-loop checkpoint${option} --goal-id ${goal.id} --status complete --evidence "<targeted verification/manualQa/gateReview evidence>" --codex-goal-json "<fresh complete get_goal JSON or path>" --quality-gate-json "<quality gate JSON or path>"`;
 	return joinLines([
 		"Final story — run mandatory quality gate before update_goal:",
+		`- Generate the authoritative binding and exact criterion set first: lazyz ulw-loop quality-context${option} --goal-id ${goal.id} --json`,
 		"- Run targeted verification for changed behavior.",
 		"- Confirm every manualQa artifact path exists and has non-zero size.",
 		"- Spawn final reviewers with fork_context=false: lazycodex-code-reviewer, lazycodex-qa-executor, and lazycodex-gate-reviewer. Include the original brief, goal objectives, desired user-visible outcome, diff, and evidence.",

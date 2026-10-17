@@ -1,6 +1,6 @@
-import { hasContextPressureMarker } from "./context-pressure.js";
 import type { PiRulesConfig } from "@oh-my-opencode/rules-engine/engine";
-import { readTranscriptSearchText } from "./transcript-search.js";
+import { hasContextPressureMarker } from "./context-pressure.js";
+import { readTranscriptRecoverySearchText } from "./transcript-search.js";
 
 export interface PostCompactBudgetContext {
 	readonly model: string;
@@ -88,9 +88,7 @@ function fallbackModelContextBudget(): ModelContextBudget {
 }
 
 function estimateTranscript(transcriptPath: string): { readonly text: string; readonly tokens: number } | undefined {
-	const transcriptText =
-		readTranscriptSearchText(transcriptPath, { latestCompactedReplacementOnly: true }) ??
-		readTranscriptSearchText(transcriptPath);
+	const transcriptText = readTranscriptRecoverySearchText(transcriptPath)?.text ?? null;
 	if (transcriptText === null) {
 		return undefined;
 	}

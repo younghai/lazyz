@@ -122,8 +122,8 @@ export function completePostCompactRecovery(cachePath: string, kind: PostCompact
 }
 
 export function sessionCachePath(sessionId: string, pluginDataRoot: string | undefined): string {
-	const root = pluginDataRoot ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "codex-rules");
-	return join(root, "sessions", `${safePathSegment(sessionId)}.json`);
+	const root = pluginDataRoot ?? process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "codex-rules");
+	return join(root, "rules", "sessions", `${safePathSegment(sessionId)}.json`);
 }
 
 function readSessionState(cachePath: string): SerializedSessionState {

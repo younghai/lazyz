@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test"
+import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -70,7 +71,7 @@ describe("prepareCodegraphWorkspace", () => {
     rmSync(workspace, { force: true, recursive: true })
   })
 
-  it("uses fallback mode for a wrong-target symlink without throwing", () => {
+  it("rejects a wrong-target symlink instead of falling back through it", () => {
     // given
     const workspace = tempDir("codegraph-wrong-link")
     const target = tempDir("wrong-target")
@@ -79,11 +80,10 @@ describe("prepareCodegraphWorkspace", () => {
     symlinkSync(target, join(workspace, ".codegraph"), "dir")
 
     // when
-    const result = prepareCodegraphWorkspace(workspace, { homeDir: tempDir("home") })
+    const prepare = () => prepareCodegraphWorkspace(workspace, { homeDir: tempDir("home") })
 
     // then
-    expect(result.mode).toBe("in-place-fallback")
-    expect(result.linked).toBe(false)
+    expect(prepare).toThrow()
 
     rmSync(workspace, { force: true, recursive: true })
     rmSync(target, { force: true, recursive: true })
@@ -105,7 +105,8 @@ describe("CodeGraph workspace helpers", () => {
   it("adds .codegraph to git info exclude without touching .gitignore", () => {
     // given
     const workspace = tempDir("codegraph-gitignore")
-    mkdirSync(join(workspace, ".git", "info"), { recursive: true })
+    mkdirSync(workspace, { recursive: true })
+    execFileSync("git", ["init", "-q", workspace])
 
     // when
     const result = ensureCodegraphGitignored(workspace)

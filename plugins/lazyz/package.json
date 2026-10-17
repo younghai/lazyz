@@ -1,10 +1,16 @@
 {
 	"name": "@lazyz/plugin",
-	"version": "0.10.2",
-	"description": "LazyZ \u2014 ZCode plugin distribution of the OmO agent harness (project memory, planning, execution, verified completion).",
+	"version": "0.11.0",
+	"description": "LazyZ — ZCode plugin distribution of the OmO agent harness (project memory, planning, execution, verified completion).",
 	"type": "module",
+	"bin": {
+		"lazyz": "./dist/cli/index.js"
+	},
 	"packageManager": "npm@11.12.1",
 	"private": true,
+	"engines": {
+		"node": ">=20"
+	},
 	"workspaces": [
 		"components/bootstrap",
 		"components/codegraph",
@@ -28,21 +34,29 @@
 		"vendor/model-core",
 		"vendor/lsp-tools-mcp",
 		"vendor/git-bash-mcp",
-		"vendor/omo-codex",
-		"vendor/shared-skills"
+		"vendor/omo-codex"
 	],
-	"dependencies": {
-		"@oh-my-opencode/shared-skills": "file:./vendor/shared-skills"
-	},
 	"scripts": {
-		"build": "node scripts/sync-version.mjs && node scripts/sync-hook-status-messages.mjs && node scripts/build-bundled-mcp-runtimes.mjs && node scripts/materialize-shared-upstreams.mjs --strict && node scripts/sync-skills.mjs && node scripts/build-components.mjs",
+		"build": "node scripts/sync-version.mjs && node scripts/sync-hook-status-messages.mjs && node scripts/build-bundled-mcp-runtimes.mjs && node scripts/materialize-shared-upstreams.mjs --strict && node scripts/sync-skills.mjs && node scripts/build-cli.mjs && node scripts/build-components.mjs",
+		"build:release": "node scripts/build-release-payload.mjs",
 		"sync:version": "node scripts/sync-version.mjs",
-		"check": "npm run build && npm test",
+		"check": "npm run build && npm run typecheck:components && npm test && npm run test:components && npm run test:vendor && npm run check:zcode",
+		"check:zcode": "node scripts/check-zcode-compatibility.mjs",
 		"sync:hooks": "node scripts/sync-hook-status-messages.mjs",
 		"sync:skills": "node scripts/sync-skills.mjs",
-		"test": "node --test test/*.test.mjs"
+		"test": "node --test test/*.test.mjs",
+		"test:vendor": "node scripts/test-vendor.mjs",
+		"test:components": "for manifest in components/*/package.json; do dir=${manifest%/package.json}; npm --prefix \"$dir\" run test --if-present || exit 1; done",
+		"typecheck:components": "for manifest in components/*/package.json; do dir=${manifest%/package.json}; npm --prefix \"$dir\" run typecheck --if-present || exit 1; done"
 	},
-	"engines": {
-		"node": ">=20"
+	"devDependencies": {
+		"esbuild": "0.28.2"
+	},
+	"overrides": {
+		"js-yaml": "4.3.2",
+		"nanoid": "3.3.18",
+		"postcss": "8.5.26",
+		"source-map-js": "1.2.2",
+		"vitest": "4.1.11"
 	}
 }

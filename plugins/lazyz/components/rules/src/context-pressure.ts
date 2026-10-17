@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readTranscriptSearchWindow } from "./transcript-search.js";
 
 const CONTEXT_PRESSURE_MARKERS = [
 	"context compacted",
@@ -17,10 +17,6 @@ export function hasContextPressureMarker(text: string): boolean {
 
 export function transcriptHasContextPressureMarker(transcriptPath: string | null | undefined): boolean {
 	if (transcriptPath === undefined || transcriptPath === null) return false;
-	try {
-		return hasContextPressureMarker(readFileSync(transcriptPath, "utf8"));
-	} catch (error) {
-		if (error instanceof Error) return false;
-		throw error;
-	}
+	const transcript = readTranscriptSearchWindow(transcriptPath);
+	return transcript !== null && hasContextPressureMarker(transcript.text);
 }

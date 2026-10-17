@@ -1,0 +1,12 @@
+import { type UlwLoopScope } from "./paths.js";
+import type { UlwLoopLedgerEntry, UlwLoopPlan } from "./types.js";
+export declare function withUlwLoopMutationLock<T>(repoRoot: string, fn: () => Promise<T>): Promise<T>;
+export declare function withUlwLoopMutationLock<T>(repoRoot: string, scope: UlwLoopScope | undefined, fn: () => Promise<T>): Promise<T>;
+export declare function readUlwLoopPlan(repoRoot: string, scope?: UlwLoopScope): Promise<UlwLoopPlan>;
+export declare function writePlan(repoRoot: string, plan: UlwLoopPlan, scope?: UlwLoopScope): Promise<void>;
+export declare function appendLedger(repoRoot: string, entry: UlwLoopLedgerEntry, scope?: UlwLoopScope): Promise<void>;
+export declare function readSteeringLedgerEntries(repoRoot: string, scope?: UlwLoopScope): Promise<UlwLoopLedgerEntry[]>;
+export declare function ulwLoopPlanExists(repoRoot: string, scope?: UlwLoopScope): Promise<boolean>;
+export declare function writeUlwLoopBrief(repoRoot: string, brief: string, scope?: UlwLoopScope): Promise<void>;
+export declare function readUlwLoopBrief(repoRoot: string, scope?: UlwLoopScope): Promise<string | null>;
+export declare function resetUlwLoopLedger(repoRoot: string, scope?: UlwLoopScope): Promise<void>;

@@ -1,10 +1,16 @@
-name: ci
+name: LazyZ CI
 
 on:
   push:
     branches: [main]
+    paths:
+      - "plugins/lazyz/**"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "plugins/lazyz/**"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 concurrency:
@@ -18,12 +24,15 @@ jobs:
   build:
     name: build (${{ matrix.os }} · node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         node: ["20", "22"]
+    defaults:
+      run:
+        working-directory: plugins/lazyz
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,58 +45,79 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.4.2"
 
       - name: Install
-        working-directory: plugins/lazyz
-        run: npm install
+        run: npm ci
+
+      - name: Audit locked dependencies
+        run: npm audit --audit-level=moderate
 
       - name: Build
-        working-directory: plugins/lazyz
         run: npm run build
 
-      - name: Verify hook outputs exist
-        working-directory: plugins/lazyz
+      - name: Verify generated artifacts are current
         run: |
           set -e
-          for c in bootstrap codegraph comment-checker git-bash lazycodex-executor-verify lsp rules start-work-continuation telemetry ultrawork ulw-loop work-status; do
-            test -f "components/$c/dist/cli.js" || { echo "Missing components/$c/dist/cli.js"; exit 1; }
+          git diff --exit-code -- ':(glob)components/*/dist/**' ':(glob)vendor/*/dist/**' 'runtime/ast-grep-mcp/**' 'dist/cli/**' 'skills/**' 'hooks/**' 'components/work-status/README.md'
+          test -z "$(git ls-files --others --exclude-standard -- ':(glob)components/*/dist/**' ':(glob)vendor/*/dist/**' 'runtime/ast-grep-mcp/**' 'dist/cli/**' 'skills/**' 'hooks/**')"
+
+      - name: Verify ZCode compatibility residues
+        run: npm run check:zcode
+
+      - name: Typecheck components
+        run: npm run typecheck:components
+
+      - name: Test root safety and runtime checks
+        run: npm test
+
+      - name: Test components
+        run: npm run test:components
+
+      - name: Test vendored runtimes and bundled bootstrap helpers
+        run: npm run test:vendor
+
+      - name: Stage and smoke-test release payload
+        run: |
+          set -e
+          npm run build
+          payload_dir=$(mktemp -d)
+          npm run build:release -- --output "$payload_dir"
+          node "$payload_dir/dist/cli/index.js" doctor --json
+          node "$payload_dir/dist/cli/index.js" ulw-loop --help
+          test -z "$(find "$payload_dir" -type d \( -name src -o -name test -o -name tests -o -name node_modules \) -print -quit)"
+          test -z "$(find "$payload_dir" -type f \( -name bun.lock -o -name package-lock.json -o -name pnpm-lock.yaml -o -name yarn.lock \) -print -quit)"
+          test ! -e "$payload_dir/vendor/omo-codex"
+          test -f "$payload_dir/vendor/lsp-daemon/dist/cli.js"
+          test -f "$payload_dir/vendor/git-bash-mcp/dist/cli.js"
+          test -f "$payload_dir/runtime/ast-grep-mcp/cli.js"
+
+      - name: Verify hook outputs and MCP runtimes
+        run: |
+          set -e
+          for component in bootstrap codegraph comment-checker git-bash lazycodex-executor-verify lsp rules start-work-continuation telemetry ultrawork ulw-loop work-status; do
+            test -f "components/$component/dist/cli.js" || { echo "Missing components/$component/dist/cli.js"; exit 1; }
           done
           test -f vendor/git-bash-mcp/dist/cli.js
           test -f vendor/lsp-daemon/dist/cli.js
           test -f vendor/lsp-tools-mcp/dist/cli.js
-          echo "All hook outputs and MCP runtimes built successfully."
 
-      - name: Verify manifest consistency
-        working-directory: plugins/lazyz
+      - name: Verify hook and MCP manifest references
         run: |
           set -e
-          # Every path referenced in hooks.json and .mcp.json must exist after build
-          grep -oE '(components|vendor)/[a-z-]+/dist/[a-z.-]+' hooks/hooks.json .mcp.json \
+          grep -oE '(components|vendor|runtime)/[a-z-]+/(dist/)?[a-z.-]+' hooks/hooks.json .mcp.json \
             | cut -d: -f2 | sort -u | while read -r ref; do
               test -f "$ref" || { echo "Broken reference: $ref"; exit 1; }
             done
-          echo "All manifest references resolve to built files."
 
       - name: Verify boulder parser sync
-        working-directory: plugins/lazyz
         run: |
           set -e
-          # The two boulder parsers (work-status + start-work-continuation) must
-          # declare the same BoulderWorkStatus values. Extract the union members
-          # from both and diff. If they diverge, one parser will silently mishandle
-          # a status the other understands.
-          ws="components/work-status/src/work-status.ts"
-          sw="components/start-work-continuation/src/boulder-reader.ts"
-          ws_statuses=$(grep -m1 'type BoulderWorkStatus' "$ws" \
-            | grep -oE '"[a-z]+"' | sort)
-          sw_statuses=$(grep -m1 'type BoulderWorkStatus' "$sw" \
-            | grep -oE '"[a-z]+"' | sort)
-          if [ "$ws_statuses" != "$sw_statuses" ]; then
-            echo "BoulderWorkStatus values diverge between the two parsers:"
-            echo "--- work-status ($ws) ---"; echo "$ws_statuses"
-            echo "--- start-work-continuation ($sw) ---"; echo "$sw_statuses"
-            echo "Both parsers must stay in sync. See AGENTS.md 'Downgrade compatibility'."
+          work_status="components/work-status/src/work-status.ts"
+          continuation="components/start-work-continuation/src/boulder-reader.ts"
+          work_statuses=$(grep -m1 'type BoulderWorkStatus' "$work_status" | grep -oE '"[a-z]+"' | sort)
+          continuation_statuses=$(grep -m1 'type BoulderWorkStatus' "$continuation" | grep -oE '"[a-z]+"' | sort)
+          if [ "$work_statuses" != "$continuation_statuses" ]; then
+            echo "BoulderWorkStatus values diverge between $work_status and $continuation"
             exit 1
           fi
-          echo "Boulder parsers in sync: $(echo "$ws_statuses" | tr '\n' ' ')"

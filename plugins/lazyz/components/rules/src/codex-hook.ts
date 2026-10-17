@@ -27,32 +27,32 @@ export type { CodexRulesHookOptions } from "./codex-hook-options.js";
 
 export type CodexSessionStartInput = {
 	session_id: string;
-	transcript_path: string | null;
+	transcript_path?: string | null;
 	cwd: string;
 	hook_event_name: "SessionStart";
-	model: string;
+	model?: string;
 	permission_mode: string;
 	source: "startup" | "resume" | "clear" | "compact";
 };
 
 export type CodexUserPromptSubmitInput = {
 	session_id: string;
-	turn_id: string;
-	transcript_path: string | null;
+	turn_id?: string;
+	transcript_path?: string | null;
 	cwd: string;
 	hook_event_name: "UserPromptSubmit";
-	model: string;
+	model?: string;
 	permission_mode: string;
 	prompt: string;
 };
 
 export type CodexPostToolUseInput = {
 	session_id: string;
-	turn_id: string;
-	transcript_path: string | null;
+	turn_id?: string;
+	transcript_path?: string | null;
 	cwd: string;
 	hook_event_name: "PostToolUse";
-	model: string;
+	model?: string;
 	permission_mode: string;
 	tool_name: string;
 	tool_input: unknown;
@@ -62,11 +62,11 @@ export type CodexPostToolUseInput = {
 
 export type CodexPostCompactInput = {
 	session_id: string;
-	turn_id: string;
-	transcript_path: string | null;
+	turn_id?: string;
+	transcript_path?: string | null;
 	cwd: string;
 	hook_event_name: "PostCompact";
-	model: string;
+	model?: string;
 	trigger: "manual" | "auto";
 };
 
@@ -92,7 +92,7 @@ export async function runSessionStartHook(
 	) {
 		return "";
 	}
-	const transcriptPath = input.source === "clear" ? null : input.transcript_path;
+	const transcriptPath = input.source === "clear" ? null : (input.transcript_path ?? null);
 	return runStaticInjection(
 		input.cwd,
 		transcriptPath,
@@ -101,7 +101,7 @@ export async function runSessionStartHook(
 		options,
 		completedPostCompactKind,
 		{ latestCompactedReplacementOnly: completedPostCompactKind !== undefined },
-		input.model,
+		input.model ?? "",
 	);
 }
 
@@ -122,7 +122,7 @@ export async function runUserPromptSubmitHook(
 	}
 	const cachePath = sessionCachePath(input.session_id, options.pluginDataRoot);
 	const postCompactClaim = claimPostCompactPending(cachePath, "static");
-	if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path)) {
+	if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path ?? null)) {
 		return "";
 	}
 	const completedPostCompactKind = claimedPostCompactKind(postCompactClaim, "static");
@@ -131,13 +131,13 @@ export async function runUserPromptSubmitHook(
 	}
 	return runStaticInjection(
 		input.cwd,
-		input.transcript_path,
+		input.transcript_path ?? null,
 		"UserPromptSubmit",
 		cachePath,
 		options,
 		completedPostCompactKind,
 		{ latestCompactedReplacementOnly: completedPostCompactKind !== undefined },
-		input.model,
+		input.model ?? "",
 	);
 }
 
@@ -167,7 +167,7 @@ export async function runPostToolUseHook(
 
 	const cachePath = sessionCachePath(input.session_id, options.pluginDataRoot);
 	const postCompactClaim = claimPostCompactPending(cachePath, "dynamic");
-	if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path)) {
+	if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path ?? null)) {
 		debugTimer.done({ outputBytes: 0, reason: "context-pressure-transcript" });
 		return "";
 	}
@@ -180,7 +180,7 @@ export async function runPostToolUseHook(
 	const engine = createRulesEngine(
 		options,
 		completedPostCompactKind !== undefined
-			? withPostCompactBudget(dynamicConfig, { model: input.model, transcriptPath: input.transcript_path })
+			? withPostCompactBudget(dynamicConfig, { model: input.model ?? "", transcriptPath: input.transcript_path ?? null })
 			: dynamicConfig,
 	);
 	hydrateEngineState(engine, cachePath);
@@ -209,7 +209,7 @@ export async function runPostToolUseHook(
 	debugTimer.lap("load", { diagnostics: loaded.diagnostics.length, loadedRules: loaded.rules.length });
 	const rules = filterRulesAlreadyInTranscript(
 		loaded.rules.filter((rule) => !engine.isStaticInjected(rule) && !engine.isDynamicInjected(rule)),
-		input.transcript_path,
+		input.transcript_path ?? null,
 		(rule) => {
 			engine.markDynamicInjected(rule);
 		},

@@ -1,105 +1,81 @@
-# LazyZ — Agent Notes
+# LazyZ — ZCode integration notes
 
-This is the **LazyZ** ZCode plugin, a port of the OmO/Codex LazyCodex harness.
+LazyZ is an OmO/LazyCodex distribution for ZCode. These notes describe the
+ZCode 3.14.3 source contract reviewed on 2026-10-07; they are not a probe of
+the installed ZCode binary. See [ZCode-native 0.11](docs/zcode-native-0.11.md)
+for pinned upstream sources and the compatibility matrix.
 
-## Tooling map (Codex → ZCode)
+## Agent roles and model routing
 
-LazyZ skills were written for Codex/OpenCode and ported. When a skill body
-references a Codex-only tool, translate it to the ZCode equivalent:
+The plugin manifest declares `"agents": "./agents/"`. ZCode 3.14.3 source
+loads enabled plugin `agents/*.md` profiles and exposes them with a
+plugin-qualified name such as `lazyz:lazycodex-executor`; it may also expose a
+bare name when there is no collision. Use the qualified name when a skill
+needs an unambiguous LazyZ role. Copying roles into `~/.zcode/agents/` is an
+older-host compatibility option, not the normal 0.11 installation path.
 
-| Codex / OpenCode | ZCode |
+All 13 LazyZ roles declare `model: inherit`. That means use the active ZCode
+model; it is not a GLM-5.2 pin. When selecting a particular ZCode model,
+`thoughtLevel` is the documented companion setting and applies only with that
+specific model. Do not translate Codex `model_reasoning_effort` or
+`service_tier` fields into an assumed ZCode setting.
+
+## Tooling map
+
+| Earlier harness concept | ZCode / LazyZ 0.11 guidance |
 | --- | --- |
-| `multi_agent_v1.spawn_agent(...)` / `spawn_agent(...)` | `Agent` tool with `subagent_type` and a self-contained `prompt` |
-| `call_omo_agent(subagent_type="explore", ...)` | `Agent` with `subagent_type="Explore"` |
-| `task(subagent_type="plan"/"oracle", ...)` | `Agent` with `subagent_type="general-purpose"` and a role-specific `prompt` |
-| `background_output(task_id=...)` | `run_in_background: true` on the `Agent` call |
-| `team_*(...)` | the `teammode` skill — leader defines 2+ members, dispatches each as a parallel `Agent` call (`run_in_background: true`), collects final-message deliverables, integrates. See the `teammode` skill and `components/teammode/scripts/team.mjs` |
-| `$<skill>` (e.g. `$start-work`) | invoke the skill by name from the `/` menu, or describe the task and let the skill auto-trigger |
+| `spawn_agent` / `task` | Call `Agent` with an installed role or a self-contained role prompt. |
+| background research | `run_in_background: true` is suitable for read-only, unstructured work such as `Explore`. The launch acknowledgement is not completion. |
+| governed executor / reviewer output | Keep it foreground. The LazyZ verifier rejects a structured governed execution requested with `run_in_background: true`, because no plugin hook observes a reliable background-completion receipt. |
+| `background_output(task_id=...)` | Do not infer a completion API from the launch acknowledgement. ZCode reports `async_launched` first and later emits host-side completion notification/session state. |
+| `/start-work` | Compatibility alias for the canonical `/ulw-execute` command and existing start-work runtime. |
+| `team_*` | The retained `teammode` skill coordinates Agent calls and local artifacts. It does not recreate Codex thread creation or worktree-host APIs, and its current orchestration does not depend on the host `SendMessage` continuation surface. |
 
-## Subagent wiring (ZCode limitation — read carefully)
+## Hooks, continuation, and receipts
 
-ZCode records but does **not** execute the plugin `agents/` manifest field.
-The 13 role definitions in `agents/` (`explorer`, `librarian`, `plan`, `metis`,
-`momus`, `lazycodex-executor`, `lazycodex-worker-high`, `lazycodex-worker-medium`,
-`lazycodex-worker-low`, `lazycodex-qa-executor`, `lazycodex-code-reviewer`,
-`lazycodex-gate-reviewer`, `lazycodex-clone-fidelity-reviewer`) are therefore
-**not** loaded automatically from the plugin.
+The declared root hooks use ZCode `process` entries (`command: "node"`, an
+`args` array, and `timeoutMs`) rather than a shell wrapper. Hook input is
+normalized for optional `model` and `turn_id`; temporary transcript data is
+only invocation-scoped. Persistent LazyZ hook state belongs under the
+host-provided `ZCODE_PLUGIN_DATA` directory.
 
-Two ways to make them available as `subagent_type` values in the `Agent` tool:
+ZCode supports these events: `SessionStart`, `UserPromptSubmit`,
+`PreToolUse`, `PermissionRequest`, `PostToolUse`, `PostToolUseFailure`, and
+`Stop`. It does not provide `PostCompact` or `SubagentStop`. LazyZ uses
+`SessionStart` matchers for `compact|clear` cache-reset work, but that does not
+create a guaranteed mid-session continuation event.
 
-1. **User-level install (recommended, works today):** copy or symlink the
-   `agents/*.md` files into `~/.zcode/agents/`. ZCode discovers `.md` subagent
-   definitions at that path (currently Beta). The `scripts/install-agents.sh`
-   helper performs this copy.
-2. **Describe the role inline:** if a role file is not installed, embed the role
-   instructions directly in the `Agent` prompt instead of relying on
-   `subagent_type`.
+`PostToolUse` is a result-observation point, not a replacement for a
+subagent-completion hook. The verifier keeps an already-launched async
+governed task unresolved rather than treating its launch acknowledgement or a
+missing receipt as success/failure. It recognizes both bare and `lazyz:`
+namespaced governed roles.
 
-Model mapping limitation: the original Codex agents used `gpt-5.4-mini` and
-`gpt-5.5` with per-agent `model_reasoning_effort` (low/medium/high/xhigh) and
-`service_tier` (fast). ZCode has no reasoning-effort control and the active
-provider is GLM-5.2, so all 10 agents are mapped to a single
-`custom:builtin%3Azai-coding-plan:GLM-5.2` model. Expect less depth than the
-Codex original on highly ambiguous briefs.
+The host permits at most three consecutive `Stop` blocks/continuations. That
+limit bounds one consecutive host sequence; it is not a persistent security
+boundary or a proof that a workflow completed.
 
-## Unsupported in ZCode (intentionally dropped)
+## MCP and runtime requirements
 
-- `PostCompact` / `SubagentStop` hooks → use `SessionStart` / `Stop` instead.
-  - `PostCompact` drove cache resets in `rules`, `lsp`, `git-bash`. ZCode has no
-    compaction event, so those caches are reset on `SessionStart` instead —
-    slightly more overhead, no functional loss.
-  - `SubagentStop` drove `lazycodex-executor-verify` (the evidence gate) and
-    subagent-scoped continuation in `start-work-continuation`. ZCode has no
-    subagent-stop event, so a `PostToolUse` matcher on `^(Agent|Task)$` is
-    registered as a best-effort proxy. The verify component recognizes all
-    four executor subagent types (`lazycodex-executor` plus the
-    `lazycodex-worker-high`/`-medium`/`-low` tiers) by inspecting
-    `tool_input.subagent_type`. **Limitation:** ZCode's PostToolUse input
-    carries no `agent_type` / `agent_id`, so the verify component keys its
-    3-attempt cap on `tool_use_id` instead, and its block semantics are
-    weakened to a `deny` permissionDecision. Treat the executor-verify gate
-    as advisory, not enforced.
-    `start-work-continuation` continues to work via the `Stop` hook and is
-    now capped at `DEFAULT_MAX_CONTINUATIONS` (10) consecutive continuations
-    per session to prevent unbounded loops; override or disable with
-    `LAZYZ_START_WORK_MAX_CONTINUATIONS` (0 or negative = unlimited). The
-    counter resets when the plan checklist completes. It cannot resume
-    mid-subagent.
-- `create_goal`, `create_thread`, `codex_app.*` tools → no ZCode equivalent.
-- Model routing via `model-catalog.json` → configure models in ZCode settings.
-- `teammode` skill → lightweight ZCode Agent-tool-based port (see `skills/teammode/SKILL.md`
-  and `components/teammode/scripts/`). Upstream Codex thread APIs (`create_thread`,
-  `send_message_to_thread`) have no ZCode equivalent, so members are one-shot `Agent`
-  calls whose final message is the deliverable; there is no live member messaging. The
-  state model, locking, worktree isolation, and merge integration are harness-agnostic
-  and ported from upstream; the thread/bind/live-messaging layer is dropped.
+The four local MCP declarations use `command`, `args`, `cwd`, `enabled: true`,
+and `timeoutMs: 30000`; `grep_app` and `context7` are remote. ZCode 3.14.3
+source supports those stdio fields. LazyZ deliberately does not declare
+undocumented `required`, `defer`, or lazy-loading fields.
 
-## Downgrade compatibility (boulder.json)
+Node.js 20+ is required at runtime for the process hooks and local server
+entrypoints. Bun is required only when rebuilding prebuilt artifacts. The
+shell wrapper dependency was removed from root hook declarations. This removes
+that particular Windows shell requirement, but Windows runtime behavior has
+not been exercised here, so LazyZ does not claim full Windows support.
 
-`.omo/boulder.json` is a **soft, LLM-written schema** (see `docs/known-limitations.md`).
-If you downgrade the plugin to a version that predates a status value (e.g. `"blocked"`
-was added in the cycle/failure caps work), the older parser treats the unknown value
-as `undefined`, which means `isContinuableStatus` returns `false`. The practical effect:
-a `"blocked"` work becomes invisible to the resume prompt and the Stop hook will not
-continue it. This is actually safe (the work stays paused), but the work will not
-appear in the SessionStart "in-progress" list until you either upgrade again or
-manually change the `status` in `.omo/boulder.json` back to `"active"` or `"paused"`.
-The same applies to any future status addition. We do not provide a migration script
-because the schema is soft; the defensive parser intentionally degrades rather than
-throwing.
+`lazyz capabilities --json` prints the reviewed source contract; it does not
+detect or validate the installed host. `lazyz doctor` statically checks the
+declared process/args hook shape and local payload files; it is not host-runtime
+QA.
 
-## Build
+## Host features outside the LazyZ contract
 
-Local MCP servers (`codegraph`, `git_bash`, `lsp`) need `npm install && npm run build`
-from this directory (Node 20+ and Bun). Remote MCP servers and all skills/hooks
-work without a build.
-
-### Runtime requirements
-
-- **macOS / Linux**: hooks run via `sh scripts/run-hook.sh`, which resolves
-  `node` and the built `dist/cli.js`. Requires Node.js 20+ on `PATH`.
-- **Windows**: the root `hooks.json` currently uses the same `sh`-based wrapper.
-  If `sh` is unavailable (e.g. stock cmd.exe), set up Git Bash or WSL. The
-  upstream `bootstrap` component ships a PowerShell fallback
-  (`components/bootstrap/scripts/bootstrap.ps1`) but the root manifest does not
-  yet wire `commandWindows` — tracked for a follow-up release.
+ZCode source includes native goal, memory, and wiki-related surfaces. LazyZ
+does not claim a plugin-call API for them: no API is inferred from their source
+presence. LazyZ keeps durable workflow state in its own documented `.omo/`
+files until an official plugin API is documented.

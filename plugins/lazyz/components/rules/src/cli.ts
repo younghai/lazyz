@@ -35,7 +35,7 @@ async function runHookCli(eventName: HookCliEventName): Promise<void> {
 	if (raw.trim().length === 0) return;
 	const parsed = parseHookInput(raw);
 	if (!parsed) return;
-	const pluginDataRoot = process.env["PLUGIN_DATA"];
+	const pluginDataRoot = process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"];
 	const options: CodexRulesHookOptions = pluginDataRoot === undefined ? {} : { pluginDataRoot };
 	const output = await runHook(eventName, parsed, options);
 	await writeStdout(output);
@@ -68,9 +68,9 @@ function isCodexSessionStartInput(value: unknown): value is CodexSessionStartInp
 		isRecord(value) &&
 		value["hook_event_name"] === "SessionStart" &&
 		typeof value["session_id"] === "string" &&
-		isStringOrNull(value["transcript_path"]) &&
+		(value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["source"] === "string"
 	);
@@ -81,10 +81,10 @@ function isCodexUserPromptSubmitInput(value: unknown): value is CodexUserPromptS
 		isRecord(value) &&
 		value["hook_event_name"] === "UserPromptSubmit" &&
 		typeof value["session_id"] === "string" &&
-		typeof value["turn_id"] === "string" &&
-		isStringOrNull(value["transcript_path"]) &&
+		(value["turn_id"] === undefined || typeof value["turn_id"] === "string") &&
+		(value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["prompt"] === "string"
 	);
@@ -95,10 +95,10 @@ function isCodexPostToolUseInput(value: unknown): value is CodexPostToolUseInput
 		isRecord(value) &&
 		value["hook_event_name"] === "PostToolUse" &&
 		typeof value["session_id"] === "string" &&
-		typeof value["turn_id"] === "string" &&
-		isStringOrNull(value["transcript_path"]) &&
+		(value["turn_id"] === undefined || typeof value["turn_id"] === "string") &&
+		(value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["tool_name"] === "string" &&
 		typeof value["tool_use_id"] === "string"

@@ -1,19 +1,20 @@
-import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-
 import { aggregateCodexObjectiveForScope, isUlwLoopDone } from "./goal-status.js";
 import {
 	type UlwLoopScope,
-	ulwLoopBriefPath,
 	ulwLoopBriefRelativePath,
-	ulwLoopDir,
-	ulwLoopGoalsPath,
 	ulwLoopGoalsRelativePath,
-	ulwLoopLedgerPath,
 	ulwLoopLedgerRelativePath,
 } from "./paths.js";
 import { appendGoalToPlan, deriveGoalCandidates, makeGoal } from "./plan-goal-factory.js";
-import { appendLedger, readUlwLoopPlan, withUlwLoopMutationLock, writePlan } from "./plan-io.js";
+import {
+	appendLedger,
+	readUlwLoopPlan,
+	resetUlwLoopLedger,
+	ulwLoopPlanExists,
+	withUlwLoopMutationLock,
+	writePlan,
+	writeUlwLoopBrief,
+} from "./plan-io.js";
 import type { UlwLoopCodexGoalMode, UlwLoopItem, UlwLoopPlan, UlwLoopSuccessCriterion } from "./types.js";
 import { iso, UlwLoopError } from "./types.js";
 
@@ -61,7 +62,7 @@ export async function createUlwLoopPlan(
 	scope?: UlwLoopScope,
 ): Promise<UlwLoopPlan> {
 	return withUlwLoopMutationLock(repoRoot, scope, async () => {
-		if (!args.force && existsSync(ulwLoopGoalsPath(repoRoot, scope))) {
+		if (!args.force && (await ulwLoopPlanExists(repoRoot, scope))) {
 			const existing = await readUlwLoopPlan(repoRoot, scope);
 			if (isUlwLoopDone(existing)) throw completedPlanExistsError(scope);
 			throw new UlwLoopError(
@@ -84,14 +85,9 @@ export async function createUlwLoopPlan(
 			goals,
 		};
 		if (plan.codexGoalMode === "aggregate") plan.codexObjective = aggregateCodexObjectiveForScope(scope);
-		await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
-		await writeFile(
-			ulwLoopBriefPath(repoRoot, scope),
-			args.brief.endsWith("\n") ? args.brief : `${args.brief}\n`,
-			"utf8",
-		);
+		await writeUlwLoopBrief(repoRoot, args.brief, scope);
 		await writePlan(repoRoot, plan, scope);
-		await writeFile(ulwLoopLedgerPath(repoRoot, scope), "", "utf8");
+		await resetUlwLoopLedger(repoRoot, scope);
 		await appendLedger(
 			repoRoot,
 			{ at: now, kind: "plan_created", message: `${goals.length} goal(s) created` },
@@ -105,7 +101,7 @@ function completedPlanExistsError(scope?: UlwLoopScope): UlwLoopError {
 	return new UlwLoopError(
 		[
 			`Existing ulw-loop aggregate is already complete at ${ulwLoopGoalsRelativePath(scope)}.`,
-			"Start a new run with `omo ulw-loop create-goals --session-id <new-id> ...` to isolate fresh state.",
+			"Start a new run with `lazyz ulw-loop create-goals --session-id <new-id> ...` to isolate fresh state.",
 			"Use --force only when you intentionally want to overwrite the completed evidence.",
 		].join(" "),
 		"ULW_LOOP_PLAN_EXISTS_COMPLETE",

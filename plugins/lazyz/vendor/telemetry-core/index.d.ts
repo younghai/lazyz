@@ -148,6 +148,9 @@ export declare function shouldDisableTelemetry(input: {
   readonly globalEnvPrefix?: string;
   readonly productEnvPrefix: string;
 }): boolean;
+export declare function getTelemetryOptOutFilePath(homeDir?: string): string;
+export declare function isTelemetryOptOutFilePresent(homeDir?: string): boolean;
+export declare function setTelemetryOptOut(disable: boolean, homeDir?: string): void;
 export declare function getTelemetryApiKey(env?: TelemetryEnv, defaultApiKey?: string): string;
 export declare function hasTelemetryApiKey(env?: TelemetryEnv, defaultApiKey?: string): boolean;
 export declare function getTelemetryHost(env?: TelemetryEnv, defaultHost?: string): string;

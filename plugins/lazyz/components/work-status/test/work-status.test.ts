@@ -115,6 +115,30 @@ describe("getPlanChecklist", () => {
 // ---------------------------------------------------------------------------
 
 describe("readInProgressStartWork", () => {
+	it("preserves blocked status and fail_count for the SessionStart handoff", () => {
+		// Given: a work item stopped after reaching its failure cap.
+		const dir = mkdtempSync(join(tmpdir(), "sw-blocked-"));
+		writeBoulder(dir, {
+			w1: {
+				work_id: "w1",
+				active_plan: ".omo/plans/blocked.md",
+				plan_name: "blocked-plan",
+				session_ids: ["codex:s1"],
+				status: "blocked",
+				fail_count: 3,
+			},
+		});
+		writePlan(dir, "blocked", `# blocked\n\n## Todos\n- [ ] needs user decision\n`);
+
+		// When: work status is read.
+		const got = readInProgressStartWork(dir);
+
+		// Then: the blocked handoff data remains observable.
+		expect(got?.status).toBe("blocked");
+		expect(got?.failCount).toBe(3);
+		rmSync(dir, { recursive: true, force: true });
+	});
+
 	it("returns the active work with a derived checklist", () => {
 		const dir = mkdtempSync(join(tmpdir(), "sw-"));
 		writeBoulder(dir, {

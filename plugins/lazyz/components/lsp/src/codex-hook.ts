@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { callDiagnosticsViaDaemon, currentRequestContext } from "@code-yeongyu/lsp-daemon";
+import { callDiagnosticsViaDaemon, currentRequestContext } from "@code-yeongyu/lsp-daemon/client";
 
 import { ensureLspDaemonCliEnv } from "./daemon-cli-path.js";
 import {
@@ -27,6 +27,12 @@ export interface CodexPostToolUseInput {
 
 export interface CodexPostCompactInput {
 	session_id?: unknown;
+}
+
+export interface CodexSessionStartInput {
+	hook_event_name?: unknown;
+	session_id?: unknown;
+	source?: unknown;
 }
 
 interface DiagnosticBlock {
@@ -106,6 +112,13 @@ export async function runLspPostToolUseHook(
 }
 
 export async function runLspPostCompactHook(input: CodexPostCompactInput): Promise<string> {
+	markLspSessionCompacted(sessionIdFrom(input));
+	return "";
+}
+
+export function runLspSessionStartHook(input: CodexSessionStartInput): string {
+	if (input.hook_event_name !== "SessionStart") return "";
+	if (input.source !== "compact" && input.source !== "clear") return "";
 	markLspSessionCompacted(sessionIdFrom(input));
 	return "";
 }

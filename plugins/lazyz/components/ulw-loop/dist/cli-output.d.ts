@@ -1,0 +1,7 @@
+import type { UlwLoopCodexGoalMode, UlwLoopPlan } from "./types.js";
+export declare const ULW_LOOP_HELP = "Usage:\n  lazyz ulw-loop create-goals --brief \"...\" [--brief-file <path>] [--from-stdin] [--codex-goal-mode aggregate|per_story] [--force] [--json]\n  lazyz ulw-loop status [--json]\n  lazyz ulw-loop complete-goals [--retry-failed] [--json]\n  lazyz ulw-loop criteria --goal-id <id> [--json]\n  lazyz ulw-loop record-evidence --goal-id <id> --criterion-id <id> --status pass|fail|blocked --evidence \"...\" [--notes \"...\"] [--json]\n  lazyz ulw-loop quality-context --goal-id <final-id> --json\n  lazyz ulw-loop checkpoint --goal-id <id> --status complete|failed|blocked --evidence \"...\" --codex-goal-json <...> [--quality-gate-json <...>] [--json]\n  lazyz ulw-loop steer --kind <kind> ... --evidence \"...\" --rationale \"...\" [--json]\n  lazyz ulw-loop add-goal --title \"...\" --objective \"...\" [--json]\n  lazyz ulw-loop record-review-blockers --goal-id <id> --title \"...\" --objective \"...\" --evidence \"...\" --codex-goal-json <...> [--json]\n\nAll subcommands accept [--session-id <id>] to isolate state under .omo/ulw-loop/<id>/; without it, Codex session env is used when present.";
+export declare function printJson(value: unknown): void;
+export declare function printJsonError(error: unknown): void;
+export declare function printStatus(plan: UlwLoopPlan): void;
+export declare function blockedDecisionHandoff(plan: UlwLoopPlan): string;
+export declare function normalizeCodexGoalMode(value: string | undefined): UlwLoopCodexGoalMode;

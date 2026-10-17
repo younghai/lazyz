@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "workId": "work-session-parser",
+  "taskId": "task-session-parser",
+  "runId": "run-1",
+  "execution_shape": "standard",
+  "role": "implementer",
+  "phase": "execute",
+  "criterionRefs": ["G001-first/C001"],
+  "budget": { "maxCalls": 4, "maxSameFailure": 2 },
+  "parallel_safe": true,
+  "owned_paths": ["src/session_parser.py", "tests/test_session_parser.py"],
+  "completion_condition": [
+    "Targeted parser tests exit zero",
+    "Evidence artifact exists at the declared path"
+  ],
+  "deliverable": "Parser and regression tests",
+  "verify": "uv run pytest tests/test_session_parser.py",
+  "stop_when": "The targeted tests pass and artifacts exist",
+  "artifact": ".omo/evidence/session-parser.txt",
+  "parent_validation": "Rerun the targeted test and inspect the artifact"
+}

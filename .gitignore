@@ -13,6 +13,8 @@ node_modules/
 !plugins/lazyz/components/*/dist/**
 !plugins/lazyz/vendor/*/dist/
 !plugins/lazyz/vendor/*/dist/**
+!plugins/lazyz/dist/
+!plugins/lazyz/dist/**
 
 # omo internal runtime artifacts
 .omo/
@@ -58,6 +60,7 @@ npm-debug.log*
 # Lockfiles (file: workspace deps are environment-specific)
 package-lock.json
 **/package-lock.json
+!plugins/lazyz/package-lock.json
 
 # OS
 .DS_Store
@@ -69,3 +72,10 @@ Thumbs.db
 # Environment files
 .env
 .env.*
+
+# Local analysis, caches and export backups are never publication inputs.
+.gjc/
+.codegraph/
+.tmp-*/
+**/.tmp-*/
+publication-backup*/

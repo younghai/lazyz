@@ -7,6 +7,7 @@ import test from "node:test";
 
 async function makeFixture() {
 	const root = await mkdtemp(join(tmpdir(), "codex-lsp-build-"));
+	await mkdir(join(root, "node_modules"));
 	await mkdir(join(root, "packages", "omo-codex", "plugin", "components", "lsp", "scripts"), { recursive: true });
 	await mkdir(join(root, "packages", "lsp-tools-mcp", "dist"), { recursive: true });
 	await copyFile(
@@ -47,7 +48,7 @@ test("#given dist cli exists but required hook outputs are missing #when bootstr
 
 	// then
 	assert.equal(result.status, 0);
-	assert.match(await readFile(fixture.npmLog, "utf8"), /ci\nrun build\n/u);
+	assert.equal(await readFile(fixture.npmLog, "utf8"), "run build\n");
 });
 
 test("#given package metadata is newer than required outputs #when bootstrapping #then it rebuilds", async () => {
@@ -72,7 +73,7 @@ test("#given package metadata is newer than required outputs #when bootstrapping
 
 	// then
 	assert.equal(result.status, 0);
-	assert.match(await readFile(fixture.npmLog, "utf8"), /ci\nrun build\n/u);
+	assert.equal(await readFile(fixture.npmLog, "utf8"), "run build\n");
 });
 
 test("#given force flag #when bootstrapping #then it rebuilds even when dist exists", async () => {
@@ -87,7 +88,7 @@ test("#given force flag #when bootstrapping #then it rebuilds even when dist exi
 
 	// then
 	assert.equal(result.status, 0);
-	assert.match(await readFile(fixture.npmLog, "utf8"), /ci\nrun build\n/u);
+	assert.equal(await readFile(fixture.npmLog, "utf8"), "run build\n");
 });
 
 test("#given packaged dist without package metadata #when bootstrapping #then it uses bundled runtime", async () => {

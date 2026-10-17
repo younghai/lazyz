@@ -2,7 +2,7 @@
 /**
  * LazyZ secret redaction scrubber.
  *
- * Scans `.omo/evidence/` and `.omo/*/ledger.jsonl` for common secret patterns
+ * Scans `.omo/evidence/` and LazyZ ledger files for common secret patterns
  * and reports (or with --fix, masks) them in place. This is a best-effort
  * post-hoc scrubber — the first line of defense is the LLM prose rule
  * ("redact secrets before writing evidence"). This tool catches what the LLM
@@ -23,13 +23,24 @@
  *   - Connection strings: (postgres|mongodb|redis|mysql|amqp)://[^@\s]+@[^\s'"]+
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join, extname } from "node:path";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
-const CWD = process.argv.includes("--cwd")
+const CWD = resolve(process.argv.includes("--cwd")
 	? process.argv[process.argv.indexOf("--cwd") + 1]
-	: process.cwd();
+	: process.cwd());
 const FIX = process.argv.includes("--fix");
+const workspaceRoot = realpathSync(CWD);
+
+function isConfined(filePath, root = workspaceRoot) {
+	try {
+		if (lstatSync(filePath).isSymbolicLink()) return false;
+		const relativePath = relative(root, realpathSync(filePath));
+		return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+	} catch {
+		return false;
+	}
+}
 
 const PATTERNS = [
 	{ name: "OpenAI/Claude API key", re: /sk-[A-Za-z0-9]{20,}/g },
@@ -52,6 +63,7 @@ const BINARY_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB — skip very large files
 
 function scanFile(filePath) {
+	if (!isConfined(filePath)) return [];
 	const ext = extname(filePath).toLowerCase();
 	if (BINARY_EXTS.has(ext)) return [];
 	let content;
@@ -97,12 +109,13 @@ function scanFile(filePath) {
 }
 
 function walkDir(dir, results = []) {
-	if (!existsSync(dir)) return results;
+	if (!existsSync(dir) || !isConfined(dir)) return results;
 	for (const entry of readdirSync(dir)) {
 		if (entry === "node_modules" || entry === ".git" || entry.startsWith(".")) continue;
 		const full = join(dir, entry);
 		try {
-			const stat = statSync(full);
+			if (!isConfined(full)) continue;
+			const stat = lstatSync(full);
 			if (stat.isDirectory()) {
 				walkDir(full, results);
 			} else {

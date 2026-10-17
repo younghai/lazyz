@@ -17,11 +17,11 @@
  * may auto-trigger it from SessionStart.
  */
 
-import { readdirSync, statSync, unlinkSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { isAbsolute, join, relative, resolve } from "node:path";
 
 const args = process.argv;
-const CWD = args.includes("--cwd") ? args[args.indexOf("--cwd") + 1] : process.cwd();
+const CWD = resolve(args.includes("--cwd") ? args[args.indexOf("--cwd") + 1] : process.cwd());
 const DAYS = args.includes("--days") ? parseInt(args[args.indexOf("--days") + 1], 10) : 30;
 const MAX_BYTES = args.includes("--max-bytes")
 	? parseInt(args[args.indexOf("--max-bytes") + 1], 10)
@@ -30,6 +30,17 @@ const LEDGER_MAX_LINES = 10_000;
 
 const now = Date.now();
 const cutoffMs = DAYS * 24 * 60 * 60 * 1000;
+const workspaceRoot = realpathSync(CWD);
+
+function isConfined(path, root = workspaceRoot) {
+	try {
+		if (lstatSync(path).isSymbolicLink()) return false;
+		const relativePath = relative(root, realpathSync(path));
+		return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
+	} catch {
+		return false;
+	}
+}
 
 // --- 1. Prune evidence files by age ---
 const evidenceDir = join(CWD, ".omo", "evidence");
@@ -37,10 +48,11 @@ let prunedFiles = 0;
 let prunedBytes = 0;
 
 function pruneDir(dir) {
-	if (!existsSync(dir)) return;
+	if (!existsSync(dir) || !isConfined(dir)) return;
 	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
-		const stat = statSync(full);
+		if (!isConfined(full)) continue;
+		const stat = lstatSync(full);
 		if (stat.isDirectory()) {
 			pruneDir(full);
 		} else {
@@ -58,11 +70,12 @@ pruneDir(evidenceDir);
 
 // --- 2. Check total evidence size; if over MAX_BYTES, prune oldest ---
 function dirSize(dir) {
-	if (!existsSync(dir)) return 0;
+	if (!existsSync(dir) || !isConfined(dir)) return 0;
 	let total = 0;
 	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
-		const stat = statSync(full);
+		if (!isConfined(full)) continue;
+		const stat = lstatSync(full);
 		if (stat.isDirectory()) {
 			total += dirSize(full);
 		} else {
@@ -73,10 +86,11 @@ function dirSize(dir) {
 }
 
 function oldestFiles(dir, acc = []) {
-	if (!existsSync(dir)) return acc;
+	if (!existsSync(dir) || !isConfined(dir)) return acc;
 	for (const entry of readdirSync(dir)) {
 		const full = join(dir, entry);
-		const stat = statSync(full);
+		if (!isConfined(full)) continue;
+		const stat = lstatSync(full);
 		if (stat.isDirectory()) {
 			oldestFiles(full, acc);
 		} else {
@@ -102,7 +116,7 @@ if (totalSize > MAX_BYTES) {
 let truncatedLedgers = 0;
 for (const ledgerRel of [".omo/start-work/ledger.jsonl", ".omo/ulw-loop/ledger.jsonl"]) {
 	const ledgerPath = join(CWD, ledgerRel);
-	if (!existsSync(ledgerPath)) continue;
+	if (!existsSync(ledgerPath) || !isConfined(ledgerPath)) continue;
 	try {
 		const content = readFileSync(ledgerPath, "utf8");
 		const lines = content.split("\n");

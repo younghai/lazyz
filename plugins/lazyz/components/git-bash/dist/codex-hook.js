@@ -55,10 +55,16 @@ export function applyGitBashPostCompactReset(payload, options = {}) {
     rmSync(reminderMarkerPath(payload.session_id, options.pluginDataRoot), { force: true });
     return "";
 }
+export function applyGitBashSessionStartReset(payload, options = {}) {
+    if (payload.source !== "compact" && payload.source !== "clear")
+        return "";
+    rmSync(reminderMarkerPath(payload.session_id, options.pluginDataRoot), { force: true });
+    return "";
+}
 export async function runGitBashHookCli(stdin, stdout, eventName = "pre-tool-use", options = {}) {
     try {
         const raw = await readAll(stdin);
-        const output = eventName === "post-compact" ? postCompactOutput(raw, options) : preToolUseOutput(raw, options);
+        const output = eventName === "post-compact" ? postCompactOutput(raw, options) : eventName === "session-start" ? sessionStartOutput(raw, options) : preToolUseOutput(raw, options);
         if (output.length > 0)
             stdout.write(output);
     }
@@ -67,6 +73,12 @@ export async function runGitBashHookCli(stdin, stdout, eventName = "pre-tool-use
             return;
         return;
     }
+}
+function sessionStartOutput(raw, options) {
+    const parsed = JSON.parse(raw);
+    if (!isSessionStartPayload(parsed))
+        return "";
+    return applyGitBashSessionStartReset(parsed, options);
 }
 function preToolUseOutput(raw, options) {
     const payload = parsePreToolUsePayload(raw);
@@ -91,7 +103,7 @@ function hasReminderMarker(path) {
     return existsSync(path);
 }
 function reminderMarkerPath(sessionId, pluginDataRoot) {
-    const root = pluginDataRoot ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "omo-git-bash");
+    const root = pluginDataRoot ?? process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"] ?? join(homedir(), ".codex", "omo-git-bash");
     return join(root, "git-bash-reminder", `${safePathSegment(sessionId)}.seen`);
 }
 function safePathSegment(value) {
@@ -102,13 +114,13 @@ function isPreToolUsePayload(value) {
         return false;
     return (value["hook_event_name"] === "PreToolUse" &&
         typeof value["cwd"] === "string" &&
-        typeof value["model"] === "string" &&
+        (value["model"] === undefined || typeof value["model"] === "string") &&
         typeof value["permission_mode"] === "string" &&
         typeof value["session_id"] === "string" &&
         typeof value["tool_name"] === "string" &&
         typeof value["tool_use_id"] === "string" &&
-        (value["transcript_path"] === null || typeof value["transcript_path"] === "string") &&
-        typeof value["turn_id"] === "string" &&
+        (value["transcript_path"] === undefined || value["transcript_path"] === null || typeof value["transcript_path"] === "string") &&
+        (value["turn_id"] === undefined || typeof value["turn_id"] === "string") &&
         Object.hasOwn(value, "tool_input"));
 }
 function isPostCompactPayload(value) {
@@ -120,6 +132,9 @@ function isPostCompactPayload(value) {
             value["transcript_path"] === null ||
             typeof value["transcript_path"] === "string") &&
         (value["trigger"] === undefined || typeof value["trigger"] === "string"));
+}
+function isSessionStartPayload(value) {
+    return isRecord(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && (value["source"] === undefined || typeof value["source"] === "string");
 }
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);

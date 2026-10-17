@@ -1,18 +1,18 @@
 ---
-description: Execute a work plan until every checkbox is done, with durable progress tracking, evidence ledger updates, parallel subagents, and automatic continuation. Prints ORCHESTRATION COMPLETE.
-argument-hint: "[plan-name] [--worktree <path>]"
+description: Compatibility alias for executing an approved plan through the ZCode ulw-execute contract.
+argument-hint: "<plan-name> [--worktree <path>]"
 ---
 
 # /start-work
 
-Invoke the **start-work** skill to execute a plan.
+Invoke the **start-work** skill as the compatibility alias for **ulw-execute**.
 
-The skill orchestrates execution: it reads the plan, tracks progress in Boulder state, delegates every unit of implementation/test/QA/review work to spawned subagents (it never edits product files itself), verifies evidence, and stops only when every top-level checkbox is complete.
+Execute only the named, decision-complete `.omo/plans/<name>.md` plan after explicit plan approval and an explicit execution request. Register goals first with `lazyz ulw-loop create-goals`; do not hand-edit `.omo` state. Preserve the required execution schema (`execution_shape`, `role`, `parallel_safe`, `owned_paths`, `completion_condition`), bundled validator, ReceiptV1 evidence, and observable QA gates.
 
 ## Arguments
 
 $ARGUMENTS
 
-If a plan name is given, execute that plan; otherwise pick the most recent plan under `plans/`. If `--worktree <path>` is given, run the work in that git worktree.
+Resolve the named approved plan exactly; do not create a plan or select the most recent plan when none is named. If `--worktree <path>` is given, run the work in that git worktree.
 
 Pass the arguments above to the start-work skill.

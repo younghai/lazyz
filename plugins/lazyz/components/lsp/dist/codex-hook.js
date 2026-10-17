@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { callDiagnosticsViaDaemon, currentRequestContext } from "@code-yeongyu/lsp-daemon";
+import { callDiagnosticsViaDaemon, currentRequestContext } from "@code-yeongyu/lsp-daemon/client";
 import { ensureLspDaemonCliEnv } from "./daemon-cli-path.js";
 import { isLspDaemonUnreachableDiagnostics, isUnavailableLspDiagnostics, markLspSessionCompacted, recordLspDiagnosticsObservations, sessionIdFrom, shouldSkipUnavailableLspDiagnostics, } from "./lsp-session-state.js";
 import { extractMutatedFilePaths } from "./mutated-file-paths.js";
@@ -61,6 +61,14 @@ export async function runLspPostToolUseHook(input, runDiagnostics = runLspDiagno
     return `${JSON.stringify(output)}\n`;
 }
 export async function runLspPostCompactHook(input) {
+    markLspSessionCompacted(sessionIdFrom(input));
+    return "";
+}
+export function runLspSessionStartHook(input) {
+    if (input.hook_event_name !== "SessionStart")
+        return "";
+    if (input.source !== "compact" && input.source !== "clear")
+        return "";
     markLspSessionCompacted(sessionIdFrom(input));
     return "";
 }

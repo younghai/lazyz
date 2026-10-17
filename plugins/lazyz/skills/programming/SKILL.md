@@ -1,6 +1,6 @@
 ---
 name: programming
-description: "MUST USE for ANY work on .py .pyi .rs .ts .tsx .mts .cts .go files. One philosophy: strict types, modern stacks (Pydantic v2 / serde+thiserror / Zod / gin+sqlc+pgx+slog), modern toolchains (uv+basedpyright+ruff / cargo+clippy+miri / Bun+Biome+tsc / gofumpt+golangci-lint v2+nilaway+go-race), parse-don't-validate, exhaustive match, typed errors, no any/unwrap/panic, 250 LOC ceiling, TDD. Routes to references/{python,rust,typescript,rust-ub,go}/. Triggers: write/edit Python/Rust/TypeScript/Go code, new project, gin server, bubbletea TUI, CJK IME, connect-go RPC, sqlc pgx, branded ids, exhaustive match, unsafe Rust, miri, oversized file, refactor, TDD, e2e test, arena, allocator, bumpalo, const fn, const generics, comptime, zero-alloc, bitfield, repr, scopeguard, errdefer, Zig-like, zerocopy, packed struct."
+description: "Use for work on Python, Rust, TypeScript, and Go. Apply strict types, typed errors, boundary parsing, and tests that can fail; choose the smallest justified change."
 ---
 
 # Programming
@@ -49,7 +49,9 @@ These are not style preferences. They are the six axioms every recipe in `refere
 
 ---
 
-## TDD DISCIPLINE — NON-NEGOTIABLE
+## TEST DISCIPLINE
+
+User verification policy and repository conventions take precedence over automatic QA. Read existing tests first, reproduce an existing bug or capture the real scenario when possible, and add a regression only where this repository keeps tests for that behavior or the regression would otherwise go unnoticed. Do not impose unconditional red-green-refactor or a full suite on every change.
 
 **Every change follows the red → green → refactor loop.** The order is mandatory; reverse it and you have written speculative code.
 

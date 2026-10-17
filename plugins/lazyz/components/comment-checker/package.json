@@ -1,6 +1,6 @@
 {
 	"name": "@lazyz/comment-checker",
-	"version": "0.10.2",
+	"version": "0.11.0",
 	"description": "Codex plugin that runs comment-checker after edit-like PostToolUse hooks.",
 	"type": "module",
 	"packageManager": "npm@11.12.1",

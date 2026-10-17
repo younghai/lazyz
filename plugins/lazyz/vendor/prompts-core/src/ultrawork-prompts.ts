@@ -1,10 +1,10 @@
 import type { VariantTable } from "./types"
-import codexPrompt from "../prompts/ultrawork/codex.md"
-import defaultPrompt from "../prompts/ultrawork/default.md"
-import geminiPrompt from "../prompts/ultrawork/gemini.md"
-import glmPrompt from "../prompts/ultrawork/glm.md"
-import gptPrompt from "../prompts/ultrawork/gpt.md"
-import plannerPrompt from "../prompts/ultrawork/planner.md"
+import codexPrompt from "../prompts/ultrawork/codex.md" with { type: "text" }
+import defaultPrompt from "../prompts/ultrawork/default.md" with { type: "text" }
+import geminiPrompt from "../prompts/ultrawork/gemini.md" with { type: "text" }
+import glmPrompt from "../prompts/ultrawork/glm.md" with { type: "text" }
+import gptPrompt from "../prompts/ultrawork/gpt.md" with { type: "text" }
+import plannerPrompt from "../prompts/ultrawork/planner.md" with { type: "text" }
 
 export const ULTRAWORK_DEFAULT_PROMPT = defaultPrompt
 export const ULTRAWORK_GEMINI_PROMPT = geminiPrompt

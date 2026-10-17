@@ -9,7 +9,7 @@ import {
 	capturePreservedAgentServiceTier,
 	linkCachedPluginAgents,
 } from "../../../vendor/omo-codex/src/install/link-cached-plugin-agents.ts";
-import { linkCachedPluginBins, linkRootRuntimeBin } from "../../../vendor/omo-codex/src/install/codex-cache-bins.ts";
+import { linkCachedPluginBins } from "../../../vendor/omo-codex/src/install/codex-cache-bins.ts";
 import { updateCodexConfig } from "../../../vendor/omo-codex/src/install/codex-config-toml.ts";
 import { stampGitBashMcpEnv } from "../../../vendor/omo-codex/src/install/codex-git-bash-mcp-env.ts";
 import { trustedHookStatesForPlugin } from "../../../vendor/omo-codex/src/install/codex-hook-trust.ts";
@@ -18,12 +18,17 @@ import { prepareGitBashForInstall } from "../../../vendor/omo-codex/src/install/
 import type { CodexAgentConfig, GitBashResolution } from "../../../vendor/omo-codex/src/install/types.ts";
 import { appendBootstrapLog, BOOTSTRAP_DOCTOR_HINT } from "./worker.ts";
 import type { BootstrapDegradedEntry, BootstrapStepOutcome } from "./worker.ts";
+import { linkLazyzRuntimeBin, retireManagedLegacyOmo } from "./lazyz-runtime-link.ts";
+
+export { LAZYZ_CLI_MARKER } from "./lazyz-runtime-link.ts";
 
 export const SETUP_MARKETPLACE_NAME = "sisyphuslabs";
 export const SETUP_PLUGIN_NAME = "omo";
 export const GIT_BASH_INSTALL_HINT = "winget install --id Git.Git -e --source winget";
 
 export interface WorkerSetupOptions {
+	/** Only an explicit, user-invoked Codex setup may enable config/agent writes. */
+	readonly allowCodexWrites?: boolean;
 	readonly codexHome: string;
 	readonly env: Record<string, string | undefined>;
 	readonly pluginData: string;
@@ -40,14 +45,11 @@ interface AgentLinkOutcome {
 	readonly degraded: readonly BootstrapDegradedEntry[];
 }
 
-// Worker setup sequence (every sub-step is idempotent and degraded-not-fatal,
-// unlike the npx installer which throws): Git Bash preflight -> bundled agent
-// TOML linking -> config blocks + hook trust re-stamp -> git_bash MCP env ->
-// version-aware bin links. Bin linking re-runs whenever the worker re-runs,
-// and the worker re-runs whenever completedForVersion changes (Task 7 marker
-// semantics), so links always point at the CURRENT versioned PLUGIN_ROOT even
-// though Codex deletes old version dirs on upgrade (core-plugins store.rs).
+// The default SessionStart worker never calls this legacy installer. Explicit
+// integrations must additionally set allowCodexWrites=true before its Codex
+// config, agent, hook-trust, or Git Bash branches can run.
 export async function runWorkerSetup(options: WorkerSetupOptions): Promise<BootstrapStepOutcome> {
+	if (options.allowCodexWrites !== true) return { degraded: [] };
 	const degraded: BootstrapDegradedEntry[] = [];
 	const gitBashEnabled = await resolveGitBashStep(options, degraded);
 	const agents = await linkBundledAgentsStep(options);
@@ -203,36 +205,41 @@ async function linkComponentBinsStep(options: WorkerSetupOptions, degraded: Boot
 	await linkRuntimeWrapperStep(options, binDir, degraded);
 }
 
-// Older marketplace payloads may not have <pluginRoot>/dist/cli. Keep that
-// degraded path explicit instead of leaving a broken `omo` link.
 async function linkRuntimeWrapperStep(
 	options: WorkerSetupOptions,
 	binDir: string,
 	degraded: BootstrapDegradedEntry[],
 ): Promise<void> {
 	const cliPath = join(options.pluginRoot, "dist", "cli", "index.js");
-	try {
-		const linked = await linkRootRuntimeBin({
-			binDir,
-			codexHome: options.codexHome,
-			platform: options.platform,
-			repoRoot: options.pluginRoot,
-		});
-		if (linked !== null) return;
+	if (!(await isRegularFile(cliPath))) {
 		degraded.push({
-			component: "omo-cli",
-			hint: "use npx lazycodex-ai for the omo CLI",
+			component: "lazyz-cli",
+			hint: "reinstall LazyZ from its staged release payload",
 			reason: "marketplace payload has no dist/cli",
 		});
-		await appendBootstrapLog(options.pluginData, options.now ?? Date.now(), "omo-cli-degraded", {
-			warning: `Warning: skipped the omo runtime wrapper because ${cliPath} is missing; omo ulw-loop commands will be unavailable until a package shipping dist/cli is installed`,
+		await appendBootstrapLog(options.pluginData, options.now ?? Date.now(), "lazyz-cli-degraded", {
+			warning: `Warning: skipped the lazyz CLI link because ${cliPath} is missing; lazyz ulw-loop is unavailable until a complete payload is installed`,
 		});
+		return;
+	}
+	try {
+		await linkLazyzRuntimeBin({ binDir, cliPath, platform: options.platform });
+		await retireManagedLegacyOmo(binDir, options.platform);
 	} catch (error) {
 		degraded.push({
-			component: "omo-cli",
+			component: "lazyz-cli",
 			hint: BOOTSTRAP_DOCTOR_HINT,
-			reason: `failed to link the omo runtime wrapper into ${binDir}: ${errorMessage(error)}`,
+			reason: `failed to link the LazyZ runtime into ${binDir}: ${errorMessage(error)}`,
 		});
+	}
+}
+
+async function isRegularFile(path: string): Promise<boolean> {
+	try {
+		return (await stat(path)).isFile();
+	} catch (error) {
+		if (errorCode(error) === "ENOENT") return false;
+		throw error;
 	}
 }
 

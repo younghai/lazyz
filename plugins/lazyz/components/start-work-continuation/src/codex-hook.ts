@@ -1,13 +1,19 @@
 import type { ContinuationState } from "./boulder-reader.js";
 import { readContinuationState } from "./boulder-reader.js";
-import { clearContinuationCount, incrementContinuationCount, readContinuationCount, resolveMaxContinuations } from "./continuation-counter.js";
+import {
+	clearContinuationCount,
+	incrementContinuationCount,
+	readContinuationCount,
+	resolveMaxContinuations,
+} from "./continuation-counter.js";
 import { START_WORK_CONTINUATION_DIRECTIVE } from "./directive.js";
+import { hasOnlyExhaustedExecutorTasks } from "./executor-exhaustion.js";
 import type { ReadWriteFileSystem, StopHookEventName, StopHookOutput, StopInput } from "./types.js";
 
 export function runStopHook(input: unknown, fs: ReadWriteFileSystem): string {
 	if (!isStopInput(input)) return "";
 	if (input.stop_hook_active) return "";
-	if (transcriptHasContextPressureMarker(input.transcript_path, fs)) return "";
+	if (input.transcript_path !== undefined && transcriptHasContextPressureMarker(input.transcript_path, fs)) return "";
 	const state = readContinuationState(input.cwd, input.session_id);
 	if (state === null) {
 		// No active work (plan complete, boulder cleared, or session mismatch):
@@ -15,6 +21,7 @@ export function runStopHook(input: unknown, fs: ReadWriteFileSystem): string {
 		clearContinuationCount(input.cwd, input.session_id, fs);
 		return "";
 	}
+	if (hasOnlyExhaustedExecutorTasks(input.cwd, input.session_id, state.workId)) return "";
 	const maxContinuations = resolveMaxContinuations();
 	if (maxContinuations !== Number.POSITIVE_INFINITY) {
 		const count = readContinuationCount(input.cwd, input.session_id, fs);
@@ -76,10 +83,10 @@ function isStopInput(value: unknown): value is StopInput {
 		isRecord(value) &&
 		isStopHookEventName(value["hook_event_name"]) &&
 		typeof value["session_id"] === "string" &&
-		typeof value["turn_id"] === "string" &&
-		typeof value["transcript_path"] === "string" &&
+		(value["turn_id"] === undefined || typeof value["turn_id"] === "string") &&
+		(value["transcript_path"] === undefined || typeof value["transcript_path"] === "string") &&
 		typeof value["cwd"] === "string" &&
-		typeof value["model"] === "string" &&
+		(value["model"] === undefined || typeof value["model"] === "string") &&
 		typeof value["permission_mode"] === "string" &&
 		typeof value["stop_hook_active"] === "boolean" &&
 		optionalString(value["last_assistant_message"])

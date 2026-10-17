@@ -91,7 +91,7 @@ export async function applyUserPromptUlwLoopSteering(
 }
 
 function hasSteeringDirectiveMarker(prompt: string): boolean {
-	return /(?:^|\s)(?:OMO_ULW_LOOP_STEER|omo\.ulw-loop\.steer|omo ulw-loop steer):/u.test(prompt);
+	return /(?:^|\s)(?:OMO_ULW_LOOP_STEER|omo\.ulw-loop\.steer|lazyz ulw-loop steer):/u.test(prompt);
 }
 
 function payloadScope(payload: UserPromptSubmitPayload): UlwLoopScope {

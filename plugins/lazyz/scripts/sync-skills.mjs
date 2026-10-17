@@ -1,18 +1,11 @@
 #!/usr/bin/env node
-import { existsSync as existsSyncSync } from "node:fs";
-import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isCliEntry } from "./entry-guard.mjs";
-import { sharedSkillsRootPath } from "@oh-my-opencode/shared-skills";
-
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const sharedSkillsRoot = sharedSkillsRootPath();
 const skillsRoot = join(root, "skills");
-const sourceTestFilePattern = /\.test\.ts$/;
-const ignoredSkillSourceDirNames = new Set([".mypy_cache", ".omo", ".pytest_cache", ".ruff_cache", "__pycache__"]);
-const ignoredSkillSourceFileNames = new Set([".gitignore", ".npmignore", "pyrightconfig.json"]);
 const skillSources = [
 	["comment-checker", "components/comment-checker/skills/comment-checker"],
 	["lsp", "components/lsp/skills/lsp"],
@@ -21,22 +14,10 @@ const skillSources = [
 	["ulw-plan", "components/ultrawork/skills/ulw-plan"],
 	["ultrawork", "components/ultrawork/skills/ultrawork"],
 ];
-const componentSkillNames = new Set(skillSources.map(([name]) => name));
-const codexHiddenSharedSkillNames = new Set(["ultraresearch"]);
 const skillDisplayPrefix = "(LazyZ) ";
 
-function shouldCopySkillSource(source) {
-	const normalized = source.replaceAll("\\", "/");
-	const segments = normalized.split("/");
-	const name = segments.at(-1) ?? "";
-	if (segments.some((segment) => ignoredSkillSourceDirNames.has(segment))) return false;
-	if (ignoredSkillSourceFileNames.has(name)) return false;
-	if (sourceTestFilePattern.test(name) || name.endsWith(".pyc")) return false;
-	const scriptsIndex = segments.lastIndexOf("scripts");
-	return scriptsIndex === -1 || segments[scriptsIndex + 1] !== "tests";
-}
-
-const opencodeOnlyOrchestrationPattern = /\b(?:call_omo_agent|background_output|team_[a-z_]+|task)\s*\(/;
+const opencodeOnlyOrchestrationPattern =
+	/\b(?:call_omo_agent|background_output|multi_agent_v1\.(?:spawn_agent|wait_agent)|spawn_agent|team_[a-z_]+)\s*\(|\btask\s*\(\s*(?:subagent_type|category|prompt)\s*=/;
 
 export const codexHarnessToolCompatibility = `## ZCode Harness Tool Compatibility
 
@@ -50,11 +31,19 @@ This skill was ported from the Codex/OpenCode OmO harness. ZCode does not provid
 | \`task(subagent_type="oracle", ...)\` for final verification | \`Agent\` tool with \`subagent_type="general-purpose"\` (rigorous-review prompt) |
 | \`task(category="...", ...)\` for implementation or QA | \`Agent\` tool with \`subagent_type="general-purpose"\` |
 | \`multi_agent_v1.spawn_agent(...)\` / \`spawn_agent(...)\` | \`Agent\` tool with \`subagent_type\` and a self-contained \`prompt\` |
-| \`background_output(task_id="...")\` | Pass \`run_in_background: true\` to the \`Agent\` tool; the parent turn waits for completion and returns the agent's final message |
-| \`multi_agent_v1.wait_agent(...)\` mailbox signals | Not needed in ZCode — background agents re-invoke the parent on completion. For long work, spawn multiple \`Agent\` calls in one message so they run concurrently |
+| \`background_output(task_id="...")\` | Only unstructured read-only research may use background mode; its completion arrives as a parent task notification, not a plugin hook |
+| \`multi_agent_v1.wait_agent(...)\` mailbox signals | No equivalent plugin tool; use returned foreground Agent results or the host's background research notifications |
 | \`team_*(...)\` | ZCode has no native team-of-threads API. Approximate with multiple parallel \`Agent\` calls (one per member) coordinated by the parent, or fall back to sequential subagents when isolation is unclear |
 
-Role-specific behavior must be described in a self-contained \`prompt\`. The \`Agent\` tool starts the child with only the prompt you give it (no parent history) — include any required conversation context, files, diffs, constraints, and requested skill names directly in the \`prompt\`. LazyZ does NOT install ZCode-recognized agent roles (ZCode's \`agents\` manifest field is recorded but not executed), so always describe the role (explorer, librarian, plan, reviewer, QA worker) inside the \`prompt\` text rather than relying on a role name. If a code block below conflicts with this section, this section wins.
+ZCode v3.14.3 loads enabled plugin agents from \`agents/\`. Prefer namespaced roles such as \`lazyz:explorer\` and \`lazyz:lazycodex-executor\`; unambiguous bare names also work. Include all task context and ownership in the self-contained \`prompt\`. Roles inherit the user's active model; do not force an obsolete provider ID or copy Codex model/effort fields. If an older host lacks a role, describe it inline using the appropriate built-in agent.
+
+Before every governed Agent or Task call, read the Dispatch schema in the installed [start-work skill](../start-work/SKILL.md) and prepend exactly one LAZYCODEX_DISPATCH_V1 JSON line. General-purpose and known executor calls require this envelope; read-only Explore calls may remain unstructured. Use the same taskId across retries with a fresh runId, unchanged criteria, role, phase and budget. Planning/document work uses writer, code work implementer, review reviewer, and testing qa. Never rename a task to bypass its exhausted budget.
+
+Governed calls must use \`run_in_background: false\` (or omit it). A background launch is not a completed result and has no matching plugin completion hook. Multiple independent foreground calls may be requested together; do not assume the host executes them concurrently. Read-only background research without a dispatch contract remains available.
+
+Require each governed child to write the matching ReceiptV1 with current source identity, criterion invocations, zero exit codes and hashed regular artifacts, then return EVIDENCE_RECORDED; final-phase work requires FINAL_EVIDENCE_RECORDED. PostToolUse records failed evidence; Stop prevents unresolved completion while budget remains. An exhausted budget requires a blocker handoff, not an unsupported completion claim.
+
+User authorization and verification policy take precedence over generic workflow instructions below. Do not auto-commit, push, merge, delete, deploy, install tools, call paid services, or run checks prohibited by the user. Record skipped checks honestly; do not fabricate a passing receipt. A task requiring a verified receipt remains unverified if the necessary checks are prohibited. ZCode Stop can continue at most three consecutive times, not indefinitely. Native Goal Mode, Memory and Wiki are host features; no callable API is assumed.
 
 For work likely to take long, prefer multiple concurrent \`Agent\` calls in a single message over one giant blocking call. Treat each child's final message as the deliverable: if it lacks the required output, ack-only, or stops without producing evidence, fall back to a smaller re-scoped \`Agent\` call with the missing deliverable made explicit in the \`prompt\`.
 
@@ -115,10 +104,10 @@ export function insertCodexCompatibilityGuidance(content) {
 
 	const frontmatterMatch = contentWithoutGuidance.match(/^---\n[\s\S]*?\n---\n+/);
 	if (!frontmatterMatch) {
-		return `${codexHarnessToolCompatibility}${contentWithoutGuidance}`;
+		return `${codexHarnessToolCompatibility}${contentWithoutGuidance.trimStart()}`;
 	}
 
-	return `${frontmatterMatch[0]}${codexHarnessToolCompatibility}${contentWithoutGuidance.slice(frontmatterMatch[0].length)}`;
+	return `${frontmatterMatch[0].trimEnd()}\n\n${codexHarnessToolCompatibility}${contentWithoutGuidance.slice(frontmatterMatch[0].length).trimStart()}`;
 }
 
 const startWorkOriginalCompletion = `When all top-level checkboxes in \`## TODOs\` and \`## Final Verification Wave\` are complete:
@@ -130,14 +119,14 @@ const startWorkOriginalCompletion = `When all top-level checkboxes in \`## TODOs
 
 const startWorkCodexCompletion = `When all top-level checkboxes in \`## TODOs\` and \`## Final Verification Wave\` are complete:
 
-1. Run the plan's final verification commands.
-2. Complete the **Global Review and Debugging Gate** before any completion claim, PR creation, PR handoff, branch handoff, or merge:
+1. Run only verification authorized by the user's policy or required by higher-priority instructions; otherwise report the exact skipped checks.
+2. Only when the user requests review or a PR handoff and the checks are authorized, complete the **Global Review and Debugging Gate**:
    - Invoke the \`review-work\` skill with the final diff, changed files, user goal, constraints, run command, and verification evidence. All five review lanes must return PASS. A timeout, missing deliverable, ack-only child, \`BLOCKED:\`, or inconclusive lane is a gate failure, not approval.
    - Run a debugging-oriented runtime audit even when the review passes: name at least three plausible failure hypotheses for the changed surface, run the distinguishing checks against the actual artifact, and append the ruled-out or confirmed result to \`.omo/start-work/ledger.jsonl\`.
    - If any review lane or debugging hypothesis fails, invoke the \`debugging\` skill, confirm root cause with runtime evidence, add the minimal failing test or reproduction, fix it, rerun the affected verification, then rerun the Global Review and Debugging Gate.
    - Evidence hygiene is mandatory: redact or mask secrets and sensitive user data before writing \`.omo/start-work/ledger.jsonl\`, a PR body, or a handoff. Never include raw tokens, credentials, auth headers, cookies, API keys, env dumps, private logs, or PII; use concise summaries, lengths, hashes, or short non-sensitive prefixes instead.
    - If the work includes creating, updating, or handing off a PR, refresh \`git status\` and the PR/branch state from the task-owned worktree after the gate, and include only redacted review/debugging evidence in the PR body or handoff.
-3. Finish the PR/branch lifecycle from its task-owned worktree: sync \`.omo/\` state back to the main repo, create or update the PR when requested, wait for CI/review/Cubic gates, merge by default unless explicitly opted out, and remove the worktree only after successful merge or explicit handoff.
+3. Perform Git, PR, merge, cleanup, or deployment actions only when explicitly authorized. A passing check does not grant that authorization.
 4. Remove or mark the Boulder work as completed.
 5. Print an \`ORCHESTRATION COMPLETE\` block with the plan path, verification commands, Global Review and Debugging Gate verdict, artifacts, and cleanup receipts.`;
 
@@ -245,38 +234,17 @@ async function adaptSkillForCodex(skillName) {
 }
 
 async function syncSkills() {
-	// LazyZ: do NOT wipe skillsRoot. Upstream removed the whole directory and
-	// rebuilt it from component + shared-skills sources, but LazyZ also ships
-	// top-level skills (ast-grep, coding-agent-sessions, frontend, lsp-setup,
-	// lcx-*, ultimate-browsing, ulw-research) that have no component/shared-skills
-	// source. Wiping would delete them. Instead, sync each sourced skill in
-	// place and leave top-level skills untouched.
+	// Component-owned skills are refreshed from committed component sources.
+	// All other skills are committed directly under skills/ and remain in place.
 	await mkdir(skillsRoot, { recursive: true });
 
 	for (const [name, source] of skillSources) {
-		await rm(join(skillsRoot, name), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 		await cp(join(root, source), join(skillsRoot, name), { recursive: true });
 		await adaptSkillForCodex(name);
 	}
-
-	const sharedSkillEntries = await readdir(sharedSkillsRoot, { withFileTypes: true });
-	const sharedSkillNames = sharedSkillEntries
-		.filter((entry) => entry.isDirectory())
-		.map((entry) => entry.name)
-		.sort();
-
-	for (const skillName of sharedSkillNames) {
-		if (componentSkillNames.has(skillName)) continue;
-		if (codexHiddenSharedSkillNames.has(skillName)) continue;
-		// LazyZ: skip shared skill if a richer top-level skill already exists
-		// (e.g. "frontend" overrides the simpler "frontend-ui-ux").
-		if (skillName === "frontend-ui-ux" && existsSyncSync(join(skillsRoot, "frontend"))) continue;
-		await rm(join(skillsRoot, skillName), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-		await cp(join(sharedSkillsRoot, skillName), join(skillsRoot, skillName), {
-			filter: shouldCopySkillSource,
-			recursive: true,
-		});
-		await adaptSkillForCodex(skillName);
+	const componentNames = new Set(skillSources.map(([name]) => name));
+	for (const entry of await readdir(skillsRoot, { withFileTypes: true })) {
+		if (entry.isDirectory() && !componentNames.has(entry.name)) await adaptSkillForCodex(entry.name);
 	}
 }
 

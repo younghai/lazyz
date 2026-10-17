@@ -1,21 +1,20 @@
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-
 import { aggregateCodexObjectiveForScope } from "./goal-status.js";
+import { isCrossProcessMutationLockHeld, withCrossProcessMutationLock } from "./mutation-lock.js";
+import { repoRelative, type UlwLoopScope, ulwLoopBriefPath, ulwLoopGoalsPath, ulwLoopLedgerPath } from "./paths.js";
 import {
-	repoRelative,
-	type UlwLoopScope,
-	ulwLoopDir,
-	ulwLoopGoalsPath,
-	ulwLoopLedgerPath,
-	ulwLoopRelativeDir,
-} from "./paths.js";
+	appendSafeTextFile,
+	assertSafeUlwLoopPath,
+	assertUlwLoopStatePaths,
+	ensureUlwLoopStateDir,
+	readSafeTextFile,
+	safeFileExists,
+	writeSafeTextFile,
+} from "./state-path.js";
 import type { UlwLoopLedgerEntry, UlwLoopPlan } from "./types.js";
 import { iso, ULW_LOOP_DIR, ULW_LOOP_GOALS, ULW_LOOP_LEDGER, UlwLoopError } from "./types.js";
 
 const LEGACY_OBJECTIVE_PREFIX = `Complete all ulw-loop stories in ${ULW_LOOP_DIR}/${ULW_LOOP_GOALS}: `;
 const LEGACY_OBJECTIVE = `Complete all ulw-loop stories listed in ${ULW_LOOP_DIR}/${ULW_LOOP_GOALS}. Use ${ULW_LOOP_DIR}/${ULW_LOOP_LEDGER} as the durable audit trail.`;
-const locks = new Map<string, Promise<unknown>>();
-
 function hasCode(error: unknown, code: string): boolean {
 	return error instanceof Error && "code" in error && error.code === code;
 }
@@ -42,25 +41,22 @@ export async function withUlwLoopMutationLock<T>(
 	const scope = typeof scopeOrFn === "function" ? undefined : scopeOrFn;
 	const fn = typeof scopeOrFn === "function" ? scopeOrFn : maybeFn;
 	if (fn === undefined) throw new UlwLoopError("Missing ulw-loop mutation body.", "ULW_LOOP_LOCK_BODY_MISSING");
-	const lockKey = `${repoRoot}\0${ulwLoopRelativeDir(scope)}`;
-	const prior = locks.get(lockKey) ?? Promise.resolve();
-	const run = prior.then(fn, fn);
-	locks.set(
-		lockKey,
-		run.catch(() => undefined),
-	);
-	return run;
+	return withCrossProcessMutationLock(repoRoot, scope, async () => {
+		await assertUlwLoopStatePaths(repoRoot, scope);
+		return fn();
+	});
 }
 
 export async function readUlwLoopPlan(repoRoot: string, scope?: UlwLoopScope): Promise<UlwLoopPlan> {
 	const path = ulwLoopGoalsPath(repoRoot, scope);
 	let raw: string;
 	try {
-		raw = await readFile(path, "utf8");
+		await assertSafeUlwLoopPath(repoRoot, path);
+		raw = await readSafeTextFile(path);
 	} catch (error) {
 		if (!hasCode(error, "ENOENT")) throw error;
 		throw new UlwLoopError(
-			`No ulw-loop plan found at ${repoRelative(path, repoRoot)}. Run \`omo ulw-loop create-goals ...\` first.`,
+			`No ulw-loop plan found at ${repoRelative(path, repoRoot)}. Run \`lazyz ulw-loop create-goals ...\` first.`,
 			"ULW_LOOP_PLAN_MISSING",
 			{ cause: error },
 		);
@@ -74,6 +70,9 @@ export async function readUlwLoopPlan(repoRoot: string, scope?: UlwLoopScope): P
 		(parsed.codexGoalMode ?? "per_story") === "aggregate" &&
 		isLegacyEnumeratedAggregateObjective(previousObjective)
 	) {
+		if (!isCrossProcessMutationLockHeld(repoRoot, scope)) {
+			return withUlwLoopMutationLock(repoRoot, scope, () => readUlwLoopPlan(repoRoot, scope));
+		}
 		const now = iso();
 		parsed.codexObjective = aggregateCodexObjectiveForScope(scope);
 		parsed.codexObjectiveAliases = [...new Set([...(parsed.codexObjectiveAliases ?? []), previousObjective])];
@@ -95,22 +94,25 @@ export async function readUlwLoopPlan(repoRoot: string, scope?: UlwLoopScope): P
 }
 
 export async function writePlan(repoRoot: string, plan: UlwLoopPlan, scope?: UlwLoopScope): Promise<void> {
-	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
+	await ensureUlwLoopStateDir(repoRoot, scope);
 	const path = ulwLoopGoalsPath(repoRoot, scope);
-	const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
-	await writeFile(tmpPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
-	await rename(tmpPath, path);
+	await assertSafeUlwLoopPath(repoRoot, path);
+	await writeSafeTextFile(path, `${JSON.stringify(plan, null, 2)}\n`);
 }
 
 export async function appendLedger(repoRoot: string, entry: UlwLoopLedgerEntry, scope?: UlwLoopScope): Promise<void> {
-	await mkdir(ulwLoopDir(repoRoot, scope), { recursive: true, mode: 0o700 });
-	await appendFile(ulwLoopLedgerPath(repoRoot, scope), `${JSON.stringify(entry)}\n`, "utf8");
+	await ensureUlwLoopStateDir(repoRoot, scope);
+	const path = ulwLoopLedgerPath(repoRoot, scope);
+	await assertSafeUlwLoopPath(repoRoot, path);
+	await appendSafeTextFile(path, `${JSON.stringify(entry)}\n`);
 }
 
 export async function readSteeringLedgerEntries(repoRoot: string, scope?: UlwLoopScope): Promise<UlwLoopLedgerEntry[]> {
 	let raw: string;
 	try {
-		raw = await readFile(ulwLoopLedgerPath(repoRoot, scope), "utf8");
+		const path = ulwLoopLedgerPath(repoRoot, scope);
+		await assertSafeUlwLoopPath(repoRoot, path);
+		raw = await readSafeTextFile(path);
 	} catch (error) {
 		if (hasCode(error, "ENOENT")) return [];
 		throw error;
@@ -121,4 +123,33 @@ export async function readSteeringLedgerEntries(repoRoot: string, scope?: UlwLoo
 		if (isSteeringKind(entry.kind)) entries.push(entry);
 	}
 	return entries;
+}
+
+export async function ulwLoopPlanExists(repoRoot: string, scope?: UlwLoopScope): Promise<boolean> {
+	return safeFileExists(repoRoot, ulwLoopGoalsPath(repoRoot, scope));
+}
+
+export async function writeUlwLoopBrief(repoRoot: string, brief: string, scope?: UlwLoopScope): Promise<void> {
+	await ensureUlwLoopStateDir(repoRoot, scope);
+	const path = ulwLoopBriefPath(repoRoot, scope);
+	await assertSafeUlwLoopPath(repoRoot, path);
+	await writeSafeTextFile(path, brief.endsWith("\n") ? brief : `${brief}\n`);
+}
+
+export async function readUlwLoopBrief(repoRoot: string, scope?: UlwLoopScope): Promise<string | null> {
+	const path = ulwLoopBriefPath(repoRoot, scope);
+	await assertSafeUlwLoopPath(repoRoot, path);
+	try {
+		return await readSafeTextFile(path);
+	} catch (error) {
+		if (hasCode(error, "ENOENT")) return null;
+		throw error;
+	}
+}
+
+export async function resetUlwLoopLedger(repoRoot: string, scope?: UlwLoopScope): Promise<void> {
+	await ensureUlwLoopStateDir(repoRoot, scope);
+	const path = ulwLoopLedgerPath(repoRoot, scope);
+	await assertSafeUlwLoopPath(repoRoot, path);
+	await writeSafeTextFile(path, "");
 }

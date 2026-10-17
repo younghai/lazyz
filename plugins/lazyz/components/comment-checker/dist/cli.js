@@ -318,8 +318,21 @@ async function runCommentChecker2(input, options = {}) {
     args.push("--prompt", options.customPrompt);
   }
   const executor = options.executor ?? spawnProcess;
-  const result = await executor(binaryPath, args, JSON.stringify(input));
+  const result = await executor(binaryPath, args, JSON.stringify(input), {
+    timeoutMs: options.timeoutMs ?? 4000,
+    ...options.signal === undefined ? {} : { signal: options.signal }
+  });
   const message = result.stderr || result.stdout;
+  if (result.timedOut === true || result.cancelled === true) {
+    return {
+      status: "error",
+      message,
+      binaryPath,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr
+    };
+  }
   if (result.exitCode === 0) {
     return {
       status: "pass",
@@ -412,14 +425,39 @@ function formatOutput(output, streamName, maxOutputBytes) {
   return `${output.text}
 [${streamName} truncated after ${maxOutputBytes} bytes]`;
 }
-function spawnProcess(command, args, stdin, maxOutputBytes = MAX_PROCESS_OUTPUT_BYTES) {
+function spawnProcess(command, args, stdin, options = {}) {
   return new Promise((resolve) => {
+    const executionOptions = typeof options === "number" ? { maxOutputBytes: options } : options;
+    const maxOutputBytes = executionOptions.maxOutputBytes ?? MAX_PROCESS_OUTPUT_BYTES;
     const outputByteLimit = Number.isFinite(maxOutputBytes) && maxOutputBytes > 0 ? Math.floor(maxOutputBytes) : 0;
     const proc = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"]
     });
     const stdout = { text: "", bytes: 0, truncated: false };
     const stderr = { text: "", bytes: 0, truncated: false };
+    let settled = false;
+    let timeout;
+    const finish = (result) => {
+      if (settled)
+        return;
+      settled = true;
+      if (timeout !== undefined)
+        clearTimeout(timeout);
+      executionOptions.signal?.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+    const capturedResult = (exitCode, timedOut = false, cancelled = false) => ({
+      exitCode,
+      stdout: formatOutput(stdout, "stdout", outputByteLimit),
+      stderr: formatOutput(stderr, "stderr", outputByteLimit),
+      timedOut,
+      cancelled
+    });
+    const stop = (timedOut, cancelled) => {
+      proc.kill("SIGTERM");
+      finish(capturedResult(null, timedOut, cancelled));
+    };
+    const onAbort = () => stop(false, true);
     proc.stdout.setEncoding("utf-8");
     proc.stderr.setEncoding("utf-8");
     proc.stdout.on("data", (chunk) => {
@@ -430,19 +468,21 @@ function spawnProcess(command, args, stdin, maxOutputBytes = MAX_PROCESS_OUTPUT_
     });
     proc.once("error", (error) => {
       appendOutput(stderr, error.message, outputByteLimit);
-      resolve({
-        exitCode: null,
-        stdout: formatOutput(stdout, "stdout", outputByteLimit),
-        stderr: formatOutput(stderr, "stderr", outputByteLimit)
-      });
+      finish(capturedResult(null));
     });
     proc.once("close", (exitCode) => {
-      resolve({
-        exitCode,
-        stdout: formatOutput(stdout, "stdout", outputByteLimit),
-        stderr: formatOutput(stderr, "stderr", outputByteLimit)
-      });
+      finish(capturedResult(exitCode));
     });
+    proc.stdin.on("error", (error) => appendOutput(stderr, error.message, outputByteLimit));
+    if (executionOptions.timeoutMs !== undefined && executionOptions.timeoutMs > 0) {
+      timeout = setTimeout(() => stop(true, false), executionOptions.timeoutMs);
+      timeout.unref?.();
+    }
+    if (executionOptions.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    executionOptions.signal?.addEventListener("abort", onAbort, { once: true });
     proc.stdin.end(stdin);
   });
 }
@@ -450,6 +490,9 @@ function spawnProcess(command, args, stdin, maxOutputBytes = MAX_PROCESS_OUTPUT_
 // components/comment-checker/src/codex-hook.ts
 var DEFAULT_MAX_HOOK_FEEDBACK_CHARS = 8000;
 var CONTEXT_PRESSURE_MAX_HOOK_FEEDBACK_CHARS = 1200;
+var DEFAULT_MAX_CONCURRENCY = 4;
+var DEFAULT_MAX_REQUESTS = 16;
+var DEFAULT_HOOK_TIMEOUT_MS = 4500;
 var CONTEXT_PRESSURE_MARKERS = [
   "context compacted",
   "context_length_exceeded",
@@ -464,32 +507,104 @@ function extractCodexCommentCheckRequests(input) {
 }
 async function runCommentCheckerPostToolUse(input, options = {}) {
   const requests = extractCodexCommentCheckRequests(input);
-  if (requests.length === 0)
+  const startedAt = Date.now();
+  if (requests.length === 0) {
+    options.onMetrics?.({
+      requested: 0,
+      scheduled: 0,
+      completed: 0,
+      maxConcurrency: 0,
+      timedOut: false,
+      durationMs: 0
+    });
     return "";
-  const runner = options.run ?? runCommentChecker2;
-  const warnings = [];
-  for (const request of requests) {
-    const context = {
-      sessionId: input.session_id,
-      cwd: input.cwd,
-      ...input.transcript_path === null ? {} : { transcriptPath: input.transcript_path }
-    };
-    const result = await runner(toHookInput(request, context));
-    if (result.status === "missing" || result.status === "pass")
-      continue;
-    if (result.status === "error")
-      continue;
-    const message = normalizeHookText(result.message);
-    if (message.length > 0) {
-      warnings.push({ filePath: request.filePath, message });
-    }
   }
-  if (warnings.length === 0)
+  const maxRequests = normalizePositiveInteger(options.maxRequests, DEFAULT_MAX_REQUESTS);
+  const scheduledRequests = uniqueRequestsByFile(requests).slice(0, maxRequests);
+  const maxConcurrency = Math.min(normalizePositiveInteger(options.maxConcurrency, DEFAULT_MAX_CONCURRENCY), scheduledRequests.length);
+  const hookTimeoutMs = normalizePositiveInteger(options.hookTimeoutMs, DEFAULT_HOOK_TIMEOUT_MS);
+  const runner = options.run ?? runCommentChecker2;
+  const warnings = new Array(scheduledRequests.length);
+  const controller = new AbortController;
+  let nextIndex = 0;
+  let completed = 0;
+  let active = 0;
+  let observedMaxConcurrency = 0;
+  let timedOut = false;
+  let timeout;
+  const deadline = new Promise((resolve) => {
+    timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort("comment-checker hook deadline exceeded");
+      resolve("timeout");
+    }, hookTimeoutMs);
+    timeout.unref?.();
+  });
+  const workers = Promise.all(Array.from({ length: maxConcurrency }, async () => {
+    for (;; ) {
+      if (controller.signal.aborted)
+        return;
+      const index = nextIndex;
+      nextIndex += 1;
+      const request = scheduledRequests[index];
+      if (request === undefined)
+        return;
+      active += 1;
+      observedMaxConcurrency = Math.max(observedMaxConcurrency, active);
+      try {
+        const context = {
+          sessionId: input.session_id,
+          cwd: input.cwd,
+          ...input.transcript_path === null ? {} : { transcriptPath: input.transcript_path }
+        };
+        const result = await runner(toHookInput(request, context), { signal: controller.signal });
+        if (result.status === "warning") {
+          const message = normalizeHookText(result.message);
+          if (message.length > 0)
+            warnings[index] = { filePath: request.filePath, message };
+        }
+      } finally {
+        active -= 1;
+        completed += 1;
+      }
+    }
+  }));
+  await Promise.race([workers.then(() => "complete"), deadline]);
+  if (timeout !== undefined)
+    clearTimeout(timeout);
+  if (timedOut)
+    workers.catch(() => {
+      return;
+    });
+  options.onMetrics?.({
+    requested: requests.length,
+    scheduled: scheduledRequests.length,
+    completed,
+    maxConcurrency: observedMaxConcurrency,
+    timedOut,
+    durationMs: Date.now() - startedAt
+  });
+  const completedWarnings = warnings.filter((warning) => warning !== undefined);
+  if (completedWarnings.length === 0)
     return "";
   return JSON.stringify({
     decision: "block",
-    reason: limitHookText(formatWarnings(warnings), hookFeedbackLimit(input.transcript_path))
+    reason: limitHookText(formatWarnings(completedWarnings), hookFeedbackLimit(input.transcript_path))
   });
+}
+function uniqueRequestsByFile(requests) {
+  const seen = new Set;
+  const unique = [];
+  for (const request of requests) {
+    if (seen.has(request.filePath))
+      continue;
+    seen.add(request.filePath);
+    unique.push(request);
+  }
+  return unique;
+}
+function normalizePositiveInteger(value, fallback) {
+  return value === undefined || !Number.isFinite(value) || value <= 0 ? fallback : Math.floor(value);
 }
 async function runCodexHookCli() {
   const input = await readStdin();

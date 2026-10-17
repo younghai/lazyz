@@ -34,8 +34,7 @@ for (const dir of candidates) {
 		if (!force && isBuildFresh(packageJson, outputs)) {
 			process.exit(0);
 		}
-		console.log("Installing repository lsp-daemon dependencies...");
-		execSync("npm install --no-save --ignore-scripts", { cwd: dir, stdio: "inherit" });
+		assertDependenciesInstalled(dir, "lsp-daemon");
 		console.log("Building repository lsp-daemon...");
 		execSync("npm run build", { cwd: dir, stdio: "inherit" });
 		console.log("Done.");
@@ -67,4 +66,17 @@ function isBuildFresh(inputPath, outputPaths) {
 	if (outputPaths.some((path) => !existsSync(path))) return false;
 	const inputMtime = statSync(inputPath).mtimeMs;
 	return outputPaths.every((path) => statSync(path).mtimeMs >= inputMtime);
+}
+
+function assertDependenciesInstalled(packageRoot, label) {
+	for (let dir = packageRoot; ; dir = dirname(dir)) {
+		if (existsSync(join(dir, "node_modules"))) return;
+		const parent = dirname(dir);
+		if (parent === dir) break;
+	}
+
+	console.error(
+		`Cannot build ${label}: dependencies are not installed for ${packageRoot}. Run npm ci at the workspace root before building.`,
+	);
+	process.exit(1);
 }

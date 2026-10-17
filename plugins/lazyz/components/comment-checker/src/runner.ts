@@ -6,20 +6,35 @@ import { dirname, join } from "node:path";
 import type { CommentCheckerHookInput } from "./core.js";
 
 export type ProcessResult = {
-	exitCode: number | null;
-	stdout: string;
-	stderr: string;
+	readonly exitCode: number | null;
+	readonly stdout: string;
+	readonly stderr: string;
+	readonly timedOut?: boolean;
+	readonly cancelled?: boolean;
 };
 
 export const MAX_PROCESS_OUTPUT_BYTES = 64 * 1024;
 
-export type ProcessExecutor = (command: string, args: string[], stdin: string) => Promise<ProcessResult>;
+export interface ProcessExecutionOptions {
+	readonly maxOutputBytes?: number;
+	readonly timeoutMs?: number;
+	readonly signal?: AbortSignal;
+}
+
+export type ProcessExecutor = (
+	command: string,
+	args: string[],
+	stdin: string,
+	options?: ProcessExecutionOptions,
+) => Promise<ProcessResult>;
 
 export type RunCommentCheckerOptions = {
 	binaryPath?: string;
 	customPrompt?: string;
 	resolveBinary?: () => string | undefined;
 	executor?: ProcessExecutor;
+	readonly timeoutMs?: number;
+	readonly signal?: AbortSignal;
 };
 
 export type CommentCheckerRunResult = {
@@ -31,7 +46,14 @@ export type CommentCheckerRunResult = {
 	stderr?: string;
 };
 
-export type CommentCheckerRunner = (input: CommentCheckerHookInput) => Promise<CommentCheckerRunResult>;
+export interface CommentCheckerRunnerOptions {
+	readonly signal?: AbortSignal;
+}
+
+export type CommentCheckerRunner = (
+	input: CommentCheckerHookInput,
+	options?: CommentCheckerRunnerOptions,
+) => Promise<CommentCheckerRunResult>;
 
 export async function runCommentChecker(
 	input: CommentCheckerHookInput,
@@ -52,8 +74,21 @@ export async function runCommentChecker(
 	}
 
 	const executor = options.executor ?? spawnProcess;
-	const result = await executor(binaryPath, args, JSON.stringify(input));
+	const result = await executor(binaryPath, args, JSON.stringify(input), {
+		timeoutMs: options.timeoutMs ?? 4_000,
+		...(options.signal === undefined ? {} : { signal: options.signal }),
+	});
 	const message = result.stderr || result.stdout;
+	if (result.timedOut === true || result.cancelled === true) {
+		return {
+			status: "error",
+			message,
+			binaryPath,
+			exitCode: result.exitCode,
+			stdout: result.stdout,
+			stderr: result.stderr,
+		};
+	}
 	if (result.exitCode === 0) {
 		return {
 			status: "pass",
@@ -161,15 +196,38 @@ export function spawnProcess(
 	command: string,
 	args: string[],
 	stdin: string,
-	maxOutputBytes: number = MAX_PROCESS_OUTPUT_BYTES,
+	options: number | ProcessExecutionOptions = {},
 ): Promise<ProcessResult> {
 	return new Promise((resolve) => {
+		const executionOptions = typeof options === "number" ? { maxOutputBytes: options } : options;
+		const maxOutputBytes = executionOptions.maxOutputBytes ?? MAX_PROCESS_OUTPUT_BYTES;
 		const outputByteLimit = Number.isFinite(maxOutputBytes) && maxOutputBytes > 0 ? Math.floor(maxOutputBytes) : 0;
 		const proc = spawn(command, args, {
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		const stdout: OutputAccumulator = { text: "", bytes: 0, truncated: false };
 		const stderr: OutputAccumulator = { text: "", bytes: 0, truncated: false };
+		let settled = false;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		const finish = (result: ProcessResult): void => {
+			if (settled) return;
+			settled = true;
+			if (timeout !== undefined) clearTimeout(timeout);
+			executionOptions.signal?.removeEventListener("abort", onAbort);
+			resolve(result);
+		};
+		const capturedResult = (exitCode: number | null, timedOut = false, cancelled = false): ProcessResult => ({
+			exitCode,
+			stdout: formatOutput(stdout, "stdout", outputByteLimit),
+			stderr: formatOutput(stderr, "stderr", outputByteLimit),
+			timedOut,
+			cancelled,
+		});
+		const stop = (timedOut: boolean, cancelled: boolean): void => {
+			proc.kill("SIGTERM");
+			finish(capturedResult(null, timedOut, cancelled));
+		};
+		const onAbort = (): void => stop(false, true);
 
 		proc.stdout.setEncoding("utf-8");
 		proc.stderr.setEncoding("utf-8");
@@ -181,19 +239,21 @@ export function spawnProcess(
 		});
 		proc.once("error", (error) => {
 			appendOutput(stderr, error.message, outputByteLimit);
-			resolve({
-				exitCode: null,
-				stdout: formatOutput(stdout, "stdout", outputByteLimit),
-				stderr: formatOutput(stderr, "stderr", outputByteLimit),
-			});
+			finish(capturedResult(null));
 		});
 		proc.once("close", (exitCode) => {
-			resolve({
-				exitCode,
-				stdout: formatOutput(stdout, "stdout", outputByteLimit),
-				stderr: formatOutput(stderr, "stderr", outputByteLimit),
-			});
+			finish(capturedResult(exitCode));
 		});
+		proc.stdin.on("error", (error) => appendOutput(stderr, error.message, outputByteLimit));
+		if (executionOptions.timeoutMs !== undefined && executionOptions.timeoutMs > 0) {
+			timeout = setTimeout(() => stop(true, false), executionOptions.timeoutMs);
+			timeout.unref?.();
+		}
+		if (executionOptions.signal?.aborted) {
+			onAbort();
+			return;
+		}
+		executionOptions.signal?.addEventListener("abort", onAbort, { once: true });
 		proc.stdin.end(stdin);
 	});
 }

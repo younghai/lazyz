@@ -8,8 +8,11 @@ describe("validateOmoConfig", () => {
     const config = {
       codegraph: {
         auto_provision: true,
+		daemon: true,
         enabled: true,
+		excluded_roots: ["/tmp/omo-scratch"],
         install_dir: "~/.omo/codegraph",
+		session_start_cooldown_ms: 900_000,
         telemetry: false,
         watch_debounce_ms: 2_000,
       },
@@ -31,6 +34,18 @@ describe("validateOmoConfig", () => {
     // then
     expect(result).toEqual({ errors: [], ok: true })
   })
+
+	it("rejects a SessionStart cooldown below the safety floor", () => {
+		// given
+		const config = { "[codex]": { codegraph: { session_start_cooldown_ms: 59_999 } } }
+
+		// when
+		const result = validateOmoConfig(config)
+
+		// then
+		expect(result.ok).toBe(false)
+		expect(result.errors).toContain("[codex].codegraph.session_start_cooldown_ms must be a finite number of at least 60000")
+	})
 
   it("rejects unknown harness override blocks", () => {
     // given

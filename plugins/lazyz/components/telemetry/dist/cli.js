@@ -1,33 +1,19 @@
 #!/usr/bin/env node
-var __defProp = Object.defineProperty;
-var __returnValue = (v) => v;
-function __exportSetter(name, newValue) {
-  this[name] = __returnValue.bind(null, newValue);
-}
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, {
-      get: all[name],
-      enumerable: true,
-      configurable: true,
-      set: __exportSetter.bind(all, name)
-    });
-};
 
-// src/cli.ts
+// components/telemetry/src/cli.ts
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 
-// src/codex-hook.ts
+// components/telemetry/src/codex-hook.ts
 import { existsSync as existsSync4, mkdirSync as mkdirSync5, writeFileSync as writeFileSync3 } from "node:fs";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname3, join as join4 } from "node:path";
 import { stderr } from "node:process";
 
-// ../../vendor/telemetry-core/src/activity-state.ts
+// vendor/telemetry-core/src/activity-state.ts
 import { existsSync, mkdirSync as mkdirSync2, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-// ../../vendor/utils/src/atomic-write.ts
+// vendor/utils/src/atomic-write.ts
 import {
   closeSync,
   fsyncSync,
@@ -78,7 +64,7 @@ function writeFileAtomically(filePath, content, options = {}) {
   }
 }
 
-// ../../vendor/utils/src/xdg-data-dir.ts
+// vendor/utils/src/xdg-data-dir.ts
 import { accessSync, constants, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -102,7 +88,7 @@ function resolveWritableDirectory(preferredDir, fallbackSuffix, osProvider) {
   }
 }
 
-// ../../vendor/telemetry-core/src/activity-state.ts
+// vendor/telemetry-core/src/activity-state.ts
 var POSTHOG_ACTIVITY_STATE_FILE = "posthog-activity.json";
 function resolveTelemetryStateDir(product, options = {}) {
   const dataDir = resolveXdgDataDir(product.cacheDirName, {
@@ -176,10 +162,10 @@ function writePostHogActivityState(stateDir, nextState, diagnostics) {
     });
   }
 }
-// ../../vendor/telemetry-core/src/constants.ts
+// vendor/telemetry-core/src/constants.ts
 var DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 var DEFAULT_POSTHOG_API_KEY = "phc_CFJhj5HyvA62QPhvyaUCtaq23aUfznnijg5VaaGkNk74";
-// ../../vendor/telemetry-core/src/diagnostics.ts
+// vendor/telemetry-core/src/diagnostics.ts
 import { appendFileSync, existsSync as existsSync2, mkdirSync as mkdirSync3, readFileSync as readFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 var DIAGNOSTICS_FILE_NAME = "telemetry-diagnostics.jsonl";
@@ -293,7 +279,7 @@ function trimToMaxBytes(lines) {
   }
   return retained;
 }
-// ../../vendor/telemetry-core/src/env.ts
+// vendor/telemetry-core/src/env.ts
 import { existsSync as existsSync3, mkdirSync as mkdirSync4, writeFileSync as writeFileSync2 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join as join3 } from "node:path";
@@ -338,7 +324,7 @@ function getTelemetryApiKey(env = process.env, defaultApiKey = DEFAULT_POSTHOG_A
 function getTelemetryHost(env = process.env, defaultHost = DEFAULT_POSTHOG_HOST) {
   return env["POSTHOG_HOST"]?.trim() || defaultHost;
 }
-// ../../vendor/telemetry-core/src/machine-id.ts
+// vendor/telemetry-core/src/machine-id.ts
 import { createHash } from "node:crypto";
 import os2 from "node:os";
 function getDefaultTelemetryOsProvider() {
@@ -347,8 +333,8 @@ function getDefaultTelemetryOsProvider() {
 function getTelemetryDistinctId(machineIdPrefix, osProvider = getDefaultTelemetryOsProvider()) {
   return createHash("sha256").update(`${machineIdPrefix}${osProvider.hostname()}`).digest("hex");
 }
-// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/module.node.mjs
-import { dirname as dirname2, posix, sep } from "path";
+// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/module.node.mjs
+import { dirname as dirname2, posix, sep } from "node:path";
 function createModulerModifier() {
   const getModuleFromFileName = createGetModuleFromFilename();
   return async (frames) => {
@@ -379,11 +365,11 @@ function createGetModuleFromFilename(basePath = process.argv[1] ? dirname2(proce
     return decodedFile;
   };
 }
-function normalizeWindowsPath(path2) {
-  return path2.replace(/^[A-Z]:/, "").replace(/\\/g, "/");
+function normalizeWindowsPath(path) {
+  return path.replace(/^[A-Z]:/, "").replace(/\\/g, "/");
 }
 
-// ../../node_modules/@posthog/core/dist/featureFlagUtils.mjs
+// node_modules/@posthog/core/dist/featureFlagUtils.mjs
 var normalizeFlagsResponse = (flagsResponse) => {
   if ("flags" in flagsResponse) {
     const featureFlags = getFlagValuesFromFlags(flagsResponse.flags);
@@ -454,7 +440,7 @@ var parsePayload = (response) => {
   }
 };
 
-// ../../node_modules/@posthog/core/dist/types.mjs
+// node_modules/@posthog/core/dist/types.mjs
 var types_PostHogPersistedProperty = /* @__PURE__ */ function(PostHogPersistedProperty) {
   PostHogPersistedProperty["AnonymousId"] = "anonymous_id";
   PostHogPersistedProperty["DistinctId"] = "distinct_id";
@@ -489,7 +475,7 @@ var types_PostHogPersistedProperty = /* @__PURE__ */ function(PostHogPersistedPr
   return PostHogPersistedProperty;
 }({});
 
-// ../../node_modules/@posthog/core/dist/gzip.mjs
+// node_modules/@posthog/core/dist/gzip.mjs
 function isGzipSupported() {
   return "CompressionStream" in globalThis && "TextEncoder" in globalThis && "Response" in globalThis && typeof Response.prototype.blob == "function";
 }
@@ -563,7 +549,7 @@ async function gzipCompress(input, isDebug = true, options) {
   }
 }
 
-// ../../node_modules/@posthog/core/dist/utils/bot-detection.mjs
+// node_modules/@posthog/core/dist/utils/bot-detection.mjs
 var DEFAULT_BLOCKED_UA_STRS = [
   "amazonbot",
   "amazonproductbot",
@@ -652,7 +638,7 @@ var isBlockedUA = function(ua, customBlockedUserAgents = []) {
     return uaLower.indexOf(blockedUaLower) !== -1;
   });
 };
-// ../../node_modules/@posthog/core/dist/utils/string-utils.mjs
+// node_modules/@posthog/core/dist/utils/string-utils.mjs
 function safeJsonStringify(value) {
   const ancestors = [];
   return JSON.stringify(value, function(_key, replacementValue) {
@@ -677,7 +663,7 @@ function safeJsonStringify(value) {
   }) ?? "null";
 }
 
-// ../../node_modules/@posthog/core/dist/utils/type-utils.mjs
+// node_modules/@posthog/core/dist/utils/type-utils.mjs
 var nativeIsArray = Array.isArray;
 var ObjProto = Object.prototype;
 var type_utils_hasOwnProperty = ObjProto.hasOwnProperty;
@@ -697,9 +683,6 @@ function isPrimitive(value) {
 function isBuiltin(candidate, className) {
   return Object.prototype.toString.call(candidate) === `[object ${className}]`;
 }
-function isErrorEvent(event) {
-  return isBuiltin(event, "ErrorEvent");
-}
 function isEvent(candidate) {
   return typeof Event != "undefined" && isInstanceOf(candidate, Event);
 }
@@ -714,7 +697,7 @@ function isInstanceOf(candidate, base) {
   }
 }
 
-// ../../node_modules/@posthog/core/dist/utils/number-utils.mjs
+// node_modules/@posthog/core/dist/utils/number-utils.mjs
 function clampToRange(value, min, max, logger, fallbackValue) {
   if (min > max) {
     logger.warn("min cannot be greater than max.");
@@ -734,7 +717,7 @@ function clampToRange(value, min, max, logger, fallbackValue) {
   return clampToRange(fallbackValue || max, min, max, logger);
 }
 
-// ../../node_modules/@posthog/core/dist/utils/bucketed-rate-limiter.mjs
+// node_modules/@posthog/core/dist/utils/bucketed-rate-limiter.mjs
 var ONE_DAY_IN_MS = 86400000;
 
 class BucketedRateLimiter {
@@ -778,7 +761,7 @@ class BucketedRateLimiter {
     this._buckets = {};
   }
 }
-// ../../node_modules/@posthog/core/dist/vendor/uuidv7.mjs
+// node_modules/@posthog/core/dist/vendor/uuidv7.mjs
 /*! For license information please see uuidv7.mjs.LICENSE.txt */
 var DIGITS = "0123456789abcdef";
 
@@ -956,7 +939,7 @@ var defaultGenerator;
 var uuidv7 = () => uuidv7obj().toString();
 var uuidv7obj = () => (defaultGenerator || (defaultGenerator = new V7Generator)).generate();
 
-// ../../node_modules/@posthog/core/dist/utils/promise-queue.mjs
+// node_modules/@posthog/core/dist/utils/promise-queue.mjs
 class PromiseQueue {
   add(promise) {
     const promiseUUID = uuidv7();
@@ -994,7 +977,7 @@ class PromiseQueue {
     this.nextId = 0;
   }
 }
-// ../../node_modules/@posthog/core/dist/utils/logger.mjs
+// node_modules/@posthog/core/dist/utils/logger.mjs
 function createConsole(consoleLike = console) {
   const lockedMethods = {
     log: consoleLike.log.bind(consoleLike),
@@ -1035,7 +1018,7 @@ var passThrough = (fn) => fn();
 function createLogger(prefix, maybeCall = passThrough) {
   return _createLogger(prefix, maybeCall, createConsole());
 }
-// ../../node_modules/@posthog/core/dist/utils/user-agent-utils.mjs
+// node_modules/@posthog/core/dist/utils/user-agent-utils.mjs
 var MOBILE = "Mobile";
 var IOS = "iOS";
 var ANDROID = "Android";
@@ -1328,7 +1311,7 @@ var osMatchers = [
   ]
 ];
 
-// ../../node_modules/@posthog/core/dist/utils/index.mjs
+// node_modules/@posthog/core/dist/utils/index.mjs
 var STRING_FORMAT = "utf8";
 var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUUID(value) {
@@ -1375,7 +1358,7 @@ function allSettled(promises) {
   }))));
 }
 
-// ../../node_modules/@posthog/core/dist/logs/logs-utils.mjs
+// node_modules/@posthog/core/dist/logs/logs-utils.mjs
 var OTLP_SEVERITY_MAP = {
   trace: {
     text: "TRACE",
@@ -1403,7 +1386,7 @@ var OTLP_SEVERITY_MAP = {
   }
 };
 var DEFAULT_OTLP_SEVERITY = OTLP_SEVERITY_MAP.info;
-// ../../node_modules/@posthog/core/dist/eventemitter.mjs
+// node_modules/@posthog/core/dist/eventemitter.mjs
 class SimpleEventEmitter {
   constructor() {
     this.events = {};
@@ -1425,37 +1408,7 @@ class SimpleEventEmitter {
   }
 }
 
-// ../../node_modules/@posthog/core/dist/error-tracking/index.mjs
-var exports_error_tracking = {};
-__export(exports_error_tracking, {
-  winjsStackLineParser: () => winjsStackLineParser,
-  stripReservedExceptionStepFields: () => stripReservedExceptionStepFields,
-  reverseAndStripFrames: () => reverseAndStripFrames,
-  resolveExceptionStepsConfig: () => resolveExceptionStepsConfig,
-  opera11StackLineParser: () => opera11StackLineParser,
-  opera10StackLineParser: () => opera10StackLineParser,
-  nodeStackLineParser: () => nodeStackLineParser,
-  getUtf8ByteLength: () => getUtf8ByteLength,
-  geckoStackLineParser: () => geckoStackLineParser,
-  createStackParser: () => createStackParser,
-  createDefaultStackParser: () => createDefaultStackParser,
-  chromeStackLineParser: () => chromeStackLineParser,
-  StringCoercer: () => StringCoercer,
-  ReduceableCache: () => ReduceableCache,
-  PromiseRejectionEventCoercer: () => PromiseRejectionEventCoercer,
-  PrimitiveCoercer: () => PrimitiveCoercer,
-  ObjectCoercer: () => ObjectCoercer,
-  ExceptionStepsBuffer: () => ExceptionStepsBuffer,
-  EventCoercer: () => EventCoercer,
-  ErrorPropertiesBuilder: () => ErrorPropertiesBuilder,
-  ErrorEventCoercer: () => ErrorEventCoercer,
-  ErrorCoercer: () => ErrorCoercer,
-  EXCEPTION_STEP_INTERNAL_FIELDS: () => EXCEPTION_STEP_INTERNAL_FIELDS,
-  DOMExceptionCoercer: () => DOMExceptionCoercer,
-  DEFAULT_EXCEPTION_STEPS_CONFIG: () => DEFAULT_EXCEPTION_STEPS_CONFIG
-});
-
-// ../../node_modules/@posthog/core/dist/error-tracking/chunk-ids.mjs
+// node_modules/@posthog/core/dist/error-tracking/chunk-ids.mjs
 var parsedStackResults;
 var lastKeysCount;
 var cachedFilenameChunkIds;
@@ -1494,7 +1447,7 @@ function getFilenameToChunkIdMap(stackParser) {
   return cachedFilenameChunkIds;
 }
 
-// ../../node_modules/@posthog/core/dist/error-tracking/error-properties-builder.mjs
+// node_modules/@posthog/core/dist/error-tracking/error-properties-builder.mjs
 var MAX_CAUSE_RECURSION = 4;
 
 class ErrorPropertiesBuilder {
@@ -1598,11 +1551,11 @@ class ErrorPropertiesBuilder {
     return context;
   }
   buildCoercingContext(mechanism, hint, depth = 0) {
-    const coerce = (input, depth2) => {
-      if (!(depth2 <= MAX_CAUSE_RECURSION))
+    const coerce = (input, depth) => {
+      if (!(depth <= MAX_CAUSE_RECURSION))
         return;
       {
-        const ctx = this.buildCoercingContext(mechanism, hint, depth2);
+        const ctx = this.buildCoercingContext(mechanism, hint, depth);
         return this.applyCoercers(input, ctx);
       }
     };
@@ -1616,7 +1569,7 @@ class ErrorPropertiesBuilder {
     return context;
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/base.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/base.mjs
 var UNKNOWN_FUNCTION = "?";
 function createFrame(platform, filename, func, lineno, colno) {
   const frame = {
@@ -1632,7 +1585,7 @@ function createFrame(platform, filename, func, lineno, colno) {
   return frame;
 }
 
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/safari.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/safari.mjs
 var extractSafariExtensionDetails = (func, filename) => {
   const isSafariExtension = func.indexOf("safari-extension") !== -1;
   const isSafariWebExtension = func.indexOf("safari-web-extension") !== -1;
@@ -1645,15 +1598,15 @@ var extractSafariExtensionDetails = (func, filename) => {
   ];
 };
 
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/chrome.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/chrome.mjs
 var chromeRegexNoFnName = /^\s*at (\S+?)(?::(\d+))(?::(\d+))\s*$/i;
 var chromeRegex = /^\s*at (?:(.+?\)(?: \[.+\])?|.*?) ?\((?:address at )?)?(?:async )?((?:<anonymous>|[-a-z]+:|.*bundle|\/)?.*?)(?::(\d+))?(?::(\d+))?\)?\s*$/i;
 var chromeEvalRegex = /\((\S*)(?::(\d+))(?::(\d+))\)/;
 var chromeStackLineParser = (line, platform) => {
   const noFnParts = chromeRegexNoFnName.exec(line);
   if (noFnParts) {
-    const [, filename, line2, col] = noFnParts;
-    return createFrame(platform, filename, UNKNOWN_FUNCTION, +line2, +col);
+    const [, filename, line, col] = noFnParts;
+    return createFrame(platform, filename, UNKNOWN_FUNCTION, +line, +col);
   }
   const parts = chromeRegex.exec(line);
   if (parts) {
@@ -1671,7 +1624,7 @@ var chromeStackLineParser = (line, platform) => {
   }
 };
 
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/gecko.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/gecko.mjs
 var geckoREgex = /^\s*(.*?)(?:\((.*?)\))?(?:^|@)?((?:[-a-z]+)?:\/.*?|\[native code\]|[^@]*(?:bundle|\d+\.js)|\/[\w\-. /=]+)(?::(\d+))?(?::(\d+))?\s*$/i;
 var geckoEvalRegex = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i;
 var geckoStackLineParser = (line, platform) => {
@@ -1694,26 +1647,7 @@ var geckoStackLineParser = (line, platform) => {
   }
 };
 
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/winjs.mjs
-var winjsRegex = /^\s*at (?:((?:\[object object\])?.+) )?\(?((?:[-a-z]+):.*?):(\d+)(?::(\d+))?\)?\s*$/i;
-var winjsStackLineParser = (line, platform) => {
-  const parts = winjsRegex.exec(line);
-  return parts ? createFrame(platform, parts[2], parts[1] || UNKNOWN_FUNCTION, +parts[3], parts[4] ? +parts[4] : undefined) : undefined;
-};
-
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/opera.mjs
-var opera10Regex = / line (\d+).*script (?:in )?(\S+)(?:: in function (\S+))?$/i;
-var opera10StackLineParser = (line, platform) => {
-  const parts = opera10Regex.exec(line);
-  return parts ? createFrame(platform, parts[2], parts[3] || UNKNOWN_FUNCTION, +parts[1]) : undefined;
-};
-var opera11Regex = / line (\d+), column (\d+)\s*(?:in (?:<anonymous function: ([^>]+)>|([^)]+))\(.*\))? in (.*):\s*$/i;
-var opera11StackLineParser = (line, platform) => {
-  const parts = opera11Regex.exec(line);
-  return parts ? createFrame(platform, parts[5], parts[3] || parts[4] || UNKNOWN_FUNCTION, +parts[1], +parts[2]) : undefined;
-};
-
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/node.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/node.mjs
 var FILENAME_MATCH = /^\s*[-]{4,}$/;
 var FULL_MATCH = /at (?:async )?(?:(.+?)\s+\()?(?:(.+):(\d+):(\d+)?|([^)]+))\)?/;
 var nodeStackLineParser = (line, platform) => {
@@ -1782,7 +1716,7 @@ function _parseIntOrUndefined(input) {
   return parseInt(input || "", 10) || undefined;
 }
 
-// ../../node_modules/@posthog/core/dist/error-tracking/parsers/index.mjs
+// node_modules/@posthog/core/dist/error-tracking/parsers/index.mjs
 var WEBPACK_ERROR_REGEXP = /\(error: (.*)\)/;
 var STACKTRACE_FRAME_LIMIT = 50;
 function reverseAndStripFrames(stack) {
@@ -1827,37 +1761,7 @@ function createStackParser(platform, ...parsers) {
     return reverseAndStripFrames(frames);
   };
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/dom-exception-coercer.mjs
-class DOMExceptionCoercer {
-  match(err) {
-    return this.isDOMException(err) || this.isDOMError(err);
-  }
-  coerce(err, ctx) {
-    const hasStack = isString(err.stack);
-    return {
-      type: this.getType(err),
-      value: this.getValue(err),
-      stack: hasStack ? err.stack : undefined,
-      cause: err.cause ? ctx.next(err.cause) : undefined,
-      synthetic: false
-    };
-  }
-  getType(candidate) {
-    return this.isDOMError(candidate) ? "DOMError" : "DOMException";
-  }
-  getValue(err) {
-    const name = err.name || (this.isDOMError(err) ? "DOMError" : "DOMException");
-    const message = err.message ? `${name}: ${err.message}` : name;
-    return message;
-  }
-  isDOMException(err) {
-    return isBuiltin(err, "DOMException");
-  }
-  isDOMError(err) {
-    return isBuiltin(err, "DOMError");
-  }
-}
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/error-coercer.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/error-coercer.mjs
 class ErrorCoercer {
   match(err) {
     return isPlainError(err);
@@ -1884,25 +1788,7 @@ class ErrorCoercer {
     return err.stacktrace || err.stack || undefined;
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/error-event-coercer.mjs
-class ErrorEventCoercer {
-  constructor() {}
-  match(err) {
-    return isErrorEvent(err) && err.error != null;
-  }
-  coerce(err, ctx) {
-    const exceptionLike = ctx.apply(err.error);
-    if (!exceptionLike)
-      return {
-        type: "ErrorEvent",
-        value: err.message,
-        stack: ctx.syntheticException?.stack,
-        synthetic: true
-      };
-    return exceptionLike;
-  }
-}
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/string-coercer.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/string-coercer.mjs
 var ERROR_TYPES_PATTERN = /^(?:[Uu]ncaught (?:exception: )?)?(?:((?:Eval|Internal|Range|Reference|Syntax|Type|URI|)Error): )?(.*)$/i;
 
 class StringCoercer {
@@ -1932,7 +1818,7 @@ class StringCoercer {
     ];
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/types.mjs
+// node_modules/@posthog/core/dist/error-tracking/types.mjs
 var severityLevels = [
   "fatal",
   "error",
@@ -1942,7 +1828,7 @@ var severityLevels = [
   "debug"
 ];
 
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/utils.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/utils.mjs
 function extractExceptionKeysForMessage(err, maxLength = 40) {
   const keys = Object.keys(err);
   keys.sort();
@@ -1959,7 +1845,7 @@ function extractExceptionKeysForMessage(err, maxLength = 40) {
   return "";
 }
 
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/object-coercer.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/object-coercer.mjs
 class ObjectCoercer {
   match(candidate) {
     return typeof candidate == "object" && candidate !== null;
@@ -2012,7 +1898,7 @@ class ObjectCoercer {
     }
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/event-coercer.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/event-coercer.mjs
 class EventCoercer {
   match(err) {
     return isEvent(err);
@@ -2027,7 +1913,7 @@ class EventCoercer {
     };
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/primitive-coercer.mjs
+// node_modules/@posthog/core/dist/error-tracking/coercers/primitive-coercer.mjs
 class PrimitiveCoercer {
   match(candidate) {
     return isPrimitive(candidate);
@@ -2041,43 +1927,7 @@ class PrimitiveCoercer {
     };
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/coercers/promise-rejection-event.mjs
-class PromiseRejectionEventCoercer {
-  match(err) {
-    return isBuiltin(err, "PromiseRejectionEvent") || this.isCustomEventWrappingRejection(err);
-  }
-  isCustomEventWrappingRejection(err) {
-    if (!isEvent(err))
-      return false;
-    try {
-      const detail = err.detail;
-      return detail != null && typeof detail == "object" && "reason" in detail;
-    } catch {
-      return false;
-    }
-  }
-  coerce(err, ctx) {
-    const reason = this.getUnhandledRejectionReason(err);
-    if (isPrimitive(reason))
-      return {
-        type: "UnhandledRejection",
-        value: `Non-Error promise rejection captured with value: ${String(reason)}`,
-        stack: ctx.syntheticException?.stack,
-        synthetic: true
-      };
-    return ctx.apply(reason);
-  }
-  getUnhandledRejectionReason(error) {
-    try {
-      if ("reason" in error)
-        return error.reason;
-      if ("detail" in error && error.detail != null && typeof error.detail == "object" && "reason" in error.detail)
-        return error.detail.reason;
-    } catch {}
-    return error;
-  }
-}
-// ../../node_modules/@posthog/core/dist/error-tracking/utils.mjs
+// node_modules/@posthog/core/dist/error-tracking/utils.mjs
 class ReduceableCache {
   constructor(_maxSize) {
     this._maxSize = _maxSize;
@@ -2102,7 +1952,7 @@ class ReduceableCache {
     }
   }
 }
-// ../../node_modules/@posthog/core/dist/error-tracking/exception-steps.mjs
+// node_modules/@posthog/core/dist/error-tracking/exception-steps.mjs
 var EXCEPTION_STEP_INTERNAL_FIELDS = {
   MESSAGE: "$message",
   TIMESTAMP: "$timestamp"
@@ -2111,131 +1961,7 @@ var RESERVED_EXCEPTION_STEP_KEYS = new Set([
   EXCEPTION_STEP_INTERNAL_FIELDS.MESSAGE,
   EXCEPTION_STEP_INTERNAL_FIELDS.TIMESTAMP
 ]);
-var DEFAULT_EXCEPTION_STEPS_CONFIG = {
-  enabled: true,
-  max_bytes: 32768
-};
-function resolveExceptionStepsConfig(config) {
-  if (!config)
-    return {
-      ...DEFAULT_EXCEPTION_STEPS_CONFIG
-    };
-  return {
-    enabled: config.enabled ?? DEFAULT_EXCEPTION_STEPS_CONFIG.enabled,
-    max_bytes: normalizePositiveInteger(config.max_bytes, DEFAULT_EXCEPTION_STEPS_CONFIG.max_bytes)
-  };
-}
-function stripReservedExceptionStepFields(properties) {
-  if (!properties)
-    return {
-      sanitizedProperties: {},
-      droppedKeys: []
-    };
-  const droppedKeys = [];
-  const sanitizedProperties = Object.keys(properties).reduce((acc, key) => {
-    if (RESERVED_EXCEPTION_STEP_KEYS.has(key)) {
-      droppedKeys.push(key);
-      return acc;
-    }
-    acc[key] = properties[key];
-    return acc;
-  }, {});
-  return {
-    sanitizedProperties,
-    droppedKeys
-  };
-}
-
-class ExceptionStepsBuffer {
-  constructor(config) {
-    this._entries = [];
-    this._totalBytes = 0;
-    this._config = resolveExceptionStepsConfig(config);
-  }
-  setConfig(config) {
-    this._config = resolveExceptionStepsConfig(config);
-    this._trimToMaxBytes();
-  }
-  add(step) {
-    const serialized = normalizeAndSerializeStep(step);
-    if (!serialized)
-      return;
-    const bytes = getUtf8ByteLength(serialized.json);
-    if (bytes > this._config.max_bytes)
-      return;
-    this._entries.push({
-      step: serialized.step,
-      bytes
-    });
-    this._totalBytes += bytes;
-    this._trimToMaxBytes();
-  }
-  getAttachable() {
-    return this._entries.map((e) => e.step);
-  }
-  clear() {
-    this._entries = [];
-    this._totalBytes = 0;
-  }
-  size() {
-    return this._entries.length;
-  }
-  _trimToMaxBytes() {
-    while (this._totalBytes > this._config.max_bytes && this._entries.length > 0) {
-      const evicted = this._entries.shift();
-      if (evicted)
-        this._totalBytes -= evicted.bytes;
-    }
-  }
-}
-function normalizePositiveInteger(input, fallback) {
-  if (!isNumber(input) || input === 1 / 0 || input === -1 / 0)
-    return fallback;
-  const normalized = Math.floor(input);
-  if (normalized < 0)
-    return fallback;
-  return normalized;
-}
-function normalizeAndSerializeStep(step) {
-  let json;
-  try {
-    json = safeJsonStringify(step);
-  } catch {
-    return;
-  }
-  try {
-    const parsed = JSON.parse(json);
-    if (!isObject(parsed))
-      return;
-    const parsedStep = parsed;
-    const message = parsedStep[EXCEPTION_STEP_INTERNAL_FIELDS.MESSAGE];
-    const timestamp = parsedStep[EXCEPTION_STEP_INTERNAL_FIELDS.TIMESTAMP];
-    if (!isString(message) || message.trim().length === 0)
-      return;
-    if (!isString(timestamp) && !isNumber(timestamp))
-      return;
-    return {
-      step: parsedStep,
-      json
-    };
-  } catch {
-    return;
-  }
-}
-function getUtf8ByteLength(value) {
-  if (typeof TextEncoder != "undefined")
-    return new TextEncoder().encode(value).length;
-  const encoded = encodeURIComponent(value);
-  let byteLength = 0;
-  for (let i = 0;i < encoded.length; i++)
-    if (encoded[i] === "%") {
-      byteLength += 1;
-      i += 2;
-    } else
-      byteLength += 1;
-  return byteLength;
-}
-// ../../node_modules/@posthog/core/dist/posthog-core-stateless.mjs
+// node_modules/@posthog/core/dist/posthog-core-stateless.mjs
 class PostHogFetchHttpError extends Error {
   constructor(response, reqByteLength) {
     super("HTTP error while fetching PostHog: status=" + response.status + ", reqByteLength=" + reqByteLength), this.response = response, this.reqByteLength = reqByteLength, this.name = "PostHogFetchHttpError";
@@ -2703,15 +2429,15 @@ class PostHogCoreStateless {
         "Content-Type": "application/json"
       }
     };
-    const response = await this.fetchWithRetry(url, fetchOptions).then((response2) => {
-      if (response2.status !== 200 || !response2.json) {
-        const msg = `Surveys API could not be loaded: ${response2.status}`;
+    const response = await this.fetchWithRetry(url, fetchOptions).then((response) => {
+      if (response.status !== 200 || !response.json) {
+        const msg = `Surveys API could not be loaded: ${response.status}`;
         const error = new Error(msg);
         this._logger.error(error);
         this._events.emit("error", new Error(msg));
         return;
       }
-      return response2.json();
+      return response.json();
     }).catch((error) => {
       this._logger.error("Surveys API could not be loaded", error);
       this._events.emit("error", error);
@@ -3115,11 +2841,11 @@ class PostHogCoreStateless {
     return this.shutdownPromise;
   }
 }
-// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/context-lines.node.mjs
+// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/context-lines.node.mjs
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
-var LRU_FILE_CONTENTS_CACHE = new exports_error_tracking.ReduceableCache(25);
-var LRU_FILE_CONTENTS_FS_READ_FAILED = new exports_error_tracking.ReduceableCache(20);
+var LRU_FILE_CONTENTS_CACHE = new ReduceableCache(25);
+var LRU_FILE_CONTENTS_FS_READ_FAILED = new ReduceableCache(20);
 var DEFAULT_LINES_OF_CONTEXT = 7;
 var MAX_CONTEXTLINES_COLNO = 1000;
 var MAX_CONTEXTLINES_LINENO = 1e4;
@@ -3158,9 +2884,9 @@ async function addSourceContext(frames) {
   LRU_FILE_CONTENTS_CACHE.reduce();
   return frames;
 }
-function getContextLinesFromFile(path2, ranges, output) {
+function getContextLinesFromFile(path, ranges, output) {
   return new Promise((resolve) => {
-    const stream = createReadStream(path2);
+    const stream = createReadStream(path);
     const lineReaded = createInterface({
       input: stream
     });
@@ -3176,7 +2902,7 @@ function getContextLinesFromFile(path2, ranges, output) {
     let rangeStart = range[0];
     let rangeEnd = range[1];
     function onStreamError() {
-      LRU_FILE_CONTENTS_FS_READ_FAILED.set(path2, 1);
+      LRU_FILE_CONTENTS_FS_READ_FAILED.set(path, 1);
       lineReaded.close();
       lineReaded.removeAllListeners();
       destroyStreamAndResolve();
@@ -3196,14 +2922,14 @@ function getContextLinesFromFile(path2, ranges, output) {
           return;
         }
         currentRangeIndex++;
-        const range2 = ranges[currentRangeIndex];
-        if (range2 === undefined) {
+        const range = ranges[currentRangeIndex];
+        if (range === undefined) {
           lineReaded.close();
           lineReaded.removeAllListeners();
           return;
         }
-        rangeStart = range2[0];
-        rangeEnd = range2[1];
+        rangeStart = range[0];
+        rangeEnd = range[1];
       }
     });
   });
@@ -3244,8 +2970,8 @@ function clearLineContext(frame) {
   delete frame.context_line;
   delete frame.post_context;
 }
-function shouldSkipContextLinesForFile(path2) {
-  return path2.startsWith("node:") || path2.endsWith(".min.js") || path2.endsWith(".min.cjs") || path2.endsWith(".min.mjs") || path2.startsWith("data:");
+function shouldSkipContextLinesForFile(path) {
+  return path.startsWith("node:") || path.endsWith(".min.js") || path.endsWith(".min.cjs") || path.endsWith(".min.mjs") || path.startsWith("data:");
 }
 function shouldSkipContextLinesForFrame(frame) {
   if (frame.lineno !== undefined && frame.lineno > MAX_CONTEXTLINES_LINENO)
@@ -3333,8 +3059,8 @@ function snipLine(line, colno) {
   return newLine;
 }
 
-// ../../node_modules/posthog-node/dist/extensions/error-tracking/modifiers/relative-path.node.mjs
-import { isAbsolute, relative, sep as sep2 } from "path";
+// node_modules/posthog-node/dist/extensions/error-tracking/modifiers/relative-path.node.mjs
+import { isAbsolute, relative, sep as sep2 } from "node:path";
 function createRelativePathModifier(basePath = process.cwd()) {
   const isWindows = sep2 === "\\";
   const toUnix = (p) => isWindows ? p.replace(/\\/g, "/") : p;
@@ -3349,10 +3075,10 @@ function createRelativePathModifier(basePath = process.cwd()) {
   };
 }
 
-// ../../node_modules/posthog-node/dist/version.mjs
+// node_modules/posthog-node/dist/version.mjs
 var version = "5.39.4";
 
-// ../../node_modules/posthog-node/dist/types.mjs
+// node_modules/posthog-node/dist/types.mjs
 var FeatureFlagError2 = {
   ERRORS_WHILE_COMPUTING: "errors_while_computing_flags",
   FLAG_MISSING: "flag_missing",
@@ -3360,7 +3086,7 @@ var FeatureFlagError2 = {
   UNKNOWN_ERROR: "unknown_error"
 };
 
-// ../../node_modules/posthog-node/dist/feature-flag-evaluations.mjs
+// node_modules/posthog-node/dist/feature-flag-evaluations.mjs
 class FeatureFlagEvaluations {
   constructor(init) {
     this._host = init.host;
@@ -3491,7 +3217,7 @@ class FeatureFlagEvaluations {
   }
 }
 
-// ../../node_modules/posthog-node/dist/extensions/feature-flags/crypto.mjs
+// node_modules/posthog-node/dist/extensions/feature-flags/crypto.mjs
 async function hashSHA1(text) {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle)
@@ -3501,7 +3227,7 @@ async function hashSHA1(text) {
   return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// ../../node_modules/posthog-node/dist/extensions/feature-flags/feature-flags.mjs
+// node_modules/posthog-node/dist/extensions/feature-flags/feature-flags.mjs
 var SIXTY_SECONDS = 60000;
 var LONG_SCALE = 1152921504606847000;
 var NULL_VALUES_ALLOWED_OPERATORS = [
@@ -4059,21 +3785,21 @@ function matchProperty(property, propertyValues, warnFunction) {
       warnFunction(`Property ${key} cannot have a value of null/undefined with the ${operator} operator`);
     return false;
   }
-  function computeExactMatch(value2, overrideValue2) {
-    if (Array.isArray(value2))
-      return value2.map((val) => String(val).toLowerCase()).includes(String(overrideValue2).toLowerCase());
-    return String(value2).toLowerCase() === String(overrideValue2).toLowerCase();
+  function computeExactMatch(value, overrideValue) {
+    if (Array.isArray(value))
+      return value.map((val) => String(val).toLowerCase()).includes(String(overrideValue).toLowerCase());
+    return String(value).toLowerCase() === String(overrideValue).toLowerCase();
   }
-  function compare(lhs, rhs, operator2) {
-    if (operator2 === "gt")
+  function compare(lhs, rhs, operator) {
+    if (operator === "gt")
       return lhs > rhs;
-    if (operator2 === "gte")
+    if (operator === "gte")
       return lhs >= rhs;
-    if (operator2 === "lt")
+    if (operator === "lt")
       return lhs < rhs;
-    if (operator2 === "lte")
+    if (operator === "lte")
       return lhs <= rhs;
-    throw new Error(`Invalid operator: ${operator2}`);
+    throw new Error(`Invalid operator: ${operator}`);
   }
   switch (operator) {
     case "exact":
@@ -4412,7 +4138,7 @@ function relativeDateParseForFeatureFlagMatching(value) {
   }
 }
 
-// ../../node_modules/posthog-node/dist/extensions/error-tracking/autocapture.mjs
+// node_modules/posthog-node/dist/extensions/error-tracking/autocapture.mjs
 function makeUncaughtExceptionHandler(captureFn, onFatalFn) {
   let calledFatalError = false;
   return Object.assign((error) => {
@@ -4444,7 +4170,7 @@ function addUnhandledRejectionListener(captureFn) {
   }));
 }
 
-// ../../node_modules/posthog-node/dist/extensions/error-tracking/index.mjs
+// node_modules/posthog-node/dist/extensions/error-tracking/index.mjs
 var SHUTDOWN_TIMEOUT = 2000;
 
 class ErrorTracking {
@@ -4513,7 +4239,7 @@ class ErrorTracking {
   }
 }
 
-// ../../node_modules/posthog-node/dist/storage-memory.mjs
+// node_modules/posthog-node/dist/storage-memory.mjs
 class PostHogMemoryStorage {
   getProperty(key) {
     return this._memoryStorage[key];
@@ -4526,7 +4252,7 @@ class PostHogMemoryStorage {
   }
 }
 
-// ../../node_modules/posthog-node/dist/client.mjs
+// node_modules/posthog-node/dist/client.mjs
 var MINIMUM_POLLING_INTERVAL = 100;
 var THIRTY_SECONDS = 30000;
 var MAX_CACHE_SIZE = 50000;
@@ -5627,7 +5353,7 @@ class PostHogBackendClient extends PostHogCoreStateless {
   }
 }
 
-// ../../node_modules/posthog-node/dist/extensions/context/context.mjs
+// node_modules/posthog-node/dist/extensions/context/context.mjs
 import { AsyncLocalStorage } from "node:async_hooks";
 
 class PostHogContext {
@@ -5658,7 +5384,7 @@ class PostHogContext {
   }
 }
 
-// ../../node_modules/posthog-node/dist/extensions/sentry-integration.mjs
+// node_modules/posthog-node/dist/extensions/sentry-integration.mjs
 var NAME = "posthog-node";
 function createEventProcessor(_posthog, { organization, projectId, prefix, severityAllowList = [
   "error"
@@ -5726,7 +5452,7 @@ class PostHogSentryIntegration {
     };
   }
 }
-// ../../node_modules/posthog-node/dist/entrypoints/index.node.mjs
+// node_modules/posthog-node/dist/entrypoints/index.node.mjs
 class PostHog extends PostHogBackendClient {
   getLibraryId() {
     return "posthog-node";
@@ -5735,13 +5461,13 @@ class PostHog extends PostHogBackendClient {
     return new PostHogContext;
   }
   createErrorPropertiesBuilder() {
-    return new exports_error_tracking.ErrorPropertiesBuilder([
-      new exports_error_tracking.EventCoercer,
-      new exports_error_tracking.ErrorCoercer,
-      new exports_error_tracking.ObjectCoercer,
-      new exports_error_tracking.StringCoercer,
-      new exports_error_tracking.PrimitiveCoercer
-    ], exports_error_tracking.createStackParser("node:javascript", exports_error_tracking.nodeStackLineParser), [
+    return new ErrorPropertiesBuilder([
+      new EventCoercer,
+      new ErrorCoercer,
+      new ObjectCoercer,
+      new StringCoercer,
+      new PrimitiveCoercer
+    ], createStackParser("node:javascript", nodeStackLineParser), [
       createModulerModifier(),
       addSourceContext,
       createRelativePathModifier()
@@ -5749,7 +5475,7 @@ class PostHog extends PostHogBackendClient {
   }
 }
 
-// ../../vendor/telemetry-core/src/posthog-client.ts
+// vendor/telemetry-core/src/posthog-client.ts
 var NO_OP_CLIENT = {
   enabled: false,
   trackActive: () => {
@@ -5907,7 +5633,7 @@ function getSafeCpuInfo(osProvider, input) {
     };
   }
 }
-// src/product-identity.ts
+// components/telemetry/src/product-identity.ts
 import { readFileSync as readFileSync3 } from "node:fs";
 var PRODUCT_NAME = "lazyz";
 var PACKAGE_NAME = "@lazyz/plugin";
@@ -5968,7 +5694,7 @@ function writeComponentTelemetryDiagnostic(input, now = new Date) {
     now
   });
 }
-// src/posthog.ts
+// components/telemetry/src/posthog.ts
 var NO_OP_POSTHOG = {
   trackActive: () => {
     return;
@@ -6046,7 +5772,7 @@ function getPostHogDistinctId() {
   return getTelemetryDistinctId(MACHINE_ID_PREFIX, getDefaultTelemetryOsProvider());
 }
 
-// src/codex-hook.ts
+// components/telemetry/src/codex-hook.ts
 var SESSION_START_REASON = "session_start";
 function maybePrintFirstRunNotice(homeDir = homedir2()) {
   const notifiedMarker = join4(homeDir, ".omo", "telemetry-notified");
@@ -6081,8 +5807,8 @@ async function runSessionStartHook(_input, options = {}) {
   if (isTelemetryOptOutFilePresent()) {
     return "";
   }
-  const env2 = process.env;
-  const isEnabled = isTruthy(env2["LAZYZ_ENABLE_TELEMETRY"]) || isTruthy(env2["OMO_ENABLE_TELEMETRY"]) || isTruthy(env2["OMO_CODEX_ENABLE_TELEMETRY"]);
+  const env = process.env;
+  const isEnabled = isTruthy(env["LAZYZ_ENABLE_TELEMETRY"]) || isTruthy(env["OMO_ENABLE_TELEMETRY"]) || isTruthy(env["OMO_CODEX_ENABLE_TELEMETRY"]);
   if (!isEnabled) {
     return "";
   }
@@ -6118,7 +5844,7 @@ async function safeShutdown(client) {
   }
 }
 
-// src/cli.ts
+// components/telemetry/src/cli.ts
 var command = process.argv[2];
 var subcommand = process.argv[3];
 if (command === "hook" && subcommand === "session-start") {
@@ -6149,7 +5875,7 @@ function parseHookInput(raw) {
   }
 }
 function isCodexSessionStartInput(value) {
-  return isRecord2(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && isStringOrNull(value["transcript_path"]) && typeof value["cwd"] === "string" && typeof value["model"] === "string" && typeof value["permission_mode"] === "string" && typeof value["source"] === "string";
+  return isRecord2(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && (value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) && typeof value["cwd"] === "string" && (value["model"] === undefined || typeof value["model"] === "string") && typeof value["permission_mode"] === "string" && typeof value["source"] === "string";
 }
 function isStringOrNull(value) {
   return typeof value === "string" || value === null;

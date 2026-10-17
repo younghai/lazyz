@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import { argv, execPath, stderr } from "node:process";
 
-import { runPostCompactHookCli, runPostToolUseHookCli } from "./codex-hook-cli.js";
+import { runPostCompactHookCli, runPostToolUseHookCli, runSessionStartHookCli } from "./codex-hook-cli.js";
 import { resolveLspDaemonCliPath } from "./daemon-cli-path.js";
 
 async function main(): Promise<void> {
@@ -16,13 +16,17 @@ async function main(): Promise<void> {
 		await runPostCompactHookCli();
 		return;
 	}
+	if (command === "hook" && subcommand === "session-start") {
+		await runSessionStartHookCli();
+		return;
+	}
 
 	if (command === "mcp") {
 		await runPackageLspMcpCli();
 		return;
 	}
 
-	stderr.write("Usage: omo-lsp [mcp | hook post-tool-use | hook post-compact]\n");
+	stderr.write("Usage: omo-lsp [mcp | hook session-start | hook post-tool-use | hook post-compact]\n");
 	process.exitCode = 2;
 }
 

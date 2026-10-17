@@ -4,10 +4,10 @@ export type StopHookEventName = (typeof STOP_HOOK_EVENTS)[number];
 export type StopInput = {
 	readonly hook_event_name: StopHookEventName;
 	readonly session_id: string;
-	readonly turn_id: string;
-	readonly transcript_path: string;
+	readonly turn_id?: string;
+	readonly transcript_path?: string;
 	readonly cwd: string;
-	readonly model: string;
+	readonly model?: string;
 	readonly permission_mode: string;
 	readonly stop_hook_active: boolean;
 	readonly last_assistant_message?: string;

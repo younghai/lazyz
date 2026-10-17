@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	renameSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 
 import { runStopHook } from "./codex-hook.js";

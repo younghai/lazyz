@@ -57,7 +57,6 @@ export {
 	runBootstrapWorker,
 } from "./worker.ts";
 export type {
-	DefaultWorkerStepsSeams,
 	BootstrapDegradedEntry,
 	BootstrapRunStatus,
 	BootstrapState,

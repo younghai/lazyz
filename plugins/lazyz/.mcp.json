@@ -12,7 +12,8 @@
 				"components/codegraph/dist/serve.js"
 			],
 			"cwd": ".",
-			"required": false
+			"enabled": true,
+			"timeoutMs": 30000
 		},
 		"git_bash": {
 			"command": "node",
@@ -21,7 +22,8 @@
 				"mcp"
 			],
 			"cwd": ".",
-			"required": false
+			"enabled": true,
+			"timeoutMs": 30000
 		},
 		"lsp": {
 			"command": "node",
@@ -30,7 +32,17 @@
 				"mcp"
 			],
 			"cwd": ".",
-			"required": false
+			"enabled": true,
+			"timeoutMs": 30000
+		},
+		"ast_grep": {
+			"command": "node",
+			"args": [
+				"runtime/ast-grep-mcp/cli.js"
+			],
+			"cwd": ".",
+			"enabled": true,
+			"timeoutMs": 30000
 		}
 	}
 }

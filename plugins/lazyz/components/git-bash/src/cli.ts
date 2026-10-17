@@ -19,6 +19,10 @@ async function main(): Promise<number> {
 		await runGitBashHookCli(process.stdin, process.stdout, "post-compact");
 		return 0;
 	}
+	if (command === "hook" && argv[1] === "session-start") {
+		await runGitBashHookCli(process.stdin, process.stdout, "session-start");
+		return 0;
+	}
 	process.stderr.write(`[omo-git-bash-hook] unknown command: ${argv.join(" ")}\n${TOP_LEVEL_HELP}`);
 	return 1;
 }

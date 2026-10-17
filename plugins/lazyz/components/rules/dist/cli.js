@@ -18,13 +18,15 @@ var __toESM = (mod, isNodeMode, target) => {
       return cached;
   }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
-  const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
-  for (let key of __getOwnPropNames(mod))
-    if (!__hasOwnProp.call(to, key))
-      __defProp(to, key, {
-        get: __accessProp.bind(mod, key),
-        enumerable: true
-      });
+  const to = isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
+  if (mod && typeof mod === "object" || typeof mod === "function") {
+    for (let key of __getOwnPropNames(mod))
+      if (!__hasOwnProp.call(to, key))
+        __defProp(to, key, {
+          get: __accessProp.bind(mod, key),
+          enumerable: true
+        });
+  }
   if (canCache)
     cache.set(mod, to);
   return to;
@@ -32,7 +34,7 @@ var __toESM = (mod, isNodeMode, target) => {
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
 // node_modules/picomatch/lib/constants.js
-var require_constants = __commonJS((exports, module) => {
+var require_constants = __commonJS(function(exports, module) {
   var WIN_SLASH = "\\\\/";
   var WIN_NO_SLASH = `[^${WIN_SLASH}]`;
   var DEFAULT_MAX_EXTGLOB_RECURSION = 0;
@@ -177,7 +179,7 @@ var require_constants = __commonJS((exports, module) => {
 });
 
 // node_modules/picomatch/lib/utils.js
-var require_utils = __commonJS((exports) => {
+var require_utils = __commonJS(function(exports) {
   var {
     REGEX_BACKSLASH,
     REGEX_REMOVE_BACKSLASH,
@@ -240,7 +242,7 @@ var require_utils = __commonJS((exports) => {
 });
 
 // node_modules/picomatch/lib/scan.js
-var require_scan = __commonJS((exports, module) => {
+var require_scan = __commonJS(function(exports, module) {
   var utils = require_utils();
   var {
     CHAR_ASTERISK,
@@ -270,7 +272,7 @@ var require_scan = __commonJS((exports, module) => {
   var scan = (input, options) => {
     const opts = options || {};
     const length = input.length - 1;
-    const scanToEnd = opts.parts === true || opts.scanToEnd === true;
+    const scanToEnd = opts.parts === true || opts.tokens === true || opts.scanToEnd === true;
     const slashes = [];
     const tokens = [];
     const parts = [];
@@ -377,14 +379,18 @@ var require_scan = __commonJS((exports, module) => {
             negatedExtglob = true;
           }
           if (scanToEnd === true) {
+            let parens = 0;
             while (eos() !== true && (code = advance())) {
               if (code === CHAR_BACKWARD_SLASH) {
                 backslashes = token.backslashes = true;
-                code = advance();
+                advance();
                 continue;
               }
-              if (code === CHAR_RIGHT_PARENTHESES) {
-                isGlob = token.isGlob = true;
+              if (code === CHAR_LEFT_PARENTHESES) {
+                parens++;
+                continue;
+              }
+              if (code === CHAR_RIGHT_PARENTHESES && --parens === 0) {
                 finished = true;
                 break;
               }
@@ -439,13 +445,18 @@ var require_scan = __commonJS((exports, module) => {
       if (opts.noparen !== true && code === CHAR_LEFT_PARENTHESES) {
         isGlob = token.isGlob = true;
         if (scanToEnd === true) {
+          let parens = 1;
           while (eos() !== true && (code = advance())) {
-            if (code === CHAR_LEFT_PARENTHESES) {
+            if (code === CHAR_BACKWARD_SLASH) {
               backslashes = token.backslashes = true;
-              code = advance();
+              advance();
               continue;
             }
-            if (code === CHAR_RIGHT_PARENTHESES) {
+            if (code === CHAR_LEFT_PARENTHESES) {
+              parens++;
+              continue;
+            }
+            if (code === CHAR_RIGHT_PARENTHESES && --parens === 0) {
               finished = true;
               break;
             }
@@ -519,7 +530,7 @@ var require_scan = __commonJS((exports, module) => {
     if (opts.parts === true || opts.tokens === true) {
       let prevIndex;
       for (let idx = 0;idx < slashes.length; idx++) {
-        const n = prevIndex ? prevIndex + 1 : start;
+        const n = prevIndex !== undefined ? prevIndex + 1 : start;
         const i = slashes[idx];
         const value = input.slice(n, i);
         if (opts.tokens) {
@@ -532,19 +543,18 @@ var require_scan = __commonJS((exports, module) => {
           depth(tokens[idx]);
           state.maxDepth += tokens[idx].depth;
         }
-        if (idx !== 0 || value !== "") {
+        if (i >= start) {
           parts.push(value);
+          prevIndex = i;
         }
-        prevIndex = i;
       }
-      if (prevIndex && prevIndex + 1 < input.length) {
-        const value = input.slice(prevIndex + 1);
-        parts.push(value);
-        if (opts.tokens) {
-          tokens[tokens.length - 1].value = value;
-          depth(tokens[tokens.length - 1]);
-          state.maxDepth += tokens[tokens.length - 1].depth;
-        }
+      const n = prevIndex !== undefined ? prevIndex + 1 : start;
+      const value = input.slice(n);
+      parts.push(value);
+      if (opts.tokens && prevIndex && prevIndex + 1 < input.length) {
+        tokens[tokens.length - 1].value = value;
+        depth(tokens[tokens.length - 1]);
+        state.maxDepth += tokens[tokens.length - 1].depth;
       }
       state.slashes = slashes;
       state.parts = parts;
@@ -555,7 +565,7 @@ var require_scan = __commonJS((exports, module) => {
 });
 
 // node_modules/picomatch/lib/parse.js
-var require_parse = __commonJS((exports, module) => {
+var require_parse = __commonJS(function(exports, module) {
   var constants = require_constants();
   var utils = require_utils();
   var {
@@ -742,7 +752,7 @@ var require_parse = __commonJS((exports, module) => {
       if (!match || match.type !== "*") {
         return;
       }
-      const branches = splitTopLevel(match.body).map((branch2) => branch2.trim());
+      const branches = splitTopLevel(match.body).map((branch) => branch.trim());
       if (branches.length !== 1) {
         return;
       }
@@ -835,8 +845,8 @@ var require_parse = __commonJS((exports, module) => {
       STAR,
       START_ANCHOR
     } = PLATFORM_CHARS;
-    const globstar = (opts2) => {
-      return `(${capture}(?:(?!${START_ANCHOR}${opts2.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+    const globstar = (opts) => {
+      return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
     };
     const nodot = opts.dot ? "" : NO_DOT;
     const qmarkNoDot = opts.dot ? QMARK : QMARK_NO_DOT;
@@ -875,8 +885,8 @@ var require_parse = __commonJS((exports, module) => {
     const peek = state.peek = (n = 1) => input[state.index + n];
     const advance = state.advance = () => input[++state.index] || "";
     const remaining = () => input.slice(state.index + 1);
-    const consume = (value2 = "", num = 0) => {
-      state.consumed += value2;
+    const consume = (value = "", num = 0) => {
+      state.consumed += value;
       state.index += num;
     };
     const append = (token) => {
@@ -931,8 +941,8 @@ var require_parse = __commonJS((exports, module) => {
       tokens.push(tok);
       prev = tok;
     };
-    const extglobOpen = (type, value2) => {
-      const token = { ...EXTGLOB_CHARS[value2], conditions: 1, inner: "" };
+    const extglobOpen = (type, value) => {
+      const token = { ...EXTGLOB_CHARS[value], conditions: 1, inner: "" };
       token.prev = prev;
       token.parens = state.parens;
       token.output = state.output;
@@ -940,7 +950,7 @@ var require_parse = __commonJS((exports, module) => {
       token.tokensIndex = tokens.length;
       const output = (opts.capture ? "(" : "") + token.open;
       increment("parens");
-      push({ type, value: value2, output: state.output ? "" : ONE_CHAR });
+      push({ type, value, output: state.output ? "" : ONE_CHAR });
       push({ type: "paren", extglob: true, value: advance(), output });
       extglobs.push(token);
     };
@@ -1074,8 +1084,8 @@ var require_parse = __commonJS((exports, module) => {
             if (inner.includes(":")) {
               const idx = prev.value.lastIndexOf("[");
               const pre = prev.value.slice(0, idx);
-              const rest2 = prev.value.slice(idx + 2);
-              const posix = POSIX_REGEX_SOURCE[rest2];
+              const rest = prev.value.slice(idx + 2);
+              const posix = POSIX_REGEX_SOURCE[rest];
               if (posix) {
                 prev.value = pre + posix;
                 state.backtrack = true;
@@ -1386,6 +1396,7 @@ var require_parse = __commonJS((exports, module) => {
           rest = rest.slice(3);
           consume("/**", 3);
         }
+        const isEnd = eos() || state.parens > 0 && rest === ")".repeat(state.parens) && !extglobs.some((extglob) => extglob.type === "negate");
         if (prior.type === "bos" && eos()) {
           prev.type = "globstar";
           prev.value += value;
@@ -1395,7 +1406,7 @@ var require_parse = __commonJS((exports, module) => {
           consume(value);
           continue;
         }
-        if (prior.type === "slash" && prior.prev.type !== "bos" && !afterStar && eos()) {
+        if (prior.type === "slash" && prior.prev.type !== "bos" && !afterStar && isEnd) {
           state.output = state.output.slice(0, -(prior.output + prev.output).length);
           prior.output = `(?:${prior.output}`;
           prev.type = "globstar";
@@ -1529,10 +1540,10 @@ var require_parse = __commonJS((exports, module) => {
     if (opts.capture) {
       star = `(${star})`;
     }
-    const globstar = (opts2) => {
-      if (opts2.noglobstar === true)
+    const globstar = (opts) => {
+      if (opts.noglobstar === true)
         return star;
-      return `(${capture}(?:(?!${START_ANCHOR}${opts2.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+      return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
     };
     const create = (str) => {
       switch (str) {
@@ -1556,10 +1567,10 @@ var require_parse = __commonJS((exports, module) => {
           const match = /^(.*?)\.(\w+)$/.exec(str);
           if (!match)
             return;
-          const source2 = create(match[1]);
-          if (!source2)
+          const source = create(match[1]);
+          if (!source)
             return;
-          return source2 + DOT_LITERAL + match[2];
+          return source + DOT_LITERAL + match[2];
         }
       }
     };
@@ -1574,7 +1585,7 @@ var require_parse = __commonJS((exports, module) => {
 });
 
 // node_modules/picomatch/lib/picomatch.js
-var require_picomatch = __commonJS((exports, module) => {
+var require_picomatch = __commonJS(function(exports, module) {
   var scan = require_scan();
   var parse = require_parse();
   var utils = require_utils();
@@ -1585,9 +1596,9 @@ var require_picomatch = __commonJS((exports, module) => {
       const fns = glob.map((input) => picomatch(input, options, returnState));
       const arrayMatcher = (str) => {
         for (const isMatch of fns) {
-          const state2 = isMatch(str);
-          if (state2)
-            return state2;
+          const state = isMatch(str);
+          if (state)
+            return state;
         }
         return false;
       };
@@ -1714,7 +1725,7 @@ var require_picomatch = __commonJS((exports, module) => {
 });
 
 // node_modules/picomatch/index.js
-var require_picomatch2 = __commonJS((exports, module) => {
+var require_picomatch2 = __commonJS(function(exports, module) {
   var pico = require_picomatch();
   var utils = require_utils();
   function picomatch(glob, options, returnState = false) {
@@ -3324,8 +3335,155 @@ function toRuleSource(value) {
   }
 }
 
+// components/rules/src/transcript-search.ts
+import { closeSync, fstatSync, openSync, readSync } from "node:fs";
+var DEFAULT_TRANSCRIPT_SEARCH_WINDOW_BYTES = 1024 * 1024;
+function readTranscriptSearchText(transcriptPath, options = {}) {
+  return readTranscriptSearchWindow(transcriptPath, options)?.text ?? null;
+}
+function readTranscriptSearchWindow(transcriptPath, options = {}) {
+  const window = readTranscriptWindow(transcriptPath, options.maxWindowBytes);
+  if (window === null)
+    return null;
+  if (options.latestCompactedReplacementOnly === true) {
+    const compacted = latestCompactedReplacementSearchText(window.rawText);
+    return compacted === null ? null : toResult(window, compacted.text, compacted.parsedJsonLines);
+  }
+  const collected = collectJsonLineStrings(window.rawText);
+  return toResult(window, [window.rawText, ...collected.values].join(`
+`), collected.parsedJsonLines);
+}
+function readTranscriptRecoverySearchText(transcriptPath, options = {}) {
+  const window = readTranscriptWindow(transcriptPath, options.maxWindowBytes);
+  if (window === null)
+    return null;
+  const compacted = latestCompactedReplacementSearchText(window.rawText);
+  if (compacted !== null)
+    return toResult(window, compacted.text, compacted.parsedJsonLines);
+  const collected = collectJsonLineStrings(window.rawText);
+  return toResult(window, [window.rawText, ...collected.values].join(`
+`), collected.parsedJsonLines);
+}
+function readTranscriptWindow(transcriptPath, requestedMaxBytes) {
+  const maxBytes = normalizeWindowBytes(requestedMaxBytes);
+  let fd;
+  try {
+    fd = openSync(transcriptPath, "r");
+    const fileBytes = fstatSync(fd).size;
+    const bytesToRead = Math.min(fileBytes, maxBytes);
+    const windowStartByte = fileBytes - bytesToRead;
+    const buffer = Buffer.allocUnsafe(bytesToRead);
+    const bytesRead = bytesToRead === 0 ? 0 : readSync(fd, buffer, 0, bytesToRead, windowStartByte);
+    return { rawText: buffer.subarray(0, bytesRead).toString("utf8"), fileBytes, bytesRead, windowStartByte };
+  } catch (error) {
+    if (!(error instanceof Error))
+      throw error;
+    return null;
+  } finally {
+    if (fd !== undefined)
+      closeSync(fd);
+  }
+}
+function normalizeWindowBytes(value) {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_TRANSCRIPT_SEARCH_WINDOW_BYTES;
+  }
+  return Math.floor(value);
+}
+function toResult(window, text, parsedJsonLines) {
+  return {
+    text,
+    rawText: window.rawText,
+    metrics: {
+      fileBytes: window.fileBytes,
+      bytesRead: window.bytesRead,
+      windowStartByte: window.windowStartByte,
+      parsedJsonLines,
+      truncated: window.windowStartByte > 0,
+      readCalls: 1
+    }
+  };
+}
+function latestCompactedReplacementSearchText(rawTranscript) {
+  const lines = rawTranscript.split(/\r?\n/);
+  let latestCompactedLineIndex = -1;
+  let replacementHistory = null;
+  let parsedJsonLines = 0;
+  for (const [index, line] of lines.entries()) {
+    const parsed = parseJsonLine(line);
+    if (parsed !== null)
+      parsedJsonLines += 1;
+    if (!isRecord(parsed) || parsed["type"] !== "compacted")
+      continue;
+    const payload = parsed["payload"];
+    if (!isRecord(payload))
+      continue;
+    const candidateReplacementHistory = payload["replacement_history"];
+    if (!Array.isArray(candidateReplacementHistory))
+      continue;
+    latestCompactedLineIndex = index;
+    replacementHistory = candidateReplacementHistory;
+  }
+  if (replacementHistory === null)
+    return null;
+  const values = [];
+  collectStrings(replacementHistory, values);
+  const laterTranscript = lines.slice(latestCompactedLineIndex + 1).join(`
+`);
+  const later = collectJsonLineStrings(laterTranscript);
+  values.push(laterTranscript, ...later.values);
+  return { text: values.join(`
+`), parsedJsonLines };
+}
+function collectJsonLineStrings(rawTranscript) {
+  const values = [];
+  let parsedJsonLines = 0;
+  for (const line of rawTranscript.split(/\r?\n/)) {
+    const parsed = parseJsonLine(line);
+    if (parsed === null)
+      continue;
+    parsedJsonLines += 1;
+    collectStrings(parsed, values);
+  }
+  return { values, parsedJsonLines };
+}
+function parseJsonLine(line) {
+  if (line.trim().length === 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(line);
+    return parsed;
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw error;
+    }
+    return null;
+  }
+}
+function collectStrings(value, output) {
+  if (typeof value === "string") {
+    output.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectStrings(item, output);
+    }
+    return;
+  }
+  if (!isRecord(value)) {
+    return;
+  }
+  for (const item of Object.values(value)) {
+    collectStrings(item, output);
+  }
+}
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // components/rules/src/context-pressure.ts
-import { readFileSync } from "node:fs";
 var CONTEXT_PRESSURE_MARKERS = [
   "context compacted",
   "context_length_exceeded",
@@ -3342,13 +3500,8 @@ function hasContextPressureMarker(text) {
 function transcriptHasContextPressureMarker(transcriptPath) {
   if (transcriptPath === undefined || transcriptPath === null)
     return false;
-  try {
-    return hasContextPressureMarker(readFileSync(transcriptPath, "utf8"));
-  } catch (error) {
-    if (error instanceof Error)
-      return false;
-    throw error;
-  }
+  const transcript = readTranscriptSearchWindow(transcriptPath);
+  return transcript !== null && hasContextPressureMarker(transcript.text);
 }
 
 // components/rules/src/debug-log.ts
@@ -3523,7 +3676,7 @@ function limitAdditionalContext(additionalContext) {
 }
 
 // components/rules/src/persistent-cache.ts
-import { mkdirSync as mkdirSync2, readFileSync as readFileSync2, rmSync as rmSync2, writeFileSync } from "node:fs";
+import { mkdirSync as mkdirSync2, readFileSync, rmSync as rmSync2, writeFileSync } from "node:fs";
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname6, join as join6 } from "node:path";
 
@@ -3587,12 +3740,12 @@ function withSessionStateLock(cachePath, callback) {
   return SESSION_STATE_LOCK_CONTENDED;
 }
 function errorCode(error) {
-  if (!isRecord(error)) {
+  if (!isRecord2(error)) {
     return;
   }
   return Reflect.get(error, "code");
 }
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function sleepSync(milliseconds) {
@@ -3675,12 +3828,12 @@ function completePostCompactRecovery(cachePath, kind) {
   });
 }
 function sessionCachePath(sessionId, pluginDataRoot) {
-  const root = pluginDataRoot ?? process.env["PLUGIN_DATA"] ?? join6(homedir2(), ".codex", "codex-rules");
-  return join6(root, "sessions", `${safePathSegment(sessionId)}.json`);
+  const root = pluginDataRoot ?? process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"] ?? join6(homedir2(), ".codex", "codex-rules");
+  return join6(root, "rules", "sessions", `${safePathSegment(sessionId)}.json`);
 }
 function readSessionState(cachePath) {
   try {
-    const parsed = JSON.parse(readFileSync2(cachePath, "utf8"));
+    const parsed = JSON.parse(readFileSync(cachePath, "utf8"));
     if (!isSerializedSessionState(parsed))
       return emptyState();
     return parsed;
@@ -3731,7 +3884,7 @@ function safePathSegment(value) {
   return value.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "unknown-session";
 }
 function isSerializedSessionState(value) {
-  if (!isRecord2(value) || !Array.isArray(value["staticDedup"]) || !isRecord2(value["dynamicDedup"])) {
+  if (!isRecord3(value) || !Array.isArray(value["staticDedup"]) || !isRecord3(value["dynamicDedup"])) {
     return false;
   }
   const staticDedup = value["staticDedup"];
@@ -3740,104 +3893,10 @@ function isSerializedSessionState(value) {
   const postCompactPending = value["postCompactPending"];
   const postCompactRecovering = value["postCompactRecovering"];
   const compacted = value["compacted"];
-  return staticDedup.every((item) => typeof item === "string") && Object.values(dynamicDedup).every((item) => Array.isArray(item) && item.every((nestedItem) => typeof nestedItem === "string")) && (dynamicTargetFingerprints === undefined || isRecord2(dynamicTargetFingerprints) && Object.entries(dynamicTargetFingerprints).every(([targetKey, fingerprint]) => typeof targetKey === "string" && typeof fingerprint === "string")) && (postCompactPending === undefined || isPostCompactPendingState(postCompactPending)) && (postCompactRecovering === undefined || isPostCompactPendingState(postCompactRecovering)) && (compacted === undefined || typeof compacted === "boolean");
+  return staticDedup.every((item) => typeof item === "string") && Object.values(dynamicDedup).every((item) => Array.isArray(item) && item.every((nestedItem) => typeof nestedItem === "string")) && (dynamicTargetFingerprints === undefined || isRecord3(dynamicTargetFingerprints) && Object.entries(dynamicTargetFingerprints).every(([targetKey, fingerprint]) => typeof targetKey === "string" && typeof fingerprint === "string")) && (postCompactPending === undefined || isPostCompactPendingState(postCompactPending)) && (postCompactRecovering === undefined || isPostCompactPendingState(postCompactRecovering)) && (compacted === undefined || typeof compacted === "boolean");
 }
 function isPostCompactPendingState(value) {
-  return isRecord2(value) && (value["static"] === undefined || typeof value["static"] === "boolean") && (value["dynamic"] === undefined || typeof value["dynamic"] === "boolean");
-}
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-// components/rules/src/transcript-search.ts
-import { readFileSync as readFileSync3 } from "node:fs";
-function readTranscriptSearchText(transcriptPath, options = {}) {
-  try {
-    const rawTranscript = readFileSync3(transcriptPath, "utf8");
-    if (options.latestCompactedReplacementOnly === true) {
-      return latestCompactedReplacementSearchText(rawTranscript);
-    }
-    return [rawTranscript, ...collectJsonLineStrings(rawTranscript)].join(`
-`);
-  } catch (error) {
-    if (!(error instanceof Error)) {
-      throw error;
-    }
-    return null;
-  }
-}
-function latestCompactedReplacementSearchText(rawTranscript) {
-  const lines = rawTranscript.split(/\r?\n/);
-  let latestCompactedLineIndex = -1;
-  let replacementHistory = null;
-  for (const [index, line] of lines.entries()) {
-    const parsed = parseJsonLine(line);
-    if (!isRecord3(parsed) || parsed["type"] !== "compacted") {
-      continue;
-    }
-    const payload = parsed["payload"];
-    if (!isRecord3(payload)) {
-      continue;
-    }
-    const candidateReplacementHistory = payload["replacement_history"];
-    if (!Array.isArray(candidateReplacementHistory)) {
-      continue;
-    }
-    latestCompactedLineIndex = index;
-    replacementHistory = candidateReplacementHistory;
-  }
-  if (replacementHistory === null) {
-    return null;
-  }
-  const values = [];
-  collectStrings(replacementHistory, values);
-  const laterTranscript = lines.slice(latestCompactedLineIndex + 1).join(`
-`);
-  values.push(laterTranscript, ...collectJsonLineStrings(laterTranscript));
-  return values.join(`
-`);
-}
-function collectJsonLineStrings(rawTranscript) {
-  const values = [];
-  for (const line of rawTranscript.split(/\r?\n/)) {
-    const parsed = parseJsonLine(line);
-    if (parsed !== null) {
-      collectStrings(parsed, values);
-    }
-  }
-  return values;
-}
-function parseJsonLine(line) {
-  if (line.trim().length === 0) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(line);
-    return parsed;
-  } catch (error) {
-    if (!(error instanceof Error)) {
-      throw error;
-    }
-    return null;
-  }
-}
-function collectStrings(value, output) {
-  if (typeof value === "string") {
-    output.push(value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectStrings(item, output);
-    }
-    return;
-  }
-  if (!isRecord3(value)) {
-    return;
-  }
-  for (const item of Object.values(value)) {
-    collectStrings(item, output);
-  }
+  return isRecord3(value) && (value["static"] === undefined || typeof value["static"] === "boolean") && (value["dynamic"] === undefined || typeof value["dynamic"] === "boolean");
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -3904,7 +3963,7 @@ function fallbackModelContextBudget() {
   };
 }
 function estimateTranscript(transcriptPath) {
-  const transcriptText = readTranscriptSearchText(transcriptPath, { latestCompactedReplacementOnly: true }) ?? readTranscriptSearchText(transcriptPath);
+  const transcriptText = readTranscriptRecoverySearchText(transcriptPath)?.text ?? null;
   if (transcriptText === null) {
     return;
   }
@@ -3923,7 +3982,7 @@ function shouldSkipPostCompactClaim(result, recoveryInProgress) {
 }
 
 // components/rules/src/rules-engine-factory.ts
-import { readFileSync as readFileSync4 } from "node:fs";
+import { readFileSync as readFileSync2 } from "node:fs";
 import { dirname as dirname7 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 var componentRoot = dirname7(dirname7(fileURLToPath2(import.meta.url)));
@@ -3935,7 +3994,7 @@ function createRulesEngine(options, config = configFromEnvironment(options.env))
     findProjectRoot,
     readFile: (path) => {
       try {
-        return readFileSync4(path, "utf8");
+        return readFileSync2(path, "utf8");
       } catch {
         return null;
       }
@@ -4101,7 +4160,7 @@ function readRecoveryTranscriptText(transcriptPath) {
   if (transcriptPath === null) {
     return null;
   }
-  return readTranscriptSearchText(transcriptPath, { latestCompactedReplacementOnly: true }) ?? readTranscriptSearchText(transcriptPath);
+  return readTranscriptRecoverySearchText(transcriptPath)?.text ?? null;
 }
 function recoverDynamicRulePaths(engine, transcriptText, staticRules) {
   const staticRulePaths = new Set(staticRules.map((rule) => rule.realPath));
@@ -4319,8 +4378,8 @@ async function runSessionStartHook(input, options = {}) {
   if (shouldSkipPostCompactClaim(postCompactClaim, input.source === "compact" && isPostCompactRecoveryInProgress(cachePath, "static"))) {
     return "";
   }
-  const transcriptPath = input.source === "clear" ? null : input.transcript_path;
-  return runStaticInjection(input.cwd, transcriptPath, "SessionStart", cachePath, options, completedPostCompactKind, { latestCompactedReplacementOnly: completedPostCompactKind !== undefined }, input.model);
+  const transcriptPath = input.source === "clear" ? null : input.transcript_path ?? null;
+  return runStaticInjection(input.cwd, transcriptPath, "SessionStart", cachePath, options, completedPostCompactKind, { latestCompactedReplacementOnly: completedPostCompactKind !== undefined }, input.model ?? "");
 }
 async function runPostCompactHook(input, options = {}) {
   markSessionCompacted(sessionCachePath(input.session_id, options.pluginDataRoot));
@@ -4332,14 +4391,14 @@ async function runUserPromptSubmitHook(input, options = {}) {
   }
   const cachePath = sessionCachePath(input.session_id, options.pluginDataRoot);
   const postCompactClaim = claimPostCompactPending(cachePath, "static");
-  if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path)) {
+  if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path ?? null)) {
     return "";
   }
   const completedPostCompactKind = claimedPostCompactKind(postCompactClaim, "static");
   if (shouldSkipPostCompactClaim(postCompactClaim, isPostCompactRecoveryInProgress(cachePath, "static"))) {
     return "";
   }
-  return runStaticInjection(input.cwd, input.transcript_path, "UserPromptSubmit", cachePath, options, completedPostCompactKind, { latestCompactedReplacementOnly: completedPostCompactKind !== undefined }, input.model);
+  return runStaticInjection(input.cwd, input.transcript_path ?? null, "UserPromptSubmit", cachePath, options, completedPostCompactKind, { latestCompactedReplacementOnly: completedPostCompactKind !== undefined }, input.model ?? "");
 }
 async function runPostToolUseHook(input, options = {}) {
   const debugTimer = createHookDebugTimer("PostToolUse");
@@ -4362,7 +4421,7 @@ async function runPostToolUseHook(input, options = {}) {
   }
   const cachePath = sessionCachePath(input.session_id, options.pluginDataRoot);
   const postCompactClaim = claimPostCompactPending(cachePath, "dynamic");
-  if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path)) {
+  if (postCompactClaim === "not-pending" && transcriptHasContextPressureMarker(input.transcript_path ?? null)) {
     debugTimer.done({ outputBytes: 0, reason: "context-pressure-transcript" });
     return "";
   }
@@ -4372,7 +4431,7 @@ async function runPostToolUseHook(input, options = {}) {
     return "";
   }
   const dynamicConfig = withDynamicBudget(config);
-  const engine = createRulesEngine(options, completedPostCompactKind !== undefined ? withPostCompactBudget(dynamicConfig, { model: input.model, transcriptPath: input.transcript_path }) : dynamicConfig);
+  const engine = createRulesEngine(options, completedPostCompactKind !== undefined ? withPostCompactBudget(dynamicConfig, { model: input.model ?? "", transcriptPath: input.transcript_path ?? null }) : dynamicConfig);
   hydrateEngineState(engine, cachePath);
   debugTimer.lap("hydrate", {
     dynamicDedupScopes: engine.state.dynamicDedup.size,
@@ -4391,7 +4450,7 @@ async function runPostToolUseHook(input, options = {}) {
   }
   const loaded = engine.loadDynamicRules(input.cwd, pendingTargetFingerprints.map((target) => target.targetPath));
   debugTimer.lap("load", { diagnostics: loaded.diagnostics.length, loadedRules: loaded.rules.length });
-  const rules = filterRulesAlreadyInTranscript(loaded.rules.filter((rule) => !engine.isStaticInjected(rule) && !engine.isDynamicInjected(rule)), input.transcript_path, (rule) => {
+  const rules = filterRulesAlreadyInTranscript(loaded.rules.filter((rule) => !engine.isStaticInjected(rule) && !engine.isDynamicInjected(rule)), input.transcript_path ?? null, (rule) => {
     engine.markDynamicInjected(rule);
   }, { latestCompactedReplacementOnly: completedPostCompactKind !== undefined });
   debugTimer.lap("filter", { rules: rules.length });
@@ -4440,7 +4499,7 @@ async function runHookCli(eventName) {
   const parsed = parseHookInput(raw);
   if (!parsed)
     return;
-  const pluginDataRoot = process.env["PLUGIN_DATA"];
+  const pluginDataRoot = process.env["ZCODE_PLUGIN_DATA"] ?? process.env["PLUGIN_DATA"];
   const options = pluginDataRoot === undefined ? {} : { pluginDataRoot };
   const output = await runHook(eventName, parsed, options);
   await writeStdout(output);
@@ -4466,13 +4525,13 @@ function parseHookInput(raw) {
   }
 }
 function isCodexSessionStartInput(value) {
-  return isRecord5(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && isStringOrNull(value["transcript_path"]) && typeof value["cwd"] === "string" && typeof value["model"] === "string" && typeof value["permission_mode"] === "string" && typeof value["source"] === "string";
+  return isRecord5(value) && value["hook_event_name"] === "SessionStart" && typeof value["session_id"] === "string" && (value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) && typeof value["cwd"] === "string" && (value["model"] === undefined || typeof value["model"] === "string") && typeof value["permission_mode"] === "string" && typeof value["source"] === "string";
 }
 function isCodexUserPromptSubmitInput(value) {
-  return isRecord5(value) && value["hook_event_name"] === "UserPromptSubmit" && typeof value["session_id"] === "string" && typeof value["turn_id"] === "string" && isStringOrNull(value["transcript_path"]) && typeof value["cwd"] === "string" && typeof value["model"] === "string" && typeof value["permission_mode"] === "string" && typeof value["prompt"] === "string";
+  return isRecord5(value) && value["hook_event_name"] === "UserPromptSubmit" && typeof value["session_id"] === "string" && (value["turn_id"] === undefined || typeof value["turn_id"] === "string") && (value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) && typeof value["cwd"] === "string" && (value["model"] === undefined || typeof value["model"] === "string") && typeof value["permission_mode"] === "string" && typeof value["prompt"] === "string";
 }
 function isCodexPostToolUseInput(value) {
-  return isRecord5(value) && value["hook_event_name"] === "PostToolUse" && typeof value["session_id"] === "string" && typeof value["turn_id"] === "string" && isStringOrNull(value["transcript_path"]) && typeof value["cwd"] === "string" && typeof value["model"] === "string" && typeof value["permission_mode"] === "string" && typeof value["tool_name"] === "string" && typeof value["tool_use_id"] === "string";
+  return isRecord5(value) && value["hook_event_name"] === "PostToolUse" && typeof value["session_id"] === "string" && (value["turn_id"] === undefined || typeof value["turn_id"] === "string") && (value["transcript_path"] === undefined || isStringOrNull(value["transcript_path"])) && typeof value["cwd"] === "string" && (value["model"] === undefined || typeof value["model"] === "string") && typeof value["permission_mode"] === "string" && typeof value["tool_name"] === "string" && typeof value["tool_use_id"] === "string";
 }
 function isCodexPostCompactInput(value) {
   return isRecord5(value) && value["hook_event_name"] === "PostCompact" && typeof value["session_id"] === "string" && typeof value["turn_id"] === "string" && isStringOrNull(value["transcript_path"]) && typeof value["cwd"] === "string" && typeof value["model"] === "string" && (value["trigger"] === "manual" || value["trigger"] === "auto");
@@ -4484,7 +4543,7 @@ function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function readStdin() {
-  return new Promise((resolve11, reject) => {
+  return new Promise((resolve, reject) => {
     let data = "";
     processStdin.setEncoding("utf8");
     processStdin.on("data", (chunk) => {
@@ -4493,7 +4552,7 @@ function readStdin() {
     processStdin.once("error", reject);
     processStdin.once("end", () => {
       processStdin.pause();
-      resolve11(data);
+      resolve(data);
     });
     processStdin.resume();
   });
@@ -4501,13 +4560,13 @@ function readStdin() {
 function writeStdout(output) {
   if (output.length === 0)
     return Promise.resolve();
-  return new Promise((resolve11, reject) => {
+  return new Promise((resolve, reject) => {
     processStdout.write(output, (error) => {
       if (error) {
         reject(error);
         return;
       }
-      resolve11();
+      resolve();
     });
   });
 }

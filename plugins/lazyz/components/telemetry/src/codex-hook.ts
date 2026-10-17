@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import { stderr } from "node:process";
 import {
 	isTelemetryOptOutFilePresent,
-	shouldDisableTelemetry,
 	type TelemetryDiagnosticErrorKind,
 	type TelemetryDiagnosticEvent,
 } from "@oh-my-opencode/telemetry-core";
@@ -18,10 +17,10 @@ import { writeComponentTelemetryDiagnostic } from "./product-identity.js";
 
 export type CodexSessionStartInput = {
 	session_id: string;
-	transcript_path: string | null;
+	transcript_path?: string | null;
 	cwd: string;
 	hook_event_name: "SessionStart";
-	model: string;
+	model?: string;
 	permission_mode: string;
 	source: "startup" | "resume" | "clear";
 };

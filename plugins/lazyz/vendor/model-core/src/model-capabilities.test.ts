@@ -4,7 +4,7 @@ import type { ModelCapabilitiesSnapshot } from "./model-capabilities"
 import { afterEach, describe, expect, test, spyOn } from "bun:test"
 import { getModelCapabilities, getBundledModelCapabilitiesSnapshot } from "./model-capabilities"
 import * as connectedProvidersCache from "./connected-providers-cache"
-import bundledModelCapabilitiesSnapshotJson from "../../../packages/omo-opencode/src/generated/model-capabilities.generated.json"
+import bundledModelCapabilitiesSnapshotJson from "../test/fixtures/model-capabilities.generated.json"
 import { AGENT_MODEL_REQUIREMENTS, CATEGORY_MODEL_REQUIREMENTS } from "./model-requirements"
 
 describe("getModelCapabilities", () => {

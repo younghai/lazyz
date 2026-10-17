@@ -5,9 +5,6 @@ import { fileURLToPath } from "node:url";
 
 import { readState, writeState } from "../../../scripts/auto-update-state.mjs";
 import { bootstrapLocks, resolveBootstrapStatePath, resolveCodexHome } from "./environment.ts";
-import { runSgProvision } from "./provision.ts";
-import type { SgProvisionSeams } from "./provision.ts";
-import { runWorkerSetup } from "./setup.ts";
 
 export const BOOTSTRAP_DOCTOR_HINT = "See LazyZ README → Troubleshooting, or check that Node.js 20+ and dist/ are present";
 
@@ -149,21 +146,9 @@ export function parseBootstrapState(raw: Record<string, unknown>): BootstrapStat
 	};
 }
 
-export interface DefaultWorkerStepsSeams {
-	readonly sg?: SgProvisionSeams;
-}
-
-export function defaultWorkerSteps(seams: DefaultWorkerStepsSeams = {}): readonly BootstrapWorkerStep[] {
-	return [
-		{
-			name: "setup",
-			run: (context) => runWorkerSetup(context),
-		},
-		{
-			name: "sg",
-			run: (context) => runSgProvision(context, seams.sg),
-		},
-	];
+export function defaultWorkerSteps(): readonly BootstrapWorkerStep[] {
+	// SessionStart records detection state only; `lazyz setup --yes` owns every installation write.
+	return [];
 }
 
 export async function runBootstrapWorker(options: RunBootstrapWorkerOptions = {}): Promise<BootstrapWorkerResult> {
@@ -238,7 +223,7 @@ async function runStep(step: BootstrapWorkerStep, context: BootstrapWorkerContex
 }
 
 function resolvePluginRoot(env: Record<string, string | undefined>): string {
-	const fromEnv = env["PLUGIN_ROOT"]?.trim();
+	const fromEnv = env["ZCODE_PLUGIN_ROOT"]?.trim() || env["PLUGIN_ROOT"]?.trim();
 	if (fromEnv !== undefined && fromEnv.length > 0) return fromEnv;
 	// dist/cli.js lives at <pluginRoot>/components/bootstrap/dist/cli.js.
 	return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");

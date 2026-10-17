@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: "Execute a Prometheus work plan in Codex with Boulder state, evidence ledger updates, worktree discipline, parallel subagents, and Stop-hook continuation. Use after planning when the user says start work, execute plan, continue plan, resume plan, or asks to run a .omo/plans plan."
+description: "Compatibility alias for executing an approved Prometheus plan through the ZCode ulw-execute contract, with registered goals, evidence ledger updates, worktree discipline, foreground agents, and bounded Stop continuation."
 ---
 
 ## ZCode Harness Tool Compatibility
@@ -15,56 +15,35 @@ This skill was ported from the Codex/OpenCode OmO harness. ZCode does not provid
 | `task(subagent_type="oracle", ...)` for final verification | `Agent` tool with `subagent_type="general-purpose"` (rigorous-review prompt) |
 | `task(category="...", ...)` for implementation or QA | `Agent` tool with `subagent_type="general-purpose"` |
 | `multi_agent_v1.spawn_agent(...)` / `spawn_agent(...)` | `Agent` tool with `subagent_type` and a self-contained `prompt` |
-| `background_output(task_id="...")` | Pass `run_in_background: true` to the `Agent` tool; the parent turn waits for completion and returns the agent's final message |
-| `multi_agent_v1.wait_agent(...)` mailbox signals | Not needed in ZCode — background agents re-invoke the parent on completion. For long work, spawn multiple `Agent` calls in one message so they run concurrently |
+| `background_output(task_id="...")` | Only unstructured read-only research may use background mode; its completion arrives as a parent task notification, not a plugin hook |
+| `multi_agent_v1.wait_agent(...)` mailbox signals | No equivalent plugin tool; use returned foreground Agent results or the host's background research notifications |
 | `team_*(...)` | ZCode has no native team-of-threads API. Approximate with multiple parallel `Agent` calls (one per member) coordinated by the parent, or fall back to sequential subagents when isolation is unclear |
 
-Role-specific behavior must be described in a self-contained `prompt`. The `Agent` tool starts the child with only the prompt you give it (no parent history) — include any required conversation context, files, diffs, constraints, and requested skill names directly in the `prompt`. LazyZ does NOT install ZCode-recognized agent roles (ZCode's `agents` manifest field is recorded but not executed), so always describe the role (explorer, librarian, plan, reviewer, QA worker) inside the `prompt` text rather than relying on a role name. If a code block below conflicts with this section, this section wins.
+ZCode v3.14.3 loads enabled plugin agents from `agents/`. Prefer namespaced roles such as `lazyz:explorer` and `lazyz:lazycodex-executor`; unambiguous bare names also work. Include all task context and ownership in the self-contained `prompt`. Roles inherit the user's active model; do not force an obsolete provider ID or copy Codex model/effort fields. If an older host lacks a role, describe it inline using the appropriate built-in agent.
+
+Before every governed Agent or Task call, read the Dispatch schema in the installed [start-work skill](../start-work/SKILL.md) and prepend exactly one LAZYCODEX_DISPATCH_V1 JSON line. General-purpose and known executor calls require this envelope; read-only Explore calls may remain unstructured. Use the same taskId across retries with a fresh runId, unchanged criteria, role, phase and budget. Planning/document work uses writer, code work implementer, review reviewer, and testing qa. Never rename a task to bypass its exhausted budget.
+
+Governed calls must use `run_in_background: false` (or omit it). A background launch is not a completed result and has no matching plugin completion hook. Multiple independent foreground calls may be requested together; do not assume the host executes them concurrently. Read-only background research without a dispatch contract remains available.
+
+Require each governed child to write the matching ReceiptV1 with current source identity, criterion invocations, zero exit codes and hashed regular artifacts, then return EVIDENCE_RECORDED; final-phase work requires FINAL_EVIDENCE_RECORDED. PostToolUse records failed evidence; Stop prevents unresolved completion while budget remains. An exhausted budget requires a blocker handoff, not an unsupported completion claim.
+
+User authorization and verification policy take precedence over generic workflow instructions below. Do not auto-commit, push, merge, delete, deploy, install tools, call paid services, or run checks prohibited by the user. Record skipped checks honestly; do not fabricate a passing receipt. A task requiring a verified receipt remains unverified if the necessary checks are prohibited. ZCode Stop can continue at most three consecutive times, not indefinitely. Native Goal Mode, Memory and Wiki are host features; no callable API is assumed.
 
 For work likely to take long, prefer multiple concurrent `Agent` calls in a single message over one giant blocking call. Treat each child's final message as the deliverable: if it lacks the required output, ack-only, or stops without producing evidence, fall back to a smaller re-scoped `Agent` call with the missing deliverable made explicit in the `prompt`.
 
-## Codex Subagent Reliability
-
-Every `spawn_agent` message must be self-contained. Start with
-`TASK: <imperative assignment>`, then name `DELIVERABLE`, `SCOPE`, and
-`VERIFY`. State that it is an executable assignment, not a context
-handoff. Role selection requires `agent_type`; `model` +
-`reasoning_effort` alone creates a default agent, not a reviewer or
-worker. Prefer `fork_turns: "none"` unless full history is truly
-required; paste only the context the child needs.
-
-Plan and reviewer agents may run for a long time; spawn them in the background, keep doing independent root work, and poll with short wait_agent cycles sized to the work. Never use a single long blocking wait for them, and never spin on tiny timeouts as a failure budget.
-
-Treat child status as a progress signal, not a timeout counter. For
-work likely to exceed one wait cycle, require the child to send
-`WORKING: <task> - <current phase>` before long reading, testing, or
-review passes, and `BLOCKED: <reason>` only when it cannot progress.
-While any child is active, keep the parent visibly alive with active
-subagent count, agent names, latest `WORKING:` phase, and whether the
-parent is waiting for mailbox updates. Track spawned agent names
-locally. Use `wait_agent` for mailbox signals, not proof of completion.
-A timeout only means no new mailbox update arrived; after a timeout,
-run a single `list_agents` check for the named child when you need
-reassurance. If it is running or its latest message is `WORKING:`,
-treat it as alive. Do not use `list_agents` as a polling loop or status
-feed; it can replay large payloads. Fallback only when the child is
-completed without the deliverable, ack-only after followup, explicitly
-`BLOCKED:`, or no longer running. Then record the result as
-inconclusive, do not count it as pass/review approval, close if safe,
-and respawn a smaller `fork_turns: "none"` task with the missing
-deliverable.
-
 # start-work
 
-Execute a Prometheus work plan until every top-level checkbox is complete. This skill pairs with the Codex `Stop` / `SubagentStop` continuation hook in `components/start-work-continuation`, which re-injects the next turn while `.omo/boulder.json` says the current `codex:<session_id>` still has unchecked plan work.
+`start-work` is the compatibility alias for `ulw-execute`. Execute only an approved, decision-complete Prometheus plan after the user explicitly requests execution. Register its aggregate goal before implementation, then use the existing LazyZ Stop continuation behavior. ZCode permits at most three Stop continuations; it does not provide a `SubagentStop` event.
+
+Names such as `Task`, `spawn_agent`, and `wait_agent` in the compatibility table are foreign-example labels only. The operative ZCode execution path uses foreground `Agent` calls and supported ZCode hooks.
 
 ## Usage
 
 ```text
-$start-work [plan-name] [--worktree <absolute-path>]
+$start-work <plan-name> [--worktree <absolute-path>]
 ```
 
-- `plan-name` is optional. It may be a full or partial file stem under `.omo/plans/`.
+- `plan-name` identifies an approved `.omo/plans/<plan-name>.md` file.
 - `--worktree` is optional. Use it only when the user explicitly asks to work in a separate git worktree.
 
 ## Manual-QA requirement (read before starting)
@@ -84,54 +63,23 @@ If the surface cannot be started (server won't boot, browser unavailable), flag 
 
 ## Phase 1: Select the plan
 
-1. Read `.omo/boulder.json` if it exists.
-2. List Prometheus plan files under `.omo/plans/`.
-3. If `plan-name` was provided, select the matching plan.
-4. If exactly one active or paused Boulder work exists for this session, resume it.
-5. If no active work exists and exactly one plan exists, select it.
-6. If no active work exists and there is no selectable plan, enter **No-plan bootstrap**.
-7. If multiple plans remain possible, ask one focused selection question.
+1. Resolve the named plan under `.omo/plans/` and read it in full.
+2. Confirm the plan exists, is decision-complete, and has explicit user approval. Plan approval alone is not an execution request; this invocation must also request execution.
+3. If the plan is missing, incomplete, or unapproved, stop before implementation and surface the exact prerequisite. Do not create, approve, or execute a replacement plan from this skill.
+4. For a resume request, confirm the registered run corresponds to the same approved plan with `lazyz ulw-loop status --json`; do not infer resumability from a hand-written state file.
 
-### No-plan bootstrap
+## Phase 2: Register the goal
 
-When the user explicitly said `start work` / `$start-work` and no selectable plan exists, treat that phrase as approval to create the plan before execution. Do not stall on a missing plan and do not ask for generic approval again.
+Before implementation or evidence recording, register the approved plan through the supported CLI:
 
-If no selectable plan exists, bootstrap `ulw-plan` before execution.
-Execution requires an approved plan before implementation; bootstrap mode creates that approved plan from the user's `start work` request instead of skipping planning.
-
-1. Invoke the `ulw-plan` skill from the current request and require its dynamic adversarial workflow: collect, verify, design, adversarial plan-review, synthesize.
-2. The generated Prometheus plan must be saved under `.omo/plans/<slug>.md` before implementation or Boulder state writes that point at plan work.
-3. Use maximum safe parallelism in the generated plan: independent files/tasks fan out; same-file writes, shared state, and named dependencies serialize.
-4. Preserve safety boundaries. Ask one focused question only when the objective is missing, destructive, or has a safety/product ambiguity that repository exploration cannot resolve.
-5. After the plan exists, continue directly to Phase 2. The user's `start work` request is the bootstrap approval to create the plan and begin execution.
-
-## Phase 2: Create or update Boulder state
-
-Write `.omo/boulder.json` before implementation starts. Session ids must be prefixed with `codex:` so the continuation hook can identify its own session.
-
-```json
-{
-  "schema_version": 2,
-  "active_work_id": "<work-id>",
-  "works": {
-    "<work-id>": {
-      "work_id": "<work-id>",
-      "active_plan": ".omo/plans/<plan-name>.md",
-      "plan_name": "<plan-name>",
-      "session_ids": ["codex:<session_id>"],
-      "status": "active",
-      "fail_count": 0,
-      "worktree_path": null
-    }
-  }
-}
+```sh
+lazyz ulw-loop create-goals --brief-file ".omo/plans/<plan-name>.md" --json
+lazyz ulw-loop status --json
 ```
 
-> **Note:** `schema_version` is a documentation/human-readable field only. No parser reads it and bumping it does not trigger a migration. It exists so humans can tell which shape a file is expected to have. See `docs/known-limitations.md` → "Soft state schema".
+Use the CLI-managed state under `.omo/ulw-loop`; do not create or hand-edit `.omo/boulder.json`, goal state, or session-id prefixes. If `create-goals` reports that the current aggregate is already complete, start unrelated work with a fresh `--session-id <new-id>` rather than forcing or steering the completed state. Use `--force` only when the user explicitly requests overwriting completed evidence.
 
-`status` transitions: `"active"` (default) → `"paused"` (user pauses) → `"completed"` (all checkboxes done) or `"abandoned"` (user cancels). A `"blocked"` status is set by the cycle/failure caps or a `needs-human-review` verdict; the continuation hook will not resume a blocked work until the user sets it back to `"active"`. Increment `fail_count` each time a cap fires or a `needs-human-review` verdict is recorded.
-
-If `--worktree` is set, verify the path with `git worktree list --porcelain` or create it with `git worktree add <path> <branch-or-HEAD>`, then store the absolute path as `worktree_path`. All edits, commands, tests, and evidence capture must run inside that worktree.
+If `--worktree` is set, verify the path with `git worktree list --porcelain` or create it with `git worktree add <path> <branch-or-HEAD>`. All edits, commands, tests, and evidence capture must run inside that worktree.
 
 ## Phase 3: Execute the next checkbox
 
@@ -139,11 +87,11 @@ If `--worktree` is set, verify the path with `git worktree list --porcelain` or 
 2. Find the first unchecked column-0 checkbox in `## TODOs` or `## Final Verification Wave`.
 3. Ignore nested checkboxes under acceptance criteria, evidence, and definition-of-done sections.
 4. Decompose that checkbox into atomic sub-tasks.
-5. Dispatch independent sub-tasks in parallel with `spawn_agent`; serialize only when one sub-task has a named dependency on another.
+5. Dispatch independent sub-tasks with foreground ZCode `Agent` calls; request independent calls together when parallelism is safe, and serialize when one sub-task has a named dependency on another.
 
 Each sub-task message must include:
 
-1. Goal and exact files or directories in scope.
+1. The dispatch schema below, including the goal and exact files or directories in scope.
 2. When the task touches existing behavior: a baseline characterization test, written first, that asserts current observable behavior and passes on the unchanged code. Then the red test or failing reproduction for the new behavior before production changes. Pin the baseline as rigorously as the new test: exact inputs, exact observable, exact assertion.
 3. Implementation constraints from the plan and project rules.
 4. Automated verification commands to run.
@@ -155,15 +103,57 @@ Each sub-task message must include:
 6. The adversarial classes that apply to this sub-task (from the 9 ultraqa classes) and how each is probed.
 7. Required artifact path and cleanup receipt.
 
+### Dispatch schema
+
+Every governed ZCode `Agent` prompt is a complete executable assignment, not a context handoff. Put exactly one compact JSON marker line near the top of the prompt and fill every field:
+
+```text
+LAZYCODEX_DISPATCH_V1: {"schemaVersion":1,"workId":"<registered work id>","taskId":"<stable task id>","runId":"<new id for this attempt>","role":"implementer|reviewer|qa|writer","phase":"execute|verify|final","criterionRefs":["G001-first/C001"],"budget":{"maxCalls":5,"maxSameFailure":3}}
+```
+
+`taskId` is stable across retries. `runId` is unique for each dispatch attempt. The first accepted marker freezes the work, task, role, phase, criteria, and budget for that task. Caller budgets may lower the hard caps of 5 total calls and 3 identical failures, but may never raise them. Use a distinct task id when a task legitimately changes role or phase. `criterionRefs` uses canonical goal/criterion ids such as `G001-first/C001`; bare `G001` or `C001` remains valid for standalone tasks.
+
+The assignment JSON validated below contains that envelope plus the scheduling fields `execution_shape`, `parallel_safe`, `owned_paths`, and `completion_condition` and the operational fields listed next.
+
+After the envelope, include these labeled sections in this order:
+
+- `DELIVERABLE:` exact files, result shape, and behavior the child must return.
+- `VERIFY:` exact commands or scenario and the expected observable.
+- `STOP WHEN:` the same binary completion boundary expressed operationally.
+- `ARTIFACT:` exact evidence path or returned structured payload.
+- `PARENT VALIDATION:` what the orchestrator will independently inspect or rerun before accepting the return.
+
+`parallel_safe: true` is valid only when `owned_paths` do not overlap any active lane and the task has no unmet dependency on another lane. An empty or broad ownership entry is not parallel-safe. The orchestrator validates the envelope before dispatch and serializes invalid or overlapping lanes.
+
+A child response that only acknowledges the task, reports progress without the `DELIVERABLE`, omits the required artifact, or stops before every `completion_condition` entry is satisfied is an execution failure. Do not count it as evidence or completion. Send one focused follow-up naming the missing field; if the second response is still ack-only or incomplete, record the lane as failed and respawn a smaller assignment with the same `taskId` and a fresh `runId`.
+
+Validate the JSON form of every envelope before dispatch:
+
+```bash
+uv run "<start-work-skill-root>/scripts/validate_dispatch.py" <assignment.json>
+```
+
+Require the child final to be JSON with non-empty `deliverable`, `verify`, and `artifact` fields plus `completion_condition_met: true`, then validate it before parent inspection:
+
+```bash
+uv run "<start-work-skill-root>/scripts/validate_dispatch.py" <assignment.json> --final <worker-final.json>
+```
+
+The validator is the dispatch gate. Its first output line is the exact `LAZYCODEX_DISPATCH_V1` marker to paste into the prompt. It uses JSON plus strict Pydantic parsing, never `eval`, rejects missing schema fields, invalid criterion ids, budgets above the hard caps, empty or blank completion-condition lists, and broad parallel ownership, and rejects plain-string acknowledgement finals. A validator failure blocks dispatch or acceptance respectively.
+
+Every structured worker writes a ReceiptV1 JSON file under `.omo/evidence/` and ends its assistant response with `EVIDENCE_RECORDED: <path>`. A `phase:"final"` worker must use `FINAL_EVIDENCE_RECORDED: <path>`; an ordinary marker cannot downgrade final evidence. The receipt must bind the exact `taskId`, `runId`, `role`, `phase`, current source commit/tree, criterion refs, invocations, zero exit codes, and confined regular evidence artifacts with SHA-256 hashes. The runtime enforces maximum receipt and artifact read sizes. Malformed marker-bearing prompts and general-purpose executor prompts without the dispatch marker fail closed. Read-only Explore dispatches may remain unstructured.
+
+`PreToolUse` reserves the unique run before dispatch and requests denial when the contract or budget is invalid. `PostToolUse` validates the returned receipt, records a stable typed failure signature, and uses the documented `additionalContext` channel to report failure after the action; it does not claim to undo or block an already completed tool call. `PostToolUseFailure` records the stable `tool-execution-failed` signature without storing raw host errors and reports it through `additionalContext`. `Stop` is the completion gate: it blocks unresolved tasks while retry budget remains, but allows the orchestrator to report a task whose budget is exhausted. This is a local hook contract; do not describe PreToolUse denial as a paid-provider API guarantee.
+
 Apply ultraqa's 9 adversarial classes where relevant to each checkbox: malformed input, prompt injection, cancel/resume, stale state, dirty worktree, hung or long commands, flaky tests, misleading success output, repeated interruptions. A checkbox whose behavior is user-visible MUST probe every class that plausibly applies; record which classes were exercised and which were ruled not-applicable with a one-line reason.
 
 ### Cycle and failure caps
 
 These caps bound runaway work on a single checkbox. They mirror the ulw-loop execution loop and are mandatory.
 
-- **Cap at 5 execution cycles per checkbox.** An execution cycle is one dispatch → verify → verdict round. After 5 cycles on one checkbox without a `confirmed` verdict, set the boulder work `status` to `"blocked"`, increment `fail_count`, append a `checkbox-blocked` ledger entry naming the checkbox and the diagnosis, and stop dispatching that checkbox. Surface the block to the user and wait for explicit instruction.
-- **Cap identical failure type at 3 per checkbox.** Track the verdict-failure signature (`needs-fix` on the same assertion, `false-positive` on the same artifact, etc.). After 3 failures of the same type on the same checkbox, set the boulder work `status` to `"blocked"`, increment `fail_count`, and escalate.
-- When a boulder work is `"blocked"`, the continuation hook will not re-inject the directive (only `active` and `paused` are continuable). The work stays paused until the user changes `status` back to `"active"` or resolves the blocker.
+- **Cap at 5 execution cycles per checkbox.** An execution cycle is one dispatch → verify → verdict round. After 5 cycles on one checkbox without a `confirmed` verdict, record the failure through the `lazyz ulw-loop` evidence/checkpoint CLI, stop dispatching that checkbox, and surface the diagnosis.
+- **Cap identical failure type at 3 per checkbox.** Track the verdict-failure signature (`needs-fix` on the same assertion, `false-positive` on the same artifact, etc.). After 3 failures of the same type on the same checkbox, record the blocked checkpoint through the CLI and escalate.
+- A blocked run resumes only after the blocker is resolved and the supported CLI state permits continuation. Never unblock it by editing `.omo` files directly.
 
 ### Debugging budget
 
@@ -179,9 +169,9 @@ For each checkbox, complete all five gates before marking it done:
 4. Adversarial QA: exercise every applicable ultraqa class (malformed input, prompt injection, cancel/resume, stale state, dirty worktree, hung or long commands, flaky tests, misleading success output, repeated interruptions) and capture the observable result for each. "Tests pass" and a clean happy-path artifact are NOT sufficient when an adversarial class applies and was not probed.
 5. Cleanup: register every QA resource teardown as its own todo the moment it is spawned (QA scripts, tmux assets, browser / agent-browser sessions, PIDs, ports, containers, temp dirs), then execute each and capture the receipt. No QA asset is left running.
 
-Append evidence to `.omo/start-work/ledger.jsonl` using one JSON object per line. Include at least `event`, `plan`, `task`, `session_id`, `commands`, `artifact`, `adversarial_classes`, and `cleanup` fields. `adversarial_classes` lists each probed class with its observable result and each ruled-out class with a one-line reason.
+Record evidence through `lazyz ulw-loop record-evidence`; do not append goal-state ledgers directly. Preserve at least `event`, `plan`, `task`, `session_id`, `commands`, `artifact`, `adversarial_classes`, and `cleanup` in the evidence artifact or notes. `adversarial_classes` lists each probed class with its observable result and each ruled-out class with a one-line reason.
 
-**Before appending**, redact secrets from the `commands` field and evidence artifacts. The `commands` field captures shell invocations verbatim — `curl -H "Authorization: Bearer sk-..."`, `psql PGPASSWORD=...`, `aws --secret-key ...` — and these are as sensitive as shell history. Strip or mask credentials before writing. A post-hoc scrubber is available: `node scripts/redact-secrets.mjs` (reports) or `node scripts/redact-secrets.mjs --fix` (masks in place). Run it before sharing or committing `.omo/`.
+**Before recording evidence**, redact secrets from the `commands` field and evidence artifacts. The `commands` field captures shell invocations verbatim — `curl -H "Authorization: Bearer sk-..."`, `psql PGPASSWORD=...`, `aws --secret-key ...` — and these are as sensitive as shell history. Strip or mask credentials before writing. A post-hoc scrubber is available: `node scripts/redact-secrets.mjs` (reports) or `node scripts/redact-secrets.mjs --fix` (masks in place). Run it before sharing or committing `.omo/`.
 
 ### Sisyphus-style completion contract
 
@@ -208,13 +198,14 @@ A worker done claim is never final. Each implementation sub-task returns a `Done
 
 Rules:
 - `confirmed` is the only pass verdict. `false-positive`, `needs-fix`, and `needs-human-review` all block checkbox completion.
-- A `needs-human-review` verdict means the checkbox cannot be completed without a user decision. Set the boulder work `status` to `"blocked"`, increment `fail_count`, record a `needs-human-review` ledger entry with the question that needs answering, and surface it to the user. Do not re-dispatch on `needs-human-review`; it is an explicit escalation, not a retry.
-- The verifier must be independent from the executor: use `codex-ultrawork-reviewer`, a scoped `worker` reviewer, or root only when root did not implement or materially rewrite that task.
+- A `needs-human-review` verdict means the checkbox cannot be completed without a user decision. Record the blocked evidence/checkpoint through the `lazyz ulw-loop` CLI with the question that needs answering, and surface it to the user. Do not re-dispatch on `needs-human-review`; it is an explicit escalation, not a retry.
+- The verifier must be independent from the executor: use a separate foreground ZCode `Agent` with a rigorous reviewer prompt, or root only when root did not implement or materially rewrite that task.
 - A worker done claim must be independently verified before it can become checkbox completion.
-- On any non-confirmed verdict, append the feedback to the ledger, reset the checkbox work to in-progress, and re-dispatch the executor with the exact failure.
+- On any non-confirmed verdict, record the feedback through the CLI, leave the checkbox in progress, and re-dispatch the executor with the exact failure.
 - The verifier must probe the applicable adversarial keys, including `stale_state`, `dirty_worktree`, and `misleading_success_output`, before allowing `FullyDone`.
 - In prose evidence, name the same risks as stale state, dirty worktree, and misleading success output so reviewers can search for both key and human forms.
 - Tests passing, green builds, or a worker DoneClaim without independent verification are not enough to mark a checkbox complete.
+- Parent validation is mandatory: the orchestrator checks the returned artifact exists, verifies it belongs to `owned_paths`, and independently reruns or inspects the `PARENT VALIDATION` observable before sending the work to the independent verifier.
 
 ## Phase 5: Mark progress
 
@@ -222,16 +213,16 @@ Only after verification passes:
 
 1. Edit the plan checkbox from `- [ ]` to `- [x]`.
 2. Re-read the plan and confirm the remaining count decreased.
-3. Append a `task-completed` ledger entry.
+3. Record the passing criterion evidence and checkpoint through the `lazyz ulw-loop` CLI; the CLI-managed ledger is the durable goal-state record.
 4. Continue with the next checkbox. Do not ask whether to continue.
 
 ## Completion
 
 When all top-level checkboxes in `## TODOs` and `## Final Verification Wave` are complete:
 
-1. Run the plan's final verification commands.
+1. Run the plan's final verification commands only when authorized by the user's verification policy; otherwise report the exact skipped checks and keep the affected criteria unverified.
 2. If worktree mode was used, sync `.omo/` state back to the main repo, merge or hand off exactly as requested, and remove the worktree only after successful merge or explicit handoff.
-3. Remove or mark the Boulder work as completed.
+3. Checkpoint each completed goal through the CLI, then run `lazyz ulw-loop complete-goals --json` until it reports aggregate completion; do not mark completion by editing `.omo` state.
 4. Print an `ORCHESTRATION COMPLETE` block with the plan path, verification commands, artifacts, and cleanup receipts.
 
 ## Hard rules
@@ -240,5 +231,5 @@ When all top-level checkboxes in `## TODOs` and `## Final Verification Wave` are
 - No `--dry-run` as completion evidence.
 - No tests-only completion claim. A Manual-QA artifact is required.
 - No completion claim while an applicable ultraqa adversarial class was never probed. Each applicable class needs a captured observable result; each skipped class needs a one-line not-applicable reason in the ledger.
-- No unprefixed session ids in Boulder state. Codex sessions are always `codex:<session_id>`.
+- No hand-edited Boulder, goal, or session state. Use `lazyz ulw-loop create-goals`, `status`, evidence, checkpoint, and completion commands.
 - No stale-memory execution. The plan and ledger are the durable source of truth.

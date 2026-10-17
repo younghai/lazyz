@@ -7,7 +7,7 @@
 						"type": "command",
 						"command": "node \"${PLUGIN_ROOT}/dist/cli.js\" hook session-start",
 						"timeout": 5,
-						"statusMessage": "(LazyZ 0.10.2) Recording Session Telemetry"
+						"statusMessage": "(LazyZ 0.11.0) Recording Session Telemetry"
 					}
 				]
 			}

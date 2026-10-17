@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { isProcessAlive, readLockPid, tryAcquireLock } from "../src/lock.js";
@@ -47,5 +47,30 @@ describe("daemon lock", () => {
 		const handle = tryAcquireLock(lockPath);
 		expect(handle).not.toBeNull();
 		expect(readFileSync(lockPath, "utf8").trim()).toBe(String(process.pid));
+	});
+
+	it("#given stale ownership while another recovery guard is held #when acquiring #then it fails closed without unlinking the observed lock", () => {
+		const lockPath = tempLockPath();
+		mkdirSync(dirname(lockPath), { recursive: true });
+		writeFileSync(lockPath, `${DEAD_PID}\n`);
+		const recovery = tryAcquireLock(`${lockPath}.recovery`, process.pid);
+
+		const handle = tryAcquireLock(lockPath);
+
+		expect(handle).toBeNull();
+		expect(readLockPid(lockPath)).toBe(DEAD_PID);
+		recovery?.release();
+	});
+
+	it("#given an orphaned recovery guard #when acquiring a stale lock #then it fails closed", () => {
+		const lockPath = tempLockPath();
+		mkdirSync(dirname(lockPath), { recursive: true });
+		writeFileSync(lockPath, `${DEAD_PID}\n`);
+		writeFileSync(`${lockPath}.recovery`, `${DEAD_PID}\n`);
+
+		const handle = tryAcquireLock(lockPath);
+
+		expect(handle).toBeNull();
+		expect(readLockPid(lockPath)).toBe(DEAD_PID);
 	});
 });

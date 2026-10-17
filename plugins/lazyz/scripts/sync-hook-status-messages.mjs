@@ -57,7 +57,7 @@ function syncHooksJson(hooksJson, versionForCommand) {
 	for (const groups of Object.values(hooksJson.hooks)) {
 		for (const group of groups) {
 			for (const hook of group.hooks) {
-				if (hook.type !== "command") continue;
+				if (hook.type !== "command" && hook.type !== "process") continue;
 				const label = normalizeLazyCodexHookStatusLabel(hook.statusMessage);
 				hook.statusMessage = formatLazyCodexHookStatusMessage(versionForCommand(hook.command), label);
 			}

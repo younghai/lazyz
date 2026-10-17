@@ -20,7 +20,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
  *   - Progress for start-work is derived from the plan markdown's column-0
  *     checkboxes under `## Todos` / `## Final Verification Wave`, NOT from
  *     boulder.json (which only carries the active-plan pointer).
- *   - ulw-loop goals.json is written by the `omo ulw-loop` TS CLI with atomic
+ *   - ulw-loop goals.json is written by the `lazyz ulw-loop` TS CLI with atomic
  *     writes + a mutation lock, so its schema is stable (version 1).
  */
 
@@ -43,6 +43,7 @@ export type StartWorkSnapshot = {
 	readonly ledgerPath: string;
 	readonly worktreePath: string | null;
 	readonly status: BoulderWorkStatus | undefined;
+	readonly failCount: number | undefined;
 	readonly checklist: PlanChecklist;
 	/** True when the plan or boulder.json could not be parsed confidently. */
 	readonly degraded: boolean;
@@ -125,6 +126,7 @@ export function readInProgressStartWork(cwd: string): StartWorkSnapshot | null {
 		ledgerPath: join(cwd, ".omo", "start-work", "ledger.jsonl"),
 		worktreePath: work.worktreePath ?? null,
 		status: work.status,
+		failCount: work.failCount,
 		checklist,
 		degraded: false,
 	};
@@ -155,6 +157,7 @@ export function readInProgressStartWorkLenient(cwd: string): StartWorkSnapshot |
 			ledgerPath: join(cwd, ".omo", "start-work", "ledger.jsonl"),
 			worktreePath: null,
 			status: undefined,
+			failCount: undefined,
 			checklist: emptyChecklist(),
 			degraded: true,
 		};
@@ -334,7 +337,7 @@ function parseIsoToMs(value: string | undefined): number | null {
 }
 
 function isContinuableStatus(status: BoulderWorkStatus | undefined): boolean {
-	return status === "active" || status === "paused";
+	return status === "active" || status === "paused" || status === "blocked";
 }
 
 function emptyChecklist(): PlanChecklist {

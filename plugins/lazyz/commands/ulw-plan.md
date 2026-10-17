@@ -1,5 +1,5 @@
 ---
-description: Explore-first planning consultant. Grounds in the codebase, asks only the forks exploration cannot resolve, waits for explicit approval, then writes ONE decision-complete work plan a worker executes with zero further interview. Never writes product code.
+description: Explicitly invoke the explore-first ulw-plan workflow. Grounds in the codebase, asks only the forks exploration cannot resolve, waits for explicit approval, then writes one decision-complete work plan. Never writes product code.
 argument-hint: "\"what to build\""
 ---
 

@@ -2,7 +2,7 @@
 
 [![ci](https://img.shields.io/badge/ci-pending-lightgrey.svg)](#) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Codex plugin component for durable repo-native multi-goal orchestration with embedded success criteria and observable evidence audit. State lives under `.omo/ulw-loop/` and is mutated through the `omo ulw-loop` CLI.
+Codex plugin component for durable repo-native multi-goal orchestration with embedded success criteria and observable evidence audit. State lives under `.omo/ulw-loop/` and is mutated through the `lazyz ulw-loop` CLI.
 
 ## CLI
 
@@ -10,18 +10,23 @@ Every subcommand below is implemented. Pass `--json` where supported for machine
 
 | Subcommand | Purpose |
 |------------|---------|
-| `omo ulw-loop help` | Print CLI usage. |
-| `omo ulw-loop create-goals` | Create repo-native goals and seed success criteria from a brief. |
-| `omo ulw-loop status` | Report active goal, criteria, and evidence state. |
-| `omo ulw-loop complete-goals` | Start or resume the next eligible goal, or report aggregate completion / blocked handoff. |
-| `omo ulw-loop checkpoint` | Gate a goal transition with evidence; final completion requires a complete Codex goal snapshot and a passing quality gate. |
-| `omo ulw-loop steer` | Apply a steering mutation proposal to the plan. |
-| `omo ulw-loop add-goal` | Append a goal to the active plan. |
-| `omo ulw-loop criteria` | Inspect one goal's success criteria. |
-| `omo ulw-loop record-evidence` | Record observable evidence for one criterion. |
-| `omo ulw-loop record-review-blockers` | Mark a goal as review-blocked and add follow-up work from final-review findings. |
+| `lazyz ulw-loop help` | Print CLI usage. |
+| `lazyz ulw-loop create-goals` | Create repo-native goals and seed success criteria from a brief. |
+| `lazyz ulw-loop status` | Report active goal, criteria, and evidence state. |
+| `lazyz ulw-loop complete-goals` | Start or resume the next eligible goal, or report aggregate completion / blocked handoff. |
+| `lazyz ulw-loop checkpoint` | Gate a goal transition with evidence; final completion requires a complete Codex goal snapshot and a passing quality gate. |
+| `lazyz ulw-loop steer` | Apply a steering mutation proposal to the plan. |
+| `lazyz ulw-loop add-goal` | Append a goal to the active plan. |
+| `lazyz ulw-loop criteria` | Inspect one goal's success criteria. |
+| `lazyz ulw-loop record-evidence` | Record observable evidence for one criterion. |
+| `lazyz ulw-loop record-review-blockers` | Mark a goal as review-blocked and add follow-up work from final-review findings. |
+| `lazyz ulw-loop quality-context` | Emit the strict plan, final-task, criterion, QA-root, and current-source binding for a final gate. |
 
-The final quality gate parsed by `checkpoint` validates `codeReview`, `manualQa`, `gateReview`, `iteration`, and `criteriaCoverage`. `criteriaCoverage` records the original intent, desired outcome, user-facing outcome review, pass counts, and covered adversarial classes.
+Final `checkpoint` completion accepts only schema v2 quality gates. Start with `lazyz ulw-loop quality-context --goal-id <final-id> --json`, copy its `binding`, exact `criterionRefs`, `totalCriteria`, and `qaRoot`, then submit hash-bound reports, artifacts, and successful command execution records. Every criterion uses the unambiguous `Gxxx/Cxxx` form because criterion IDs repeat per goal. Submitted counts, task text, and source strings are compared with the actual plan and current Git provenance rather than trusted as assertions.
+
+Reports and QA artifacts must be canonical regular files inside `.omo/ulw-loop[/<session>]/qa`; links, path escapes, missing files, and SHA-256 mismatches fail closed. Each successful criterion needs one surface-evidence row tied to an `exitCode: 0` execution whose command and artifact references match. See [strict-quality-gate.example.json](skills/ulw-loop/references/strict-quality-gate.example.json) for the complete schema.
+
+Trust limit: these checks make evidence tampering and stale/arbitrary binding detectable at checkpoint time. They do not independently prove that a human or agent actually ran a command; an execution record is a durable claim bound to current source and artifact bytes, not a cryptographic attestation from an external runner.
 
 ## Codex Plugin
 

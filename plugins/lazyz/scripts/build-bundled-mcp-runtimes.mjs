@@ -19,7 +19,6 @@ const runtimes = [
 		label: "lsp-daemon",
 		packageRoot: join(repoPackagesRoot, "lsp-daemon"),
 		requiredOutputs: ["dist/cli.js", "dist/index.js", "dist/index.d.ts"],
-		install: true,
 	},
 	{
 		label: "git-bash-mcp",
@@ -33,26 +32,13 @@ for (const runtime of runtimes) {
 }
 
 function buildRuntime(runtime) {
-	if (hasBundledDist(runtime)) {
-		console.log(`Using bundled ${runtime.label} dist`);
-		return;
-	}
-
 	if (!existsSync(join(runtime.packageRoot, "package.json"))) {
 		assertBundledDist(runtime);
 		console.log(`Using bundled ${runtime.label} dist`);
 		return;
 	}
 
-	if (runtime.install === true && !existsSync(join(runtime.packageRoot, "node_modules"))) {
-		const install = spawnSync("npm", ["ci"], {
-			cwd: runtime.packageRoot,
-			shell: process.platform === "win32",
-			stdio: "inherit",
-		});
-		if (install.error !== undefined) throw install.error;
-		if (install.status !== 0) process.exit(install.status ?? 1);
-	}
+	assertDependenciesInstalled(runtime);
 
 	const result = spawnSync("npm", ["run", "build"], {
 		cwd: runtime.packageRoot,
@@ -63,8 +49,17 @@ function buildRuntime(runtime) {
 	if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-function hasBundledDist(runtime) {
-	return runtime.requiredOutputs.every((output) => existsSync(join(runtime.packageRoot, output)));
+function assertDependenciesInstalled(runtime) {
+	for (let dir = runtime.packageRoot; ; dir = dirname(dir)) {
+		if (existsSync(join(dir, "node_modules"))) return;
+		const parent = dirname(dir);
+		if (parent === dir) break;
+	}
+
+	console.error(
+		`Cannot build ${runtime.label}: dependencies are not installed for ${runtime.packageRoot}. Run npm ci at the workspace root before building.`,
+	);
+	process.exit(1);
 }
 
 function assertBundledDist(runtime) {

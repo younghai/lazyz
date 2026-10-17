@@ -1,6 +1,6 @@
 ---
 name: ultrawork
-description: Binding ultrawork mode directive for LazyZ on ZCode. When a prompt contains ultrawork or ulw, the LazyZ UserPromptSubmit hook injects a short bootstrap that points at this file. Read the whole file and follow every rule in it for the rest of the task.
+description: Binding ultrawork mode directive for omo on Codex. When a prompt contains ultrawork or ulw, the omo UserPromptSubmit hook injects a short bootstrap that points at this file. Read the whole file and follow every rule in it for the rest of the task.
 metadata:
   short-description: Binding ultrawork mode directive
 ---
@@ -65,7 +65,12 @@ exercises the surface; capture the artifact.
      if Chrome is not available, download and use agent-browser
      (https://github.com/vercel-labs/agent-browser). Capture action
      log + screenshot path. Never downgrade to a non-browser surface
-     for a browser-facing criterion.
+     for a browser-facing criterion. NEVER clear cookies, cache, or
+     site data (`Network.clearBrowserCookies`, `Storage.clearCookies`,
+     `chrome.browsingData.remove`, "clear browsing data") on the user's
+     real/main browser profile. If the task needs that profile's login
+     state, clone the profile first and launch the browser against the
+     clone as its user-data-dir; clear data only in the clone.
   4. Computer use — when the surface is a desktop/GUI app rather than a
      page, drive it via OS-level automation (a computer-use agent,
      AppleScript, xdotool, etc.) against the running app; capture
