@@ -3285,9 +3285,9 @@ ${TOP_LEVEL_HELP}`);
   return 1;
 }
 main().then((code) => {
-  process.exit(code);
+  process.exitCode = code;
 }).catch((error) => {
   process.stderr.write(`[omo] ${error instanceof Error ? error.message : String(error)}
 `);
-  process.exit(1);
+  process.exitCode = 1;
 });
