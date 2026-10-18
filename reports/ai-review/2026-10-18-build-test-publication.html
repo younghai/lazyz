@@ -5,14 +5,22 @@
 <h1>LazyZ 0.11.0 — 빌드·테스트 및 공개 검증</h1>
 <p>2026-10-18 KST · 대상: <code>lazyz-github</code> · 제품 경로: <code>plugins/lazyz</code> · 이번 요청: 전체 빌드·테스트, 발견 문제 수정, GitHub 커밋·푸시.</p>
 <section><h2>결과와 검증 한계</h2>
-<p>정의된 LazyZ 제품 검사 <code>npm run check</code>가 종료 코드 0으로 완료됐다. 테스트 <strong>1,385개</strong>, 12개 컴포넌트 타입 검사, ZCode 호환성 검사가 통과했다. 잠긴 의존성 감사는 0건이며 소스 없는 807파일 설치 묶음의 무결성 검사도 통과했다.</p>
-<p>이 문서는 커밋 직전의 로컬 검증 기록이다. 원격 게시와 CI의 최종 상태는 <a href="https://github.com/younghai/lazyz/actions">GitHub Actions</a>에서 해당 커밋과 연결해 확인한다. GitHub Release·홈페이지 배포·실제 ZCode 운영 검증을 의미하지 않는다.</p>
+<p>초기 로컬 <code>npm run check</code>의 1,385개 통과 이후 회귀 테스트 6개를 추가했다. 최종 소스 <code>8f875db</code>는 GitHub의 Linux/macOS × Node 20/22 네 조합에서 모두 성공했다. 조합별 제품 테스트 <strong>1,391개</strong>, 12개 컴포넌트 타입 검사, ZCode 호환성 검사, 의존성 감사와 소스 없는 설치 묶음 검사가 통과했다.</p>
+<p>초기 로컬 검증 기록에 같은 날의 Node 20 CI 수정과 개인 승인 기록 복구 결과를 추가했다. 원격 결과는 아래 후속 기록의 소스 커밋과 연결한다. GitHub Release·홈페이지 배포·실제 ZCode 운영 검증을 의미하지 않는다.</p>
 <table><tr><th>판정 항목</th><th>결과와 근거</th></tr>
 <tr><td>로컬 구현·제품 검사</td><td>완료 — check 종료 코드 0, 아래의 테스트 수와 설치 묶음 검사.</td></tr>
 <tr><td>별도 상위 프로젝트 범위</td><td>OmO 전체 Codex 설치기·중첩 Codex 플러그인은 미완료 범위. 전체 adapter 탐색 실행에서 17 실패(11 import 오류 포함)를 관찰했으며, 이를 통과로 집계하지 않았다.</td></tr>
-<tr><td>로컬 테스트 부작용</td><td>초기 LSP 테스트 격리 오류로 개발자 환경의 설치 승인 두 항목이 변경됐다. 확인 가능한 원본 한 항목은 복원했고 다른 항목은 사용자 선택이 필요하다. 이후 임시 경로 전용 검사에서는 추가 변경이 없었다. 구체적인 개인 설정 기록은 공개 저장소에 포함하지 않는다.</td></tr>
-<tr><td>완전 완료 여부</td><td>로컬 제품 검사 완료. 원격 CI와 개인 설정 후속 처리는 별도 상태이며 이 문서는 자동 완료로 간주하지 않는다.</td></tr>
+<tr><td>로컬 테스트 부작용</td><td>초기 LSP 테스트 격리 오류로 개발자 환경의 설치 승인 두 항목이 변경됐다. 확인 가능한 원본 한 항목은 복원했다. 다른 항목은 사용자의 후속 지시에 따라 승인 기록만 삭제해 필요할 때 다시 묻게 했다. 삭제 전 비공개 백업을 남겼고 나머지 항목이 변하지 않았음을 확인했다. 구체적인 개인 설정과 백업은 공개 저장소에 포함하지 않는다.</td></tr>
+<tr><td>요청 완료 여부</td><td>개인 승인 기록 초기화, 두 오류 수정, 소스 커밋·푸시 및 원격 CI 네 조합 통과 완료. 실제 ZCode 운영 검증·GitHub Release 발행은 범위 밖이다.</td></tr>
 <tr><td>실제 업무 개선</td><td><strong>개선 미검증</strong> — 기능·의존성·테스트 경로는 확인했지만 생산성·비용·지연의 비교 실험은 하지 않았다.</td></tr></table>
+</section>
+<section><h2>후속 기록 — Node 20 CI 호환성</h2>
+<p>2026-10-18 KST · 초기 공개 커밋 <code>7925d3c</code>의 <a href="https://github.com/younghai/lazyz/actions/runs/39046545647">첫 CI</a>는 Node 22 두 조합이 성공하고 Node 20 두 조합이 실패했다. LSP 테스트 실행기가 <code>scripts/*.test.mjs</code> 패턴을 그대로 전달해 Node 20에서 테스트 파일을 찾지 못했다.</p>
+<p>수정 커밋 <a href="https://github.com/younghai/lazyz/commit/fd2671fe14092d3c70ea3dfdde28394b837f49f9"><code>fd2671f</code></a>은 실행기 위치를 기준으로 실제 파일 목록을 정렬해 전달한다. 셸 확장이나 새 의존성을 추가하지 않았으며 지원 Node 버전도 그대로 유지했다. 공백 경로·다른 작업 폴더·Vitest 실패·Node 실패·빈 목록을 다루는 회귀 테스트 네 개를 추가했다.</p>
+<p>첫 수정의 로컬 LSP 검사 10개와 canonical build는 통과했다. <a href="https://github.com/younghai/lazyz/actions/runs/39125104247">CI 39125104247</a>에서 파일 탐색 문제는 해결됐지만 macOS Node 20의 checkpoint 결과 JSON이 잘리는 별도 실패를 발견했다.</p>
+<p>추가 수정 <a href="https://github.com/younghai/lazyz/commit/8f875dbc89003efd7edc7220b7f8794615aeb8dc"><code>8f875db</code></a>은 ulw-loop CLI의 강제 종료를 종료 코드 설정으로 바꿔 출력이 끝나도록 했다. 지연된 stdout/stderr 재현 테스트 두 개는 수정 전 실패, 수정 후 성공했으며 ulw-loop 31개 검사와 타입 검사도 통과했다.</p>
+<p><strong>최종 원격 결과: <a href="https://github.com/younghai/lazyz/actions/runs/39125322408">CI 39125322408 — success, 4/4</a>.</strong> Ubuntu Node 20/22와 macOS Node 20/22 모두 빌드·생성 파일 일치·타입·제품 테스트·의존성 감사·설치 묶음 검사를 통과했다. 검증 대상 소스 커밋은 <code>8f875dbc89003efd7edc7220b7f8794615aeb8dc</code>다. 이후 이 결과를 기록하는 문서 전용 커밋은 제품 소스를 변경하지 않는다.</p>
+<p>원본 승인 값을 추측하지 않고 사용자 지시에 따라 해당 항목만 초기화했다. 이 변경은 개인 설정에만 적용했고 패키지 설치·제거, GitHub 권한 변경, 다른 승인 기록 변경은 하지 않았다.</p>
 </section>
 <section><h2>이번에 수정한 문제</h2><ol>
 <li>네이티브 process 훅의 실행 경로가 <code>command</code>가 아닌 <code>args</code>에 있는 경우 테스트가 놓치던 문제. bootstrap → CodeGraph 순서 조건은 유지했다.</li>
@@ -26,10 +34,10 @@
 <li><code>/start-work</code>를 승인된 기존 계획을 실행하는 <code>/ulw-execute</code> 계약과 통일했다.</li>
 </ol></section>
 <section><h2>실행한 검사와 범위</h2>
-<p>주 실행 환경: macOS, Node 26.5.0, npm 11.17.0, Bun 1.4.2. 설치 묶음 doctor/help는 Node 24.19.0에서도 확인했다. CI 정의는 Linux/macOS × Node 20/22이며 로컬 결과를 그 네 조합의 결과로 대신하지 않는다.</p>
+<p>초기 로컬 환경: macOS, Node 26.5.0, npm 11.17.0, Bun 1.4.2. 설치 묶음 doctor/help는 Node 24.19.0에서도 확인했다. 이후 GitHub에서 Linux/macOS × Node 20/22 네 조합을 직접 실행해 모두 성공했다. 아래 테스트 수는 추가된 회귀 검사까지 포함한다.</p>
 <table><tr><th>검사</th><th>결과</th></tr>
 <tr><td>루트 검사</td><td>49 통과 — CLI, 경로·심볼릭 링크, manifest 무결성, process 훅, 설치 동의, MCP, 빌드 의존성 계약 등.</td></tr>
-<tr><td>컴포넌트</td><td>203 통과 — bootstrap 4, CodeGraph 78, comment-checker 6, git-bash 2, executor 38, LSP 6, rules 5, continuation 5, telemetry 1, ultrawork 2, ulw-loop 29, work-status 27.</td></tr>
+<tr><td>컴포넌트</td><td>209 통과 — bootstrap 4, CodeGraph 78, comment-checker 6, git-bash 2, executor 38, LSP 10, rules 5, continuation 5, telemetry 1, ultrawork 2, ulw-loop 31, work-status 27.</td></tr>
 <tr><td>독립 vendor와 사용 helper</td><td>1,133 통과 — stdio 20, utils 386, git-bash 24, comment core 1, model 288, prompts 25, rules 26, telemetry 24, LSP core 37, daemon 142, tools 98, bootstrap helper 62.</td></tr>
 <tr><td>타입·호환성</td><td>12개 컴포넌트 typecheck, MCP 소스 build, ZCode compatibility 통과. LSP tools 별도 typecheck 통과.</td></tr>
 <tr><td>의존성</td><td>npm ci 완료. npm audit 0 vulnerabilities. 새로운 기능 패키지는 추가하지 않고 기존 CLI 빌드 도구를 명시했다.</td></tr>
@@ -43,9 +51,9 @@
 <tr><td>1. 맥락·방향·결과 우선</td><td>적용</td><td>공개 checkout만 수정하고 사용자 요청의 검사·게시를 기준으로 진행.</td><td>별도 개발 checkout은 자동 역동기화하지 않는다.</td></tr>
 <tr><td>2. AI 원리 설명</td><td>적용</td><td>아래 정적 흐름과 Mermaid 소스.</td><td>내부 모델 연산·운영 효과를 관찰한 것으로 표현하지 않는다.</td></tr>
 <tr><td>3. 60/30/10 포트폴리오</td><td>부분 적용</td><td>반복 검증 60%, 방법 개선 30%, 실험 10%를 향후 배분안으로만 제시.</td><td>실제 투입 비율은 미측정; 단일 작업 할당량으로 쓰지 않는다.</td></tr>
-<tr><td>4. 빈도·효과·낮은 위험</td><td>부분 적용</td><td>매 공개 시 재사용할 잠금 설치·빌드·테스트에 집중했으나 테스트 격리 부작용이 발생.</td><td>임시 경로 강제 유지, 잔여 개인 설정은 사용자 선택으로 처리.</td></tr>
+<tr><td>4. 빈도·효과·낮은 위험</td><td>부분 적용</td><td>매 공개 시 재사용할 잠금 설치·빌드·테스트에 집중했으나 테스트 격리 부작용이 발생. 후속 사용자 지시로 승인 기록 복구를 완료.</td><td>임시 경로 강제 유지. 백업과 개인 기록은 공개하지 않는다.</td></tr>
 <tr><td>5. 실제 적용·적합성</td><td>부분 적용</td><td>실제 공개 소스와 설치 묶음에 적용. 기술 검증만 수행.</td><td>실제 ZCode 업무의 적합성·효율은 별도 승인된 파일럿 필요.</td></tr>
-<tr><td>6. 성공 workflow 재사용</td><td>부분 적용</td><td>잠금 설치→소스 빌드→제품 검사→source-free 검사가 로컬에서 성공.</td><td>CI 이식성과 반복 실행 근거를 축적하기 전 운영 성공으로 일반화하지 않는다.</td></tr>
+<tr><td>6. 성공 workflow 재사용</td><td>부분 적용</td><td>잠금 설치→소스 빌드→제품 검사→source-free 검사가 로컬과 네 CI 조합에서 성공.</td><td>운영 성공으로 일반화하지 않으며 실제 ZCode 업무의 반복 실행 근거는 별도다.</td></tr>
 <tr><td>7. 전후 HTML 보고</td><td>적용</td><td>날짜·검사 수·출처·한계·위험을 이 파일에 기록.</td><td>원격 상태는 해당 commit의 Actions 결과와 연결한다.</td></tr></table></section>
 <section><h2>입력 → 처리 → 결과 → 사람 검토</h2>
 <div class="flow"><span>0.11.0 공개 준비본과 사용자 요청</span><span>→ 소스·실패 로그 분석 및 수정</span><span>→ 빌드·테스트·설치 묶음</span><span>→ 변경 검토·게시·잔여 설정 선택</span></div>
@@ -58,10 +66,10 @@
   E --> F[원격 검사 및 미확인 범위 확인]
 </pre></section>
 <section><h2>전후 결과 비교</h2><table><tr><th>차원</th><th>기준선</th><th>이후 결과</th><th>기간·단위</th><th>출처</th><th>판정·한계</th></tr>
-<tr><td>품질</td><td>초기 제품 검사 CodeGraph 1실패, vendor 컨텍스트·경로·자료 오류.</td><td>제품 gate 1,385 통과, 0실패.</td><td>2026-10-18 실행별 테스트 건수.</td><td>check 초기/최종 로그.</td><td>검사 범위가 확대되어 단순 실패율 전후 비교는 부적절. 사용 업무 품질 미검증.</td></tr>
+<tr><td>품질</td><td>초기 제품 검사 오류와 첫 CI 2/4 실패.</td><td>최종 CI 4/4 성공, 조합별 제품 테스트 1,391 통과.</td><td>2026-10-18 실행별 테스트·조합 건수.</td><td>초기 로그와 CI 39046545647 → 39125322408.</td><td>회귀 검사가 추가돼 단순 실패율 전후 비교는 부적절. 실제 사용 업무 품질 미검증.</td></tr>
 <tr><td>시간</td><td>미측정.</td><td>미측정.</td><td>같은 업무 처리시간 비교 없음.</td><td>비교 실험 없음.</td><td>속도 개선 주장하지 않음.</td></tr>
 <tr><td>비용</td><td>미측정.</td><td>미측정. 유료 provider API를 호출하지 않음.</td><td>작업당 비용 비교 없음.</td><td>도구 사용 범위.</td><td>세션 자체의 토큰 비용과 절감액 미측정.</td></tr>
-<tr><td>위험</td><td>의존성 감사 4항목, 빌드 중 재설치, 격리 불충분한 vendor 테스트.</td><td>감사 0건, 재설치 제거·임시 경로 강제. 초기 격리 실수의 개인 설정 1항목은 사용자 선택 대기.</td><td>2026-10-18 감사 건수와 변경 항목.</td><td>npm audit·빌드 spy·격리 검사·사건 기록.</td><td>취약점 감사와 운영·개인 설정 위험을 합산해 개선으로 단정하지 않음.</td></tr></table></section>
+<tr><td>위험</td><td>의존성 감사 4항목, 빌드 중 재설치, 격리 불충분한 vendor 테스트.</td><td>감사 0건, 재설치 제거·임시 경로 강제. 개인 설정 한 항목은 원본 복원, 다른 항목은 사용자 지시로 재승인 상태로 초기화 완료.</td><td>2026-10-18 감사 건수와 변경 항목.</td><td>npm audit·빌드 spy·격리 검사·사건 기록.</td><td>취약점 감사와 운영·개인 설정 위험을 합산해 개선으로 단정하지 않음.</td></tr></table></section>
 <section><h2>재사용 후보와 후속조치</h2>
 <p>반복 공개가 있을 때마다 잠금 설치 → 소스 재빌드 → 제품 gate → 별도 설치 묶음 검사를 사용하는 후보가 있다. 매 release마다 수행할 가능성이 높다는 추정이며 실제 빈도는 기록하지 않았다. 실패 시 게시를 중단하고 소스를 고친 후 관련 검사를 다시 수행한다. 전역 설치·모델 호출·비밀정보 변경은 포함하지 않는다.</p>
 <p>회복은 이후 Git revert로 수행할 수 있다. import 도구는 대상 전용 파일을 삭제하지 않으며, 덮어쓰기 전 임시 백업을 만든다. <code>docs/reports/source-snapshot.json</code>은 10월 17일 가져온 원본의 해시 목록이지 이번 수리 후 최종 파일의 해시 목록이 아니다. 최종 변경은 Git 이력, CLI provenance, export manifest로 추적한다.</p>

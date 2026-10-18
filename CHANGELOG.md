@@ -4,6 +4,11 @@
 
 October 18 publication repairs and local checks:
 
+- Follow-up source `8f875db`: [all four Linux/macOS × Node 20/22 CI jobs passed](https://github.com/younghai/lazyz/actions/runs/39125322408),
+  with 1,391 product tests per job. Enumerated explicit LSP test files for Node 20
+  and allowed ulw-loop CLI output to drain before exit; six regressions added.
+- The following 1,385-test result is the earlier local baseline, before those
+  six regression tests were added.
 - Full LazyZ check: 1,385 tests passed (49 root, 203 component, 1,133 vendor/helper),
   all component typechecks and ZCode compatibility check passed.
 - Removed build-time dependency installation; source builds regenerate MCP

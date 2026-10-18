@@ -10,9 +10,9 @@ their maintainers. Upstream attribution and vendored licenses are retained.
 This snapshot imports development sources and prebuilt runtimes. It does not
 certify a live ZCode installation or indicate that a GitHub release was published.
 
-October 18: the full LazyZ build/check passed with 1,385 tests and zero locked
+October 18: [all four Linux/macOS × Node 20/22 CI jobs passed](https://github.com/younghai/lazyz/actions/runs/39125322408)
+for source commit `8f875db`, including 1,391 product tests per job and zero locked
 dependency audit findings. See [the dated verification and scope report](reports/ai-review/2026-10-18-build-test-publication.html).
-Remote checks are visible in [GitHub Actions](https://github.com/younghai/lazyz/actions).
 
 | Included surface | Current inventory |
 | --- | ---: |
