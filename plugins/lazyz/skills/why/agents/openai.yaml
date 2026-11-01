@@ -1,0 +1,5 @@
+interface:
+  display_name: "(LazyZ) why"
+  short_description: "Investigate design intent with graded, cited evidence"
+  search_terms: ["why", "design intent", "rationale"]
+  default_prompt: "Use why to investigate why this code looks this way, with confidence-graded citations."

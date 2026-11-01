@@ -1,6 +1,6 @@
 # LazyZ
 
-> **Last updated: 2026-11-01** — LazyZ 0.12.1: poteto-mode ported; 0.12.0 synced
+> **Last updated: 2026-11-01** — LazyZ 0.12.2: how·why ported; 0.12.1 poteto-mode;
 > upstream omo 5.1.54 (ulw-loop spawn guards, stop-resume, ulw-execute).
 > See [ZCode-native 0.11](plugins/lazyz/docs/zcode-native-0.11.md) for the
 > pinned host-source basis and known limits.
@@ -19,7 +19,7 @@ installable ZCode plugin.
 > belongs to the OmO maintainers.
 
 <!-- lazyz-resource-counts:start -->
-> Generated inventory: **30 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
+> Generated inventory: **32 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
 <!-- lazyz-resource-counts:end -->
 
 ## Why LazyZ exists
@@ -253,6 +253,8 @@ the `/` menu. The **skill layer** adds specialist judgment for the actual work.
 | `benchmark-checklist` | Vet a performance number before reporting or acting on it *(LazyZ-only, from pstack)* |
 | `blast-radius` | Find what a change could break and prove safety by running code *(LazyZ-only, from pstack)* |
 | `poteto-mode` | pstack playbook-routing entrypoint (explicit `/poteto-mode` invocation) *(from pstack)* |
+| `how` | Dissect actual runtime behavior: paths, state, failure routes *(from pstack)* |
+| `why` | Investigate design intent with confidence-graded citations *(from pstack)* |
 
 Plus: `debugging`, `visual-qa`, `git-master`, `comment-checker`, `refactor`,
 `coding-agent-sessions`, `ultimate-browsing`, `ulw-research`, `lsp-setup`,

@@ -22,7 +22,7 @@ description: "pstack/poteto 방식의 과업 라우팅 진입점 — 요청을 �
 
 | 요청 모양 | 플레이북 / lazyz 대응 |
 |---|---|
-| 읽기 전용 질문 — "어떻게 돼?", "왜 이렇게?", "확실해?" | investigation (`lazyz:explorer`·`lazyz:librarian` 서브에이전트 연계) |
+| 읽기 전용 질문 — "어떻게 돼?", "왜 이렇게?", "확실해?" | investigation (`how`·`why` 스킬 + `lazyz:explorer`·`librarian` 연계) |
 | 보고된 결함 — 재현→원인→수정→검증 | bug-fix (`debugging` 스킬) |
 | 새 동작·동작 변경 | feature (`ulw-plan`으로 계획 → 승인 후 `ulw-execute`) |
 | 구조·모양 바꾸기, 행동 보존 | refactoring (`refactor` 스킬) |
@@ -42,7 +42,7 @@ description: "pstack/poteto 방식의 과업 라우팅 진입점 — 요청을 �
 
 ## 형제 스킬 위임 (lazyz가 제공하는 것만)
 
-단계가 필요로 하면 부르고, 결과만 메인에 남긴다(guard-the-context-window): `review-work`(다각 검토), `debugging`(가설 주도 조사), `refactor`, `benchmark-checklist`(수치 검증), `blast-radius`(변경 영향·안전 사실 증명), `visual-qa`, `git-master`, `coding-agent-sessions`, `remove-ai-slops`. 원본 pstack의 나머지 형제 스킬(how·why, arena, interrogate, correct, ketchup, recall, unslop, sharpen, retro, reflect, decision-log)은 lazyz 배포물에 없다 — 전역 스택(`~/.agents/skills/`)에 있으면 쓰고, 없으면 이 라우터가 직접 수행한다.
+단계가 필요로 하면 부르고, 결과만 메인에 남긴다(guard-the-context-window): `review-work`(다각 검토), `debugging`(가설 주도 조사), `refactor`, `benchmark-checklist`(수치 검증), `blast-radius`(변경 영향·안전 사실 증명), `how`·`why`(실행 동작 해부·설계 의도 조사), `visual-qa`, `git-master`, `coding-agent-sessions`, `remove-ai-slops`. 원본 pstack의 나머지 형제 스킬(arena, interrogate, correct, ketchup, recall, unslop, sharpen, retro, reflect, decision-log)은 lazyz 배포물에 없다 — 전역 스택(`~/.agents/skills/`)에 있으면 쓰고, 없으면 이 라우터가 직접 수행한다.
 
 ## 이 환경의 도구 규칙
 

@@ -12,7 +12,7 @@ Labs; all credit for the underlying harness belongs to the OmO maintainers.
 ZCode 3.14.3, not a runtime probe; see [ZCode-native 0.11](docs/zcode-native-0.11.md).
 
 <!-- lazyz-resource-counts:start -->
-> Generated inventory: **30 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
+> Generated inventory: **32 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
 <!-- lazyz-resource-counts:end -->
 
 ---
@@ -85,6 +85,7 @@ That is the whole core workflow. The other skills (`debugging`,
 `programming`, `frontend`, `refactor`, `remove-ai-slops`, `ast-grep`,
 `benchmark-checklist` and `blast-radius` (LazyZ-only, ported from pstack),
 `poteto-mode` (pstack playbook router, explicit invocation only),
+`how`·`why` (runtime dissection & graded design-rationale investigation, from pstack),
 `lsp-setup`, `ulw-research`, `ultimate-browsing`, `coding-agent-sessions`,
 `visual-qa`, `teammode`, `ultrawork`, and the `lcx-*` contributor tools) are
 opt-in power tools.

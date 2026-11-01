@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.12.2 — 2026-11-01
+
+### how / why investigation skills ported
+
+- New skills `how` and `why` (32 skills total), adapted from pstack v0.15.25
+  (MIT, poteto) — both already ZCode-adapted and lazyz-aware (they reference
+  `lazyz:explorer` and `.omo/evidence`), ported with attribution kept.
+  - `why` — investigate design intent and rationale: git blame → commit/PR
+    bodies (gh) → issues → local docs/evidence in parallel, answering with
+    confidence-graded citations (Direct/Supported/Inferred/Speculative).
+  - `how` — dissect actual runtime behavior of a subsystem: call paths,
+    state, failure paths, side effects, with a read-vs-run distinction.
+- `poteto-mode` routing updated: the investigation row and the sibling-skill
+  delegation list now point at the lazyz-shipped `how`/`why` (removed from
+  the global-only leftovers list).
+
 ## 0.12.1 — 2026-11-01
 
 ### poteto-mode ported (reverses the 0.12.0 not-ported note)

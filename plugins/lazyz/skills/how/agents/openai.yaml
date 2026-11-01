@@ -1,0 +1,5 @@
+interface:
+  display_name: "(LazyZ) how"
+  short_description: "Dissect how a subsystem actually behaves at runtime"
+  search_terms: ["how", "execution path", "behavior"]
+  default_prompt: "Use how to explain how this subsystem works end to end, with file:line citations."
