@@ -40,8 +40,12 @@ Selective sync from upstream omo 5.1.54 (previous baseline: 5.1.22 in 0.11.0).
 
 - `codegraph` MCP/component/hooks KEPT (upstream removed it): local sessions
   show real `mcp__codegraph__` tool usage.
-- `benchmark-checklist` and `blast-radius` skills (ported from pstack, MIT)
-  remain LazyZ-only.
+- `benchmark-checklist` and `blast-radius` skills (ported 2026-10-18 from
+  pstack, MIT — see the 0.11.0 publication-repairs entry) remain LazyZ-only.
+- `poteto-mode` (pstack playbook-routing entrypoint, global v0.15.36) is
+  intentionally NOT ported: it routes through vibe-mode-owned discipline, which
+  conflicts with the hephaestus rules and the ultrawork/ulw-* loop LazyZ already
+  runs. It keeps working as a global skill in `~/.agents/skills/`.
 - `ultimate-browsing`: added a ZCode note pointing interactive browser work
   at the built-in browser-use plugin skills (control-browser /
   web-gui-tester) first.
@@ -56,6 +60,28 @@ Selective sync from upstream omo 5.1.54 (previous baseline: 5.1.22 in 0.11.0).
 - The 0.11.0 cache snapshot is preserved at `~/.zcode-backup/lazyz-0.11.0`
   for rollback.
 
+
+## 0.11.0 publication repairs — 2026-10-18
+
+- Remove implicit installs from LSP builders and regenerate MCP source bundles.
+- Declare esbuild directly and lock patched js-yaml/source-map-js/Vitest versions.
+- Align `/start-work` with approved-plan execution and test native hook argv.
+- Isolate LSP test contexts, preserve fail-closed core context rules, and handle
+  standalone resource probes without affecting daemon workspace confinement.
+- Load bundled Markdown prompts as text; preserve raw prompt content under Bun.
+- Make vendored tests portable and reconcile frozen capability metadata spelling
+  without changing provider routing or inherited ZCode model selection.
+- Port two discipline skills from pstack (cursor/plugins, MIT, poteto) as
+  LazyZ-only additions: `benchmark-checklist` (vet a performance number before
+  reporting or acting on it) and `blast-radius` (find what a change could break
+  and prove the safety fact by running code). Both adapted for ZCode — no
+  Cursor-only tools or model routing — with upstream attribution preserved in
+  each SKILL.md. The overlapping pstack skills (arena, interrogate, unslop,
+  show-me-your-work) and the routing-layer skills (vibe-mode, poteto-mode) stay
+  global-only (`~/.agents/skills/`) to avoid routing conflicts with the
+  hephaestus rules and ultrawork/ulw-* execution loop.
+- Local product check: 1,385 passing tests, component typechecks and compatibility.
+  This does not certify live ZCode, paid providers or the upstream Codex installer.
 
 ## 0.11.0 — 2026-10-07
 

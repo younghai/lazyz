@@ -83,6 +83,7 @@ that you can ignore until you need them.
 **Typical first session:** `init-deep` → `ulw-plan` → approve → `ulw-execute`.
 That is the whole core workflow. The other skills (`debugging`,
 `programming`, `frontend`, `refactor`, `remove-ai-slops`, `ast-grep`,
+`benchmark-checklist` and `blast-radius` (LazyZ-only, ported from pstack),
 `lsp-setup`, `ulw-research`, `ultimate-browsing`, `coding-agent-sessions`,
 `visual-qa`, `teammode`, `ultrawork`, and the `lcx-*` contributor tools) are
 opt-in power tools.

@@ -250,6 +250,8 @@ the `/` menu. The **skill layer** adds specialist judgment for the actual work.
 | `lsp` | Diagnostics, definitions, references, symbols, and renames |
 | `ast-grep` | Structural search and rewrite across code |
 | `rules` | Project instructions from AGENTS, rules, and instruction files |
+| `benchmark-checklist` | Vet a performance number before reporting or acting on it *(LazyZ-only, from pstack)* |
+| `blast-radius` | Find what a change could break and prove safety by running code *(LazyZ-only, from pstack)* |
 
 Plus: `debugging`, `visual-qa`, `git-master`, `comment-checker`, `refactor`,
 `coding-agent-sessions`, `ultimate-browsing`, `ulw-research`, `lsp-setup`,
@@ -315,8 +317,13 @@ daily-active event and opt-in controls.
 **Deliberate divergence from upstream:**
 - `codegraph` MCP/component/hooks **kept** (upstream removed it): local
   sessions show real `mcp__codegraph__` tool usage.
-- `benchmark-checklist` and `blast-radius` skills (ported earlier from
-  pstack, MIT) remain LazyZ-only additions.
+- `benchmark-checklist` and `blast-radius` skills (ported 2026-10-18 from
+  pstack, MIT — recorded in the 0.11.0 publication-repairs changelog entry)
+  remain LazyZ-only additions.
+- `poteto-mode` (pstack playbook router) intentionally NOT ported: it depends
+  on vibe-mode-owned discipline and would conflict with the hephaestus rules
+  and the ultrawork/ulw-* loop. It remains available as a global skill in
+  `~/.agents/skills/` alongside vibe-mode.
 - `ultimate-browsing` now points interactive browser work at ZCode's built-in
   **browser-use plugin** skills (`control-browser`, `web-gui-tester`) first.
 
