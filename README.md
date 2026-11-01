@@ -1,7 +1,7 @@
 # LazyZ
 
-> **Last updated: 2026-11-01** — LazyZ 0.12.0 selective sync from upstream
-> omo 5.1.54 (ulw-loop spawn guards, stop-resume, start-work → ulw-execute).
+> **Last updated: 2026-11-01** — LazyZ 0.12.1: poteto-mode ported; 0.12.0 synced
+> upstream omo 5.1.54 (ulw-loop spawn guards, stop-resume, ulw-execute).
 > See [ZCode-native 0.11](plugins/lazyz/docs/zcode-native-0.11.md) for the
 > pinned host-source basis and known limits.
 
@@ -19,7 +19,7 @@ installable ZCode plugin.
 > belongs to the OmO maintainers.
 
 <!-- lazyz-resource-counts:start -->
-> Generated inventory: **29 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
+> Generated inventory: **30 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
 <!-- lazyz-resource-counts:end -->
 
 ## Why LazyZ exists
@@ -252,6 +252,7 @@ the `/` menu. The **skill layer** adds specialist judgment for the actual work.
 | `rules` | Project instructions from AGENTS, rules, and instruction files |
 | `benchmark-checklist` | Vet a performance number before reporting or acting on it *(LazyZ-only, from pstack)* |
 | `blast-radius` | Find what a change could break and prove safety by running code *(LazyZ-only, from pstack)* |
+| `poteto-mode` | pstack playbook-routing entrypoint (explicit `/poteto-mode` invocation) *(from pstack)* |
 
 Plus: `debugging`, `visual-qa`, `git-master`, `comment-checker`, `refactor`,
 `coding-agent-sessions`, `ultimate-browsing`, `ulw-research`, `lsp-setup`,
@@ -283,6 +284,14 @@ See the [privacy details](plugins/lazyz/README.md#telemetry) for the
 daily-active event and opt-in controls.
 
 ## Changelog
+
+### 2026-11-01 — 0.12.1 poteto-mode ported
+
+- New skill `poteto-mode` (30 skills total): the pstack/poteto playbook
+  routing entrypoint (pstack v0.15.36, MIT, poteto), explicit invocation
+  only. Discipline ownership re-pointed from vibe-mode to the lazyz
+  hephaestus rules; every playbook now routes to a skill/agent lazyz ships;
+  the 14 upstream playbooks are bundled in `references/playbooks.md`.
 
 ### 2026-11-01 — 0.12.0 selective sync from upstream omo 5.1.54
 
@@ -320,10 +329,9 @@ daily-active event and opt-in controls.
 - `benchmark-checklist` and `blast-radius` skills (ported 2026-10-18 from
   pstack, MIT — recorded in the 0.11.0 publication-repairs changelog entry)
   remain LazyZ-only additions.
-- `poteto-mode` (pstack playbook router) intentionally NOT ported: it depends
-  on vibe-mode-owned discipline and would conflict with the hephaestus rules
-  and the ultrawork/ulw-* loop. It remains available as a global skill in
-  `~/.agents/skills/` alongside vibe-mode.
+- `poteto-mode` was intentionally not ported at 0.12.0 (vibe-mode discipline
+  dependency); ported in 0.12.1 with discipline re-pointed to hephaestus —
+  see the 0.12.1 entry below.
 - `ultimate-browsing` now points interactive browser work at ZCode's built-in
   **browser-use plugin** skills (`control-browser`, `web-gui-tester`) first.
 

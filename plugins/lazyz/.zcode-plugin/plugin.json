@@ -1,6 +1,6 @@
 {
   "name": "lazyz",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "LazyZ — ZCode plugin distribution of the OmO agent harness. Project memory, planning, execution, and verified completion inside ZCode.",
   "author": {
     "name": "LazyZ contributors",

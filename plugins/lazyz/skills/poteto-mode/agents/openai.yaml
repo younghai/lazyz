@@ -1,0 +1,8 @@
+interface:
+  display_name: "(LazyZ) poteto-mode"
+  short_description: "pstack-style playbook routing entrypoint (explicit invocation)"
+  search_terms:
+    - "poteto-mode"
+    - "playbook"
+    - "routing"
+  default_prompt: "Use poteto-mode to route this request to one playbook, copy its steps into the todo list, and delegate to the matching lazyz skill."

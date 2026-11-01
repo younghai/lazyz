@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.1 — 2026-11-01
+
+### poteto-mode ported (reverses the 0.12.0 not-ported note)
+
+- New skill `poteto-mode` (30th skill): the pstack/poteto playbook-routing
+  entrypoint, adapted from cursor/plugins pstack v0.15.36 (MIT, poteto).
+  Explicit invocation only (`/poteto-mode`, "pstack 방식") so it never fights
+  the hephaestus rules for ordinary turns.
+- Discipline ownership re-pointed from vibe-mode to the lazyz hephaestus
+  rules; the routing table now maps every playbook to a skill/agent lazyz
+  actually ships (debugging, ulw-plan/ulw-execute, refactor, ulw-loop,
+  benchmark-checklist, visual-qa, git-master, coding-agent-sessions,
+  lazyz:lazycodex-code-reviewer, ...).
+- The 14 upstream playbooks ship inside the skill
+  (`references/playbooks.md`) with a lazyz adaptation header, so the router
+  is self-contained without the global vibe-mode stack.
+- Sibling-skill delegation lists only lazyz-provided skills; pstack-only
+  siblings (how/why, arena, interrogate, ...) are used opportunistically from
+  the global stack when present.
+
 ## 0.12.0 — 2026-11-01
 
 Selective sync from upstream omo 5.1.54 (previous baseline: 5.1.22 in 0.11.0).

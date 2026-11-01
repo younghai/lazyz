@@ -13,7 +13,7 @@
               "session-start"
             ],
             "timeoutMs": 5000,
-            "statusMessage": "(LazyZ 0.12.0) Resetting LSP Context"
+            "statusMessage": "(LazyZ 0.12.1) Resetting LSP Context"
           }
         ]
       },
@@ -29,7 +29,7 @@
               "session-start"
             ],
             "timeoutMs": 5000,
-            "statusMessage": "(LazyZ 0.12.0) Resetting Git Reminder"
+            "statusMessage": "(LazyZ 0.12.1) Resetting Git Reminder"
           }
         ]
       },
@@ -38,7 +38,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Bootstrap State",
+            "statusMessage": "(LazyZ 0.12.1) Checking Bootstrap State",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/bootstrap/dist/cli.js",
               "hook",
@@ -53,7 +53,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking CodeGraph Bootstrap",
+            "statusMessage": "(LazyZ 0.12.1) Checking CodeGraph Bootstrap",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/codegraph/dist/cli.js",
               "hook",
@@ -68,7 +68,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Loading Project Rules",
+            "statusMessage": "(LazyZ 0.12.1) Loading Project Rules",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js",
               "hook",
@@ -83,7 +83,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Recording Session Telemetry",
+            "statusMessage": "(LazyZ 0.12.1) Recording Session Telemetry",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/telemetry/dist/cli.js",
               "hook",
@@ -98,7 +98,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Resuming Work Status",
+            "statusMessage": "(LazyZ 0.12.1) Resuming Work Status",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/work-status/dist/cli.js",
               "hook",
@@ -115,7 +115,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Ultrawork Trigger",
+            "statusMessage": "(LazyZ 0.12.1) Checking Ultrawork Trigger",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/ultrawork/dist/cli.js",
               "hook",
@@ -130,7 +130,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Ulw-Loop Steering",
+            "statusMessage": "(LazyZ 0.12.1) Checking Ulw-Loop Steering",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/ulw-loop/dist/cli.js",
               "hook",
@@ -145,7 +145,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Loading Project Rules",
+            "statusMessage": "(LazyZ 0.12.1) Loading Project Rules",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js",
               "hook",
@@ -163,7 +163,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Reserving Executor Budget",
+            "statusMessage": "(LazyZ 0.12.1) Reserving Executor Budget",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js",
               "hook",
@@ -179,7 +179,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Recommending Git Bash MCP",
+            "statusMessage": "(LazyZ 0.12.1) Recommending Git Bash MCP",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/git-bash/dist/cli.js",
               "hook",
@@ -195,7 +195,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Guarding Ulw-Loop Spawns",
+            "statusMessage": "(LazyZ 0.12.1) Guarding Ulw-Loop Spawns",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/ulw-loop/dist/cli.js",
               "hook",
@@ -213,7 +213,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Comments",
+            "statusMessage": "(LazyZ 0.12.1) Checking Comments",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/comment-checker/dist/cli.js",
               "hook",
@@ -229,7 +229,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking LSP Diagnostics",
+            "statusMessage": "(LazyZ 0.12.1) Checking LSP Diagnostics",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/lsp/dist/cli.js",
               "hook",
@@ -245,7 +245,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Matching Project Rules",
+            "statusMessage": "(LazyZ 0.12.1) Matching Project Rules",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/rules/dist/cli.js",
               "hook",
@@ -261,7 +261,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking CodeGraph Init Guidance",
+            "statusMessage": "(LazyZ 0.12.1) Checking CodeGraph Init Guidance",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/codegraph/dist/cli.js",
               "hook",
@@ -277,7 +277,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Verifying Executor Evidence",
+            "statusMessage": "(LazyZ 0.12.1) Verifying Executor Evidence",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js",
               "hook",
@@ -293,7 +293,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Recording Spawn Admission",
+            "statusMessage": "(LazyZ 0.12.1) Recording Spawn Admission",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/ulw-loop/dist/cli.js",
               "hook",
@@ -311,7 +311,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Recording Executor Failure",
+            "statusMessage": "(LazyZ 0.12.1) Recording Executor Failure",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js",
               "hook",
@@ -328,7 +328,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Executor Tasks",
+            "statusMessage": "(LazyZ 0.12.1) Checking Executor Tasks",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/lazycodex-executor-verify/dist/cli.js",
               "hook",
@@ -343,7 +343,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Start-Work Continuation",
+            "statusMessage": "(LazyZ 0.12.1) Checking Start-Work Continuation",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/start-work-continuation/dist/cli.js",
               "hook",
@@ -358,7 +358,7 @@
           {
             "type": "process",
             "command": "node",
-            "statusMessage": "(LazyZ 0.12.0) Checking Ulw-Loop Resume",
+            "statusMessage": "(LazyZ 0.12.1) Checking Ulw-Loop Resume",
             "args": [
               "${ZCODE_PLUGIN_ROOT}/components/ulw-loop/dist/cli.js",
               "hook",
