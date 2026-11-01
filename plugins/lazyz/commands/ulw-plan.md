@@ -11,7 +11,7 @@ The skill (Prometheus) will:
 1. Explore the codebase to ground the plan in reality.
 2. Surface only the open questions exploration cannot resolve (or research best-practice defaults when intent is fuzzy).
 3. Wait for explicit approval.
-4. Write one decision-complete work plan to `plans/<slug>.md`.
+4. Write one decision-complete work plan to `.omo/plans/<slug>.md` (durable draft at `.omo/drafts/<slug>.md`).
 
 ## Arguments
 

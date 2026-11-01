@@ -7,16 +7,25 @@ function safeObject(value) {
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function safeString(value) {
+    return typeof value === "string" ? value : "";
+}
+function safeStatusString(value) {
     return typeof value === "string" ? value.trim() : "";
 }
 function normalizeStatus(value) {
-    const status = safeString(value).toLowerCase();
+    const status = safeStatusString(value).toLowerCase();
     if (status === "complete" || status === "completed" || status === "done")
         return "complete";
     if (status === "cancelled" || status === "canceled")
         return "cancelled";
     if (status === "failed" || status === "failure")
         return "failed";
+    if (status === "paused")
+        return "paused";
+    if (status === "usage_limited")
+        return "usage_limited";
+    if (status === "budget_limited")
+        return "budget_limited";
     if (status === "active" || status === "in_progress" || status === "pending" || status === "running")
         return "active";
     return "unknown";
@@ -31,7 +40,7 @@ export function parseCodexGoalSnapshot(value) {
         return { available: false, raw: value };
     }
     const goal = safeObject(goalValue);
-    const objective = safeString(goal["objective"] ?? goal["goal"] ?? goal["description"] ?? root["objective"]);
+    const objective = safeString(goal["objective"] ?? goal["goal"] ?? goal["description"] ?? goal["title"] ?? root["objective"] ?? root["title"]);
     const status = normalizeStatus(goal["status"] ?? root["status"]);
     return {
         available: Boolean(objective || status !== "unknown"),
@@ -64,34 +73,37 @@ export function reconcileCodexGoalSnapshot(snapshot, options) {
     const effectiveSnapshot = snapshot ?? { available: false, raw: null };
     const errors = [];
     const warnings = [];
+    const nextActions = [];
+    const expected = options.expectedObjective;
     if (!effectiveSnapshot.available) {
-        const message = "Codex goal snapshot is absent or reports no active goal; call get_goal and pass its JSON with --codex-goal-json.";
-        if (options.requireSnapshot)
-            errors.push(message);
-        else
-            warnings.push(message);
-        return { ok: errors.length === 0, snapshot: effectiveSnapshot, warnings, errors };
+        nextActions.push(`call get_goal; if none, create_goal with codexObjective "${expected}" verbatim`);
+        return { ok: errors.length === 0, snapshot: effectiveSnapshot, warnings, nextActions, errors };
     }
-    const expected = normalizeObjective(options.expectedObjective);
-    const accepted = new Set([expected, ...(options.acceptedObjectives ?? []).map((objective) => normalizeObjective(objective))].filter(Boolean));
+    const normalized = (objectives) => new Set(objectives.map(normalizeObjective).filter(Boolean));
+    const accepted = normalized([expected, ...(options.acceptedObjectives ?? [])]);
+    const acknowledged = normalized(options.acknowledgedObjectives ?? []);
     const actual = normalizeObjective(effectiveSnapshot.objective ?? "");
-    if (!actual) {
-        errors.push("Codex goal snapshot is missing objective text.");
+    let unacknowledgedObjective;
+    if (actual && !accepted.has(actual) && !acknowledged.has(actual)) {
+        warnings.push(`driver_objective_differs: expected "${expected}", got "${actual}".`);
+        unacknowledgedObjective = actual;
     }
-    else if (!accepted.has(actual)) {
-        errors.push(`Codex goal objective mismatch: expected "${expected}", got "${actual}".`);
-    }
-    const allowed = options.allowedStatuses ?? (options.requireComplete ? ["complete"] : ["active", "complete"]);
     const actualStatus = effectiveSnapshot.status ?? "unknown";
-    if (!allowed.includes(actualStatus)) {
-        errors.push(`Codex goal status mismatch: expected ${allowed.join(" or ")}, got ${actualStatus}.`);
+    if (actualStatus === "paused" || actualStatus === "usage_limited" || actualStatus === "budget_limited") {
+        nextActions.push("/goal resume or raise the budget");
     }
-    if (options.requireComplete && actualStatus !== "complete") {
-        errors.push('Codex goal is not complete; call update_goal({status: "complete"}) only after the objective is actually complete, then pass the fresh get_goal JSON.');
-    }
-    return { ok: errors.length === 0, snapshot: effectiveSnapshot, warnings, errors };
+    if (actualStatus === "complete")
+        nextActions.push(`driver closed early: call create_goal with codexObjective "${expected}" verbatim`);
+    return {
+        ok: errors.length === 0,
+        snapshot: effectiveSnapshot,
+        warnings,
+        nextActions,
+        errors,
+        ...(unacknowledgedObjective === undefined ? {} : { unacknowledgedObjective }),
+    };
 }
 export function formatCodexGoalReconciliation(reconciliation) {
-    const parts = [...reconciliation.errors, ...reconciliation.warnings];
+    const parts = [...reconciliation.errors, ...reconciliation.nextActions, ...reconciliation.warnings];
     return parts.join(" ");
 }

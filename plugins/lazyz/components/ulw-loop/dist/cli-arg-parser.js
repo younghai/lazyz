@@ -1,8 +1,8 @@
 // biome-ignore-all format: keep this module under the mandated pure LOC budget.
 import { readFile } from "node:fs/promises";
 import { UlwLoopError } from "./types.js";
-const VALUE_FLAGS = new Set("--brief --brief-file --session-id --codex-goal-mode --goal --goal-id --criterion-id --status --evidence --notes --codex-goal-json --quality-gate-json --kind --rationale --title --objective --target-goal-id --source --after-json --directive-json --directive-file --idempotency-key".split(" "));
-const SUBCOMMANDS = new Set("create-goals status complete-goals criteria record-evidence checkpoint steer add-goal record-review-blockers quality-context".split(" "));
+const VALUE_FLAGS = new Set("--brief --brief-file --session-id --codex-goal-mode --validation-batch-json --goal --goal-id --criterion-id --status --evidence --notes --codex-goal-json --quality-gate-json --kind --rationale --title --objective --target-goal-id --source --after-json --directive-json --directive-file --idempotency-key --proposals-json".split(" "));
+const SUBCOMMANDS = new Set("create-goals status complete-goals criteria record-evidence checkpoint steer add-goal record-review-blockers".split(" "));
 export function hasFlag(argv, flag) { return argv.includes(flag); }
 export function readValue(argv, flag) {
     const index = argv.indexOf(flag);
@@ -66,14 +66,14 @@ export async function readJsonInput(value) {
 export async function parseCodexGoalJson(value) {
     if (value === undefined)
         return undefined;
-    const raw = looksLikeJson(value) ? value : await readFile(value, "utf8");
     try {
+        const raw = looksLikeJson(value) ? value : await readFile(value, "utf8");
         JSON.parse(raw);
         return raw;
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "unknown error";
-        throw new UlwLoopError(`Invalid --codex-goal-json: ${message}`, "ULW_LOOP_CODEX_GOAL_JSON_INVALID", { cause: error });
+        throw new UlwLoopError(`Invalid --codex-goal-json: ${looksLikeJson(value) ? message : "neither valid JSON nor a readable path"}`, "ULW_LOOP_CODEX_GOAL_JSON_INVALID", { cause: error });
     }
 }
 function required(argv, flag, code) {

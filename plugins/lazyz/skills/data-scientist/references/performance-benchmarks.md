@@ -35,3 +35,4 @@ Automatically detect operation types from user requests:
 - Public suites exercise typical analytical workloads (1M-100M rows).
 - Performance advantages are approximate and vary by dataset characteristics.
 - Real-world performance depends on data types, cardinality, and hardware.
+

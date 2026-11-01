@@ -151,3 +151,4 @@ result = duckdb.sql("""
 import polars as pl
 result = pl.scan_csv('huge.csv').filter(pl.col('complex_filter')).collect()
 ```
+

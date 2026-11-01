@@ -1,3 +1,4 @@
+import { type UlwLoopToolkitSurface } from "./surface.js";
 import type { UlwLoopQualityGate } from "./types.js";
 export { classifyExternalAuthorizationBlocker, clearGoalBlockerFields, normalizeBlockerEvidence, sameBlockerOccurrences, } from "./quality-gate-blockers.js";
 export interface QualityGateFs {
@@ -7,7 +8,9 @@ export interface QualityGateFs {
     };
 }
 export interface ValidateQualityGateOptions {
-    readonly repoRoot: string;
-    readonly fs: QualityGateFs;
+    readonly repoRoot?: string;
+    readonly fs?: QualityGateFs;
+    readonly currentAttemptDir?: string;
+    readonly reviewerSurface?: UlwLoopToolkitSurface;
 }
 export declare function validateQualityGate(input: unknown, opts?: ValidateQualityGateOptions): UlwLoopQualityGate;

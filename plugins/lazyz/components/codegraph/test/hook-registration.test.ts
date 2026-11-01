@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-type HookCommand = { readonly command?: unknown; readonly args?: unknown };
+type HookCommand = { readonly command?: unknown };
 type HookGroup = { readonly hooks?: unknown };
 
 const pluginRoot = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -17,11 +17,7 @@ function sessionStartCommands(config: unknown): readonly string[] {
 	if (!Array.isArray(groups)) return [];
 	return groups.flatMap((group: HookGroup) =>
 		Array.isArray(group.hooks)
-			? group.hooks.flatMap((hook: HookCommand) => {
-				if (typeof hook.command !== "string") return [];
-				const args = Array.isArray(hook.args) ? hook.args.filter((arg: unknown) => typeof arg === "string") : [];
-				return [[hook.command, ...args].join(" ")];
-			})
+			? group.hooks.flatMap((hook: HookCommand) => (typeof hook.command === "string" ? [hook.command] : []))
 			: [],
 	);
 }

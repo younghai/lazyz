@@ -7,6 +7,7 @@ type RecordEvidenceArgs = {
     readonly status: EvidenceStatus;
     readonly evidence: string;
     readonly notes?: string;
+    readonly artifacts?: readonly string[];
 };
 export declare function recordEvidence(repoRoot: string, args: RecordEvidenceArgs, scope?: UlwLoopScope): Promise<{
     plan: UlwLoopPlan;

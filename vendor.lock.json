@@ -1,0 +1,167 @@
+{
+	"schemaVersion": 1,
+	"upstreamComparisons": [
+		{
+			"reviewedAt": "2026-10-07",
+			"mode": "selective-zcode-adaptation-not-full-vendor-rebase",
+			"repository": "https://github.com/code-yeongyu/oh-my-openagent.git",
+			"commit": "d9af7f0931603f66c9fbe93f84e33630dcbb87bb",
+			"packages": [
+				{
+					"name": "lazycodex-ai",
+					"version": "5.1.22",
+					"distTag": "latest",
+					"integrity": "sha512-uLmi6VZS+Uwo4dhOOuU+f5zoLNrX2zoGoy8xTba6ARDA4BWJVuLic1/8cEiIVKoFIQfJTUfHSyrybs+zQ//GdQ=="
+				},
+				{
+					"name": "omo-ai",
+					"version": "5.1.22",
+					"distTag": "latest",
+					"integrity": "sha512-rHYUzWwnyOU4og+BGywju9fY9LlyuLpVFRv3eKqcV1+92tqdrlhGz1L/HR2E16AACTX1tgaVE1lKNkbAdorI1A=="
+				}
+			],
+			"betaVersionObserved": "5.1.0",
+			"adopted": ["explicit planning intent", "approval-execution separation", "ulw-execute alias", "durable goal registration", "policy-aware testing", "reproduction-first debugging"],
+			"excluded": ["Codex and Senpi native thread/goal APIs", "host model TOMLs", "installer and browser package provisioning", "duplicate auto-update/runtime layers"],
+			"host": {
+				"repository": "https://github.com/zai-org/ZCode",
+				"version": "v3.14.3",
+				"commit": "29628c9acdb81b703bbd4080c207a0e7ce5e276e",
+				"liveHostVerified": false
+			}
+		}
+	],
+	"vendors": [
+		{
+			"id": "oh-my-openagent",
+			"kind": "npm-fork",
+			"localPath": "plugins/lazyz",
+			"source": {
+				"repository": "https://github.com/code-yeongyu/oh-my-openagent.git",
+				"ref": "v4.19.4",
+				"commit": "b072d279110bdda2c6ac2525d0d24dc54d16148a"
+			},
+			"syncedAt": "2026-08-10",
+			"importedPaths": [
+				"packages/omo-codex/plugin",
+				"packages/comment-checker-core",
+				"packages/git-bash-mcp",
+				"packages/lsp-core",
+				"packages/lsp-daemon",
+				"packages/lsp-tools-mcp",
+				"packages/mcp-stdio-core",
+				"packages/model-core",
+				"packages/prompts-core",
+				"packages/rules-engine",
+				"packages/shared-skills",
+				"packages/telemetry-core",
+				"packages/utils"
+			],
+			"excludedFeatures": [
+				"OpenCode-only runtime and installer surfaces",
+				"Codex thread APIs without a ZCode equivalent",
+				"platform-specific npm binary packages"
+			],
+			"zcodePatches": [
+				"ZCode plugin manifest and hook event mapping",
+				"ZCODE_PLUGIN_ROOT launch paths and local MCP wiring",
+				"ZCode Agent-tool orchestration and privacy-default telemetry"
+			],
+			"package": {
+				"name": "oh-my-openagent",
+				"version": "4.19.4",
+				"tarball": "https://registry.npmjs.org/oh-my-openagent/-/oh-my-openagent-4.19.4.tgz",
+				"integrity": "sha512-XZFwJQK9+iy3vtpPzty1BcyA/tZRHW+h5IpCSnEIGFNnWwpzEhP/dbBVcZ+LKz7mFyD3wIrm5+ijqLk3y12/TA==",
+				"shasum": "4a9ff922cc029b0768125a8a6aa091457ed57970",
+				"sha256": "c1af13d0104f6d1847f0ec9ce637b63c82060d8abddd6eff5ca7d1d71c566fdf"
+			},
+			"anchors": [
+				{
+					"path": "plugins/lazyz/vendor/omo-codex/package.json",
+					"sha256": "e22c099562808743779e2565a9acad11bc4009cbdc94cbab3bc9b29973038bec"
+				}
+			]
+		},
+		{
+			"id": "pi-agent",
+			"kind": "git-subtree",
+			"localPath": "xcode/agent",
+			"source": {
+				"repository": "https://github.com/earendil-works/pi.git",
+				"commit": "6bcc29a06cee8b9ac1643df901468e3c51d6a48f",
+				"importCommit": "0062f771d4ea88fdf4712edd4bdf3569d1fd6a22"
+			},
+			"anchors": [
+				{
+					"path": "xcode/agent/package.json",
+					"sha256": "250c9f778cbe8f92119c720546577b9eca34cd7fcf378bb62c3f40345a47ad6d"
+				},
+				{
+					"path": "xcode/agent/package-lock.json",
+					"sha256": "94dc20758b1bbde6d0fc0ac3a41f1945eb4309165419b41c5892ea75c7b0ecdb"
+				}
+			]
+		},
+		{
+			"id": "omo-ai",
+			"kind": "npm-fork",
+			"localPath": "plugins/lazyz",
+			"source": {
+				"repository": "https://github.com/code-yeongyu/oh-my-openagent.git",
+				"ref": "omo-ai@5.0.0-0.beta.19",
+				"commit": "b48ab1086b338921ccd99a11183f91eefbb169f2"
+			},
+			"syncedAt": "2026-08-25",
+			"importedPaths": [
+				"plugin/runtime/ast-grep-mcp",
+				"plugin/skills/coding-agent-sessions",
+				"plugin/skills/ultimate-browsing",
+				"plugin/skills/ultrawork"
+			],
+			"excludedFeatures": [
+				"Senpi CLI and extension lifecycle",
+				"Senpi DAG, goal, thread, memory, and plan-gated reviewer APIs",
+				"Senpi runtimes already implemented by LazyZ ZCode components"
+			],
+			"zcodePatches": [
+				"ZCode Agent and hook translations",
+				"AST-grep scan schema requires exactly one rule source",
+				"ZCode remains a first-class coding-session platform"
+			],
+			"package": {
+				"name": "omo-ai",
+				"version": "5.0.0-0.beta.19",
+				"trackDistTag": "beta",
+				"tarball": "https://registry.npmjs.org/omo-ai/-/omo-ai-5.0.0-0.beta.19.tgz",
+				"integrity": "sha512-PHZV1FovJqv1tK5sK7JAulFOzHtk6jVuj0eD36rsr7Dns9V8zPW7m/Y5D5zx+/kIqk9OxdHRTb2UvVzPwv3+ig==",
+				"shasum": "0a0a924d81f36eccb39d69e7bbf025abe49a4f53",
+				"sha256": "bc57a77d9a044bedfd1a9ad49e430b79a6d94b3faf9f4b6248a77230f12f14e6"
+			},
+			"anchors": [
+				{
+					"path": "plugins/lazyz/runtime/ast-grep-mcp/cli.js",
+					"sha256": "72badf794b2f13a24bbac698be67b099e33a37ff02248b855e9c57ffdccafc91",
+					"upstreamRuntimeSha256": "5a9ae80a4ef79b2efcd66dba27c82574f74e682c9bb84e465291dc0ba34aed7e"
+				}
+			],
+			"runtimes": [
+				{
+					"path": "plugin/runtime/agent-toolkit/cli.js",
+					"sha256": "dcebe4c1d2e1cb836b6f1d921a5f1988b5120fe7e1bb51ac8a310e25937d87f9"
+				},
+				{
+					"path": "plugin/runtime/agent-toolkit/ulw-loop/cli.js",
+					"sha256": "2f51ba92789e37993269b5a6591704269c2ae59cd3f660817fb21e3812a74079"
+				},
+				{
+					"path": "plugin/runtime/ast-grep-mcp/cli.js",
+					"sha256": "5a9ae80a4ef79b2efcd66dba27c82574f74e682c9bb84e465291dc0ba34aed7e"
+				},
+				{
+					"path": "plugin/runtime/lsp-daemon/dist/cli.js",
+					"sha256": "47d23394445d632807d88ae96eda6bf117fc95eedc05ceba18106a0f8e043ad0"
+				}
+			]
+		}
+	]
+}

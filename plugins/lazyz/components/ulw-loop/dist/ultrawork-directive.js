@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-const ULTRAWORK_DIRECTIVE = readFileSync(new URL("../directive.md", import.meta.url), "utf8");
+import { buildUltraworkAdditionalContext } from "./ultrawork-skill-pointer.js";
 const ULTRAWORK_CURRENT_PROMPT_PATTERN = /(?:ultrawork|ulw)/i;
 const ULTRAWORK_DIRECTIVE_MARKER = "<ultrawork-mode>";
 const TRANSCRIPT_SEARCH_BYTES = 512_000;
@@ -12,14 +12,16 @@ const CONTEXT_PRESSURE_MARKERS = [
     "your input exceeds the context window",
     "long threads and multiple compactions",
 ];
-export function buildUltraworkDirectiveOutput(input) {
+export function buildUltraworkDirectiveOutput(input, options = {}) {
     if (isContextPressureRecoveryPrompt(input.prompt))
         return "";
     if (hasUltraworkDirectiveAlreadyInTranscript(input.transcript_path))
         return "";
     if (isContextPressureTranscript(input.transcript_path))
         return "";
-    return isUltraworkPrompt(input.prompt) ? formatAdditionalContextOutput(ULTRAWORK_DIRECTIVE) : "";
+    return isUltraworkPrompt(input.prompt)
+        ? formatAdditionalContextOutput(buildUltraworkAdditionalContext(options))
+        : "";
 }
 function hasUltraworkDirectiveAlreadyInTranscript(transcriptPath) {
     if (transcriptPath === undefined || transcriptPath === null)

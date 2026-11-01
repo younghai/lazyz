@@ -1,0 +1,10 @@
+{
+  "name": "lazyz",
+  "pluginRoot": "..",
+  "plugins": [
+    {
+      "name": "lazyz",
+      "source": "./plugins/lazyz"
+    }
+  ]
+}

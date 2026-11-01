@@ -3,6 +3,7 @@ import type { UlwLoopCodexGoalMode, UlwLoopItem, UlwLoopPlan, UlwLoopSuccessCrit
 export declare const ULW_LOOP_AGGREGATE_CODEX_OBJECTIVE: string;
 export declare function aggregateCodexObjectiveForScope(scope?: UlwLoopScope): string;
 export declare function codexGoalMode(plan: UlwLoopPlan): UlwLoopCodexGoalMode;
+export declare function isMemberResolved(goal: UlwLoopItem, plan: UlwLoopPlan): boolean;
 export declare function isUlwLoopDone(plan: UlwLoopPlan): boolean;
 export declare function isFinalRunCompletionCandidate(plan: UlwLoopPlan, goal: UlwLoopItem): boolean;
 export declare function aggregateCodexObjective(plan: UlwLoopPlan): string;

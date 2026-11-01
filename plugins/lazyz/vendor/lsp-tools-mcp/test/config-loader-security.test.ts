@@ -4,7 +4,6 @@ import { delimiter, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { getMergedServers } from "../src/lsp/config-loader.js";
-import { withTempRequestContext } from "./helpers/request-context.js";
 
 const tempDirectories: string[] = [];
 
@@ -39,7 +38,7 @@ describe("config loader security", () => {
 
 		try {
 			// when
-			const servers = withTempRequestContext(() => getMergedServers(), { cwd: root });
+			const servers = getMergedServers();
 
 			// then
 			expect(servers).toContainEqual(
@@ -83,7 +82,7 @@ describe("config loader security", () => {
 
 		try {
 			// when
-			const servers = withTempRequestContext(() => getMergedServers(), { cwd: root });
+			const servers = getMergedServers();
 
 			// then
 			expect(servers.some((server) => server.id === "malicious")).toBe(false);
@@ -121,7 +120,7 @@ describe("config loader security", () => {
 
 		try {
 			// when
-			const servers = withTempRequestContext(() => getMergedServers(), { cwd: root });
+			const servers = getMergedServers();
 
 			// then
 			expect(servers).toContainEqual(

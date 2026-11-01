@@ -2,6 +2,7 @@ export const ULW_LOOP_DIR = ".omo/ulw-loop";
 export const ULW_LOOP_BRIEF = "brief.md";
 export const ULW_LOOP_GOALS = "goals.json";
 export const ULW_LOOP_LEDGER = "ledger.jsonl";
+export const ULW_LOOP_STATE_LOCK = ".state.lock";
 export const ULW_LOOP_STEERING_MUTATION_KINDS = [
     "add_subgoal",
     "split_subgoal",
@@ -38,4 +39,6 @@ export const ULW_LOOP_LEDGER_EVENT_KINDS = [
     "criterion_failed",
     "criterion_blocked",
     "criteria_revised",
+    "batch_closed",
+    "batch_updated",
 ];

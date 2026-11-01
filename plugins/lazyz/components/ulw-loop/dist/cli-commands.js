@@ -1,7 +1,10 @@
+import { checkpoint } from "./checkpoint-continuation.js";
 import { hasFlag, readValue } from "./cli-arg-parser.js";
-import { printJsonError, ULW_LOOP_HELP } from "./cli-output.js";
-import { addGoal, captureEvidence, checkpoint, completeGoals, createGoals, criteria, qualityContext, reviewBlockers, status, steer, } from "./cli-subcommands.js";
+import { printJsonError, subcommandHelp, ULW_LOOP_HELP } from "./cli-output.js";
+import { addGoal, captureEvidence, completeGoals, createGoals, criteria, reviewBlockers, status, steer, } from "./cli-subcommands.js";
 import { resolveUlwLoopSessionIdFromEnv } from "./paths.js";
+import { listUlwLoopSessionIds } from "./plan-io.js";
+import { sessionIdRequiredMessage, sessionScopeRequiredMessage } from "./plan-missing-recovery.js";
 import { UlwLoopError } from "./types.js";
 export const ULW_LOOP_SUBCOMMANDS = [
     "help",
@@ -14,7 +17,6 @@ export const ULW_LOOP_SUBCOMMANDS = [
     "criteria",
     "record-evidence",
     "record-review-blockers",
-    "quality-context",
 ];
 export function isUlwLoopSubcommand(value) {
     return ULW_LOOP_SUBCOMMANDS.includes(value);
@@ -25,7 +27,6 @@ export async function ulwLoopCommand(argv) {
     const rest = argv.slice(1);
     const repoRoot = process.cwd();
     const json = hasFlag(rest, "--json");
-    const scope = commandScope(rest);
     try {
         if (!isUlwLoopSubcommand(command)) {
             if (json) {
@@ -37,10 +38,16 @@ export async function ulwLoopCommand(argv) {
             process.stdout.write(`${ULW_LOOP_HELP}\n`);
             return 1;
         }
+        if (command !== "help" && (hasFlag(rest, "--help") || hasFlag(rest, "-h"))) {
+            process.stdout.write(`${subcommandHelp(command)}\n`);
+            return 0;
+        }
+        if (command === "help") {
+            process.stdout.write(`${ULW_LOOP_HELP}\n`);
+            return 0;
+        }
+        const scope = commandScope(repoRoot, rest);
         switch (command) {
-            case "help":
-                process.stdout.write(`${ULW_LOOP_HELP}\n`);
-                return 0;
             case "create-goals":
                 return await createGoals(repoRoot, rest, json, scope);
             case "status":
@@ -59,8 +66,6 @@ export async function ulwLoopCommand(argv) {
                 return await captureEvidence(repoRoot, rest, json, scope);
             case "record-review-blockers":
                 return await reviewBlockers(repoRoot, rest, json, scope);
-            case "quality-context":
-                return await qualityContext(repoRoot, rest, json, scope);
             default:
                 return unhandledSubcommand(command);
         }
@@ -82,7 +87,26 @@ export async function ulwLoopCommand(argv) {
 function unhandledSubcommand(command) {
     throw new UlwLoopError(`Unhandled ulw-loop subcommand: ${String(command)}.`, "ULW_LOOP_SUBCOMMAND_UNHANDLED");
 }
-function commandScope(argv) {
-    const sessionId = readValue(argv, "--session-id") ?? resolveUlwLoopSessionIdFromEnv();
-    return sessionId === null ? undefined : { sessionId };
+const SESSION_ID_FLAG = "--session-id";
+function sessionIdFlagPresent(argv) {
+    return hasFlag(argv, SESSION_ID_FLAG) || argv.some((arg) => arg.startsWith(`${SESSION_ID_FLAG}=`));
+}
+// Every state subcommand runs against exactly one session directory. Without a flag or
+// a session env there is no owner to resolve, so the command refuses instead of
+// falling back to the repo-global root that every session in the cwd would share.
+function commandScope(repoRoot, argv) {
+    if (sessionIdFlagPresent(argv)) {
+        const sessionId = readValue(argv, SESSION_ID_FLAG)?.trim();
+        if (!sessionId) {
+            throw new UlwLoopError(sessionIdRequiredMessage(SESSION_ID_FLAG), "ULW_LOOP_SESSION_ID_REQUIRED", {
+                details: { flag: SESSION_ID_FLAG },
+            });
+        }
+        return { sessionId };
+    }
+    const sessionId = resolveUlwLoopSessionIdFromEnv();
+    if (sessionId !== null)
+        return { sessionId };
+    const existingSessionIds = listUlwLoopSessionIds(repoRoot);
+    throw new UlwLoopError(sessionScopeRequiredMessage(SESSION_ID_FLAG, existingSessionIds), "ULW_LOOP_SESSION_SCOPE_REQUIRED", { details: { flag: SESSION_ID_FLAG, existingSessionIds } });
 }

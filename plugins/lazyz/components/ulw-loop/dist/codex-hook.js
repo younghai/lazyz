@@ -36,7 +36,11 @@ export async function applyUserPromptUlwLoopSteering(payload, options = {}) {
         if (proposal === null) {
             if (hasSteeringDirectiveMarker(payload.prompt))
                 return "";
-            return options.includeUltraworkDirective ? buildUltraworkDirectiveOutput(payload) : "";
+            if (!options.includeUltraworkDirective)
+                return "";
+            return options.ultraworkSkillFilePath === undefined
+                ? buildUltraworkDirectiveOutput(payload)
+                : buildUltraworkDirectiveOutput(payload, { skillFilePath: options.ultraworkSkillFilePath });
         }
         const result = await steerUlwLoop(payload.cwd, proposal, payloadScope(payload));
         if (!result.accepted)
@@ -55,7 +59,7 @@ export async function applyUserPromptUlwLoopSteering(payload, options = {}) {
     }
 }
 function hasSteeringDirectiveMarker(prompt) {
-    return /(?:^|\s)(?:OMO_ULW_LOOP_STEER|omo\.ulw-loop\.steer|lazyz ulw-loop steer):/u.test(prompt);
+    return /(?:^|\s)(?:OMO_ULW_LOOP_STEER|omo\.ulw-loop\.steer|omo ulw-loop steer|omo-agent-toolkit ulw-loop steer):/u.test(prompt);
 }
 function payloadScope(payload) {
     return { sessionId: payload.session_id };

@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { findWorkspaceRoot } from "../src/lsp/client-wrapper.js";
-import { createStandaloneMcpRequestContext, runWithRequestContext } from "../src/request-context.js";
+import { runWithRequestContext } from "../src/request-context.js";
 
 const tempDirectories: string[] = [];
 
@@ -22,10 +22,8 @@ describe("path resolution honors request context cwd", () => {
 		mkdirSync(join(root, "sub"), { recursive: true });
 		writeFileSync(join(root, "sub", "file.ts"), "export const value = 1;\n");
 
-		const resolved = runWithRequestContext(createStandaloneMcpRequestContext({ cwd: root, env: {} }), () =>
-			findWorkspaceRoot("sub/file.ts"),
-		);
+		const resolved = runWithRequestContext({ cwd: root }, () => findWorkspaceRoot("sub/file.ts"));
 
-		expect(resolved).toBe(realpathSync(root));
+		expect(resolved).toBe(root);
 	});
 });

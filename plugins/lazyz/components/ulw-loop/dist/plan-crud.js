@@ -1,8 +1,10 @@
 import { aggregateCodexObjectiveForScope, isUlwLoopDone } from "./goal-status.js";
 import { ulwLoopBriefRelativePath, ulwLoopGoalsRelativePath, ulwLoopLedgerRelativePath, } from "./paths.js";
+import { beforePlanMutation, commit } from "./plan-commit.js";
 import { appendGoalToPlan, deriveGoalCandidates, makeGoal } from "./plan-goal-factory.js";
-import { appendLedger, readUlwLoopPlan, resetUlwLoopLedger, ulwLoopPlanExists, withUlwLoopMutationLock, writePlan, writeUlwLoopBrief, } from "./plan-io.js";
+import { planExists, readUlwLoopPlan, withUlwLoopMutationLock } from "./plan-io.js";
 import { iso, UlwLoopError } from "./types.js";
+import { parseValidationBatches } from "./validation-batch.js";
 export { deriveGoalCandidates, seedDefaultSuccessCriteria } from "./plan-goal-factory.js";
 function isScheduleEligible(goal) {
     return goal.steeringStatus !== "superseded" && goal.steeringStatus !== "blocked";
@@ -19,18 +21,31 @@ function clearGoalBlockerFields(goal) {
     ])
         delete goal[key];
 }
-export async function createUlwLoopPlan(repoRoot, args, scope) {
+export async function createUlwLoopPlan(repoRoot, args, scope, surface = "lazycodex") {
     return withUlwLoopMutationLock(repoRoot, scope, async () => {
-        if (!args.force && (await ulwLoopPlanExists(repoRoot, scope))) {
-            const existing = await readUlwLoopPlan(repoRoot, scope);
+        let existing;
+        if (planExists(repoRoot, scope)) {
+            try {
+                existing = await readUlwLoopPlan(repoRoot, scope);
+            }
+            catch (error) {
+                if (!args.force)
+                    throw error;
+            }
+        }
+        if (!args.force && existing !== undefined) {
             if (isUlwLoopDone(existing))
-                throw completedPlanExistsError(scope);
+                throw completedPlanExistsError(scope, surface);
             throw new UlwLoopError(`Refusing to overwrite existing ${ulwLoopGoalsRelativePath(scope)}; pass --force to recreate it.`, "ULW_LOOP_PLAN_EXISTS");
         }
         const now = iso();
-        const goals = deriveGoalCandidates(args.brief).map((goal, index) => makeGoal(goal.title, goal.objective, index, now));
+        const goals = deriveGoalCandidates(args.brief).map((goal, index) => makeGoal(goal.title, goal.objective, index, now, { surface }));
         const plan = {
             version: 1,
+            revision: existing?.revision ?? 0,
+            ledgerResetRevision: (existing?.revision ?? 0) + 1,
+            brief: args.brief.endsWith("\n") ? args.brief : `${args.brief}\n`,
+            evidenceLayoutVersion: 2,
             createdAt: now,
             updatedAt: now,
             briefPath: ulwLoopBriefRelativePath(scope),
@@ -39,29 +54,44 @@ export async function createUlwLoopPlan(repoRoot, args, scope) {
             codexGoalMode: args.codexGoalMode ?? "aggregate",
             goals,
         };
+        const validationBatches = await parseValidationBatches(args.validationBatchesJson, goals);
+        if (validationBatches !== undefined)
+            plan.validationBatches = validationBatches;
         if (plan.codexGoalMode === "aggregate")
             plan.codexObjective = aggregateCodexObjectiveForScope(scope);
-        await writeUlwLoopBrief(repoRoot, args.brief, scope);
-        await writePlan(repoRoot, plan, scope);
-        await resetUlwLoopLedger(repoRoot, scope);
-        await appendLedger(repoRoot, { at: now, kind: "plan_created", message: `${goals.length} goal(s) created` }, scope);
+        await beforePlanMutation();
+        await commit(repoRoot, scope, {
+            plan,
+            entries: [{ at: now, kind: "plan_created", message: `${goals.length} goal(s) created` }],
+        });
         return plan;
     });
 }
-function completedPlanExistsError(scope) {
+function completedPlanExistsError(scope, surface) {
     return new UlwLoopError([
         `Existing ulw-loop aggregate is already complete at ${ulwLoopGoalsRelativePath(scope)}.`,
-        "Start a new run with `lazyz ulw-loop create-goals --session-id <new-id> ...` to isolate fresh state.",
-        "Use --force only when you intentionally want to overwrite the completed evidence.",
+        ...(surface === "omo-senpi"
+            ? [
+                "Start a new run under a fresh session id (a new senpi session) or call agentToolkit.createGoals({ brief, force: true }) to recreate.",
+            ]
+            : [
+                "Start a new run with `omo-agent-toolkit ulw-loop create-goals --session-id <new-id> ...` to isolate fresh state.",
+                "Use --force only when you intentionally want to overwrite the completed evidence.",
+            ]),
     ].join(" "), "ULW_LOOP_PLAN_EXISTS_COMPLETE");
 }
-export async function addUlwLoopGoal(repoRoot, args, scope) {
+export async function addUlwLoopGoal(repoRoot, args, scope, surface = "lazycodex") {
     return withUlwLoopMutationLock(repoRoot, scope, async () => {
         const plan = await readUlwLoopPlan(repoRoot, scope);
         const now = iso();
-        const goal = appendGoalToPlan(plan, args.title, args.objective, now);
-        await writePlan(repoRoot, plan, scope);
-        await appendLedger(repoRoot, { at: now, kind: "goal_added", goalId: goal.id, status: goal.status, message: goal.title }, scope);
+        const goal = appendGoalToPlan(plan, args.title, args.objective, now, {
+            surface,
+            ...(args.successCriteria === undefined ? {} : { successCriteria: args.successCriteria }),
+        });
+        await commit(repoRoot, scope, {
+            plan,
+            entries: [{ at: now, kind: "goal_added", goalId: goal.id, status: goal.status, message: goal.title }],
+        });
         return { plan, goal };
     });
 }
@@ -74,17 +104,18 @@ export async function startNextUlwLoop(repoRoot, args = {}, scope) {
         const existing = plan.goals.find((goal) => goal.status === "in_progress" && isScheduleEligible(goal));
         if (existing)
             return { plan, goal: existing, resumed: true };
+        const entries = [];
         let next = plan.goals.find((goal) => goal.status === "pending" && isScheduleEligible(goal));
         if (!next && args.retryFailed) {
             next = plan.goals.find((goal) => goal.status === "failed" && !goal.nonRetriable && isScheduleEligible(goal));
             if (next)
-                await appendLedger(repoRoot, {
+                entries.push({
                     at: now,
                     kind: "goal_retried",
                     goalId: next.id,
                     status: "pending",
                     ...(next.failureReason ? { message: next.failureReason } : {}),
-                }, scope);
+                });
         }
         if (!next)
             return { done: true, plan };
@@ -95,8 +126,14 @@ export async function startNextUlwLoop(repoRoot, args = {}, scope) {
         next.updatedAt = now;
         plan.activeGoalId = next.id;
         plan.updatedAt = now;
-        await writePlan(repoRoot, plan, scope);
-        await appendLedger(repoRoot, { at: now, kind: "goal_started", goalId: next.id, status: next.status, message: `Attempt ${next.attempt}` }, scope);
+        entries.push({
+            at: now,
+            kind: "goal_started",
+            goalId: next.id,
+            status: next.status,
+            message: `Attempt ${next.attempt}`,
+        });
+        await commit(repoRoot, scope, { plan, entries });
         return { plan, goal: next, resumed: false };
     });
 }

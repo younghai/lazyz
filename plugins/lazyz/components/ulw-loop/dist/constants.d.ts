@@ -2,6 +2,7 @@ export declare const ULW_LOOP_DIR = ".omo/ulw-loop";
 export declare const ULW_LOOP_BRIEF = "brief.md";
 export declare const ULW_LOOP_GOALS = "goals.json";
 export declare const ULW_LOOP_LEDGER = "ledger.jsonl";
+export declare const ULW_LOOP_STATE_LOCK = ".state.lock";
 export type UlwLoopStatus = "pending" | "in_progress" | "complete" | "failed" | "blocked" | "review_blocked" | "needs_user_decision";
 export type UlwLoopCodexGoalMode = "aggregate" | "per_story";
 export type UlwLoopSteeringStatus = "superseded" | "blocked";
@@ -12,5 +13,5 @@ export declare const ULW_LOOP_SUCCESS_CRITERION_USER_MODELS: readonly ["happy", 
 export type UlwLoopSuccessCriterionUserModel = (typeof ULW_LOOP_SUCCESS_CRITERION_USER_MODELS)[number];
 export declare const ULW_LOOP_CRITERION_STATUSES: readonly ["pending", "pass", "fail", "blocked"];
 export type UlwLoopCriterionStatus = (typeof ULW_LOOP_CRITERION_STATUSES)[number];
-export declare const ULW_LOOP_LEDGER_EVENT_KINDS: readonly ["plan_created", "goal_started", "goal_resumed", "goal_completed", "goal_blocked", "goal_failed", "goal_needs_user_decision", "goal_retried", "aggregate_completed", "aggregate_objective_migrated", "goal_added", "steering_accepted", "steering_rejected", "final_review_failed", "goal_review_blocked", "evidence_captured", "criterion_failed", "criterion_blocked", "criteria_revised"];
+export declare const ULW_LOOP_LEDGER_EVENT_KINDS: readonly ["plan_created", "goal_started", "goal_resumed", "goal_completed", "goal_blocked", "goal_failed", "goal_needs_user_decision", "goal_retried", "aggregate_completed", "aggregate_objective_migrated", "goal_added", "steering_accepted", "steering_rejected", "final_review_failed", "goal_review_blocked", "evidence_captured", "criterion_failed", "criterion_blocked", "criteria_revised", "batch_closed", "batch_updated"];
 export type UlwLoopLedgerEventKind = (typeof ULW_LOOP_LEDGER_EVENT_KINDS)[number];

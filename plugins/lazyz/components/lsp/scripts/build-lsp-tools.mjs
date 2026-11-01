@@ -35,7 +35,8 @@ for (const dir of candidates) {
 		if (!force && isBuildFresh(packageJson, outputs)) {
 			process.exit(0);
 		}
-		assertDependenciesInstalled(dir, "lsp-tools-mcp");
+		console.log("Installing repository lsp-tools-mcp dependencies...");
+		execSync("npm ci", { cwd: dir, stdio: "inherit" });
 		console.log("Building repository lsp-tools-mcp...");
 		execSync("npm run build", { cwd: dir, stdio: "inherit" });
 		console.log("Done.");
@@ -67,17 +68,4 @@ function isBuildFresh(inputPath, outputPaths) {
 	if (outputPaths.some((path) => !existsSync(path))) return false;
 	const inputMtime = statSync(inputPath).mtimeMs;
 	return outputPaths.every((path) => statSync(path).mtimeMs >= inputMtime);
-}
-
-function assertDependenciesInstalled(packageRoot, label) {
-	for (let dir = packageRoot; ; dir = dirname(dir)) {
-		if (existsSync(join(dir, "node_modules"))) return;
-		const parent = dirname(dir);
-		if (parent === dir) break;
-	}
-
-	console.error(
-		`Cannot build ${label}: dependencies are not installed for ${packageRoot}. Run npm ci at the workspace root before building.`,
-	);
-	process.exit(1);
 }

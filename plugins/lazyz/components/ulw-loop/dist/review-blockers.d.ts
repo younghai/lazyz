@@ -12,5 +12,7 @@ export interface RecordFinalReviewBlockersResult {
     readonly blockedGoal: UlwLoopItem;
     readonly newGoal: UlwLoopItem;
     readonly ledgerEntries: UlwLoopLedgerEntry[];
+    readonly nextActions: readonly string[];
+    readonly warnings: readonly string[];
 }
 export declare function recordFinalReviewBlockers(repoRoot: string, args: RecordFinalReviewBlockersArgs, scope?: UlwLoopScope): Promise<RecordFinalReviewBlockersResult>;

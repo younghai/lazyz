@@ -1,20 +1,21 @@
-import { existsSync } from "node:fs";
+// biome-ignore-all format: checkpoint stays under the pure LOC ceiling.
+import { existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { inspectGitProvenance } from "../../lazycodex-executor-verify/dist/git-provenance.js";
-import { buildTaskScopedAggregateReconciliationHint, canReconcileActiveFinalTaskScopedAggregateSnapshot, canReconcileCompletedTaskScopedAggregateSnapshot, } from "./checkpoint-reconciliation.js";
-import { formatCodexGoalReconciliation, readCodexGoalSnapshotInput, reconcileCodexGoalSnapshot, } from "./codex-goal-snapshot.js";
+import { combineCheckpointValidationErrors, validateCheckpointCodexGoal, } from "./checkpoint-codex-validation.js";
+import { acknowledgeDriverObjective } from "./driver-objective-ack.js";
 import { requireAllCriteriaPass, requireAllPlanCriteriaPass, requireEssentialCriteriaPass } from "./evidence.js";
-import { codexGoalMode, compatibleCodexObjectives, expectedCodexObjective, isFinalRunCompletionCandidate, } from "./goal-status.js";
-import { appendLedger, readUlwLoopPlan, withUlwLoopMutationLock, writePlan } from "./plan-io.js";
-import { classifyExternalAuthorizationBlocker, clearGoalBlockerFields, sameBlockerOccurrences, } from "./quality-gate.js";
-import { validateStrictQualityGate } from "./quality-gate-strict.js";
+import { codexGoalMode, isFinalRunCompletionCandidate } from "./goal-status.js";
+import { ulwLoopAttemptEvidenceDir } from "./paths.js";
+import { commit } from "./plan-commit.js";
+import { readUlwLoopPlan, withUlwLoopMutationLock } from "./plan-io.js";
+import { classifyExternalAuthorizationBlocker, clearGoalBlockerFields, sameBlockerOccurrences, validateQualityGate, } from "./quality-gate.js";
+import { resolveToolkitSurface } from "./surface.js";
 import { iso, UlwLoopError } from "./types.js";
+import { batchClosedBy, requireAllValidationBatchesClosed, requireBatchFinalReady, requireBatchGate } from "./validation-batch.js";
+const QUALITY_GATE_FS = { existsSync, statSync };
 function ulwLoopFail(message, code) {
     throw new UlwLoopError(message, code);
-}
-function normalizeObjective(value) {
-    return value.replace(/\s+/g, " ").trim();
 }
 function nonEmptyEvidence(value) {
     const trimmed = value.trim();
@@ -80,12 +81,15 @@ function ledgerKind(status, goal, aggregateCompletion) {
     return status === "blocked" ? "goal_blocked" : "goal_failed";
 }
 function buildLedger(now, args, goal, qualityGate, codexGoal, aggregateCompletion) {
+    const watch = qualityGate?.surface === "lazycodex" && qualityGate.codeReview?.codeQualityStatus === "WATCH";
     const entry = {
         at: now,
         kind: ledgerKind(args.status, goal, aggregateCompletion),
         goalId: goal.id,
         status: goal.status,
-        evidence: args.evidence,
+        evidence: watch && qualityGate.surface === "lazycodex"
+            ? `${args.evidence} | codeQuality=WATCH: ${qualityGate.codeReview?.evidence ?? ""}`
+            : args.evidence,
     };
     if (codexGoal !== undefined)
         entry.codexGoal = codexGoal;
@@ -99,7 +103,7 @@ function buildLedger(now, args, goal, qualityGate, codexGoal, aggregateCompletio
         entry.requiredExternalDecision = goal.requiredExternalDecision;
     return entry;
 }
-export async function checkpointUlwLoop(repoRoot, args, scope) {
+export async function checkpointUlwLoop(repoRoot, args, scope, dependencies) {
     return withUlwLoopMutationLock(repoRoot, scope, async () => {
         const plan = await readUlwLoopPlan(repoRoot, scope);
         const goal = findGoal(plan, args.goalId);
@@ -108,53 +112,67 @@ export async function checkpointUlwLoop(repoRoot, args, scope) {
         let aggregateCompletion;
         let qualityGate;
         let codexGoal;
+        let nextActions = [];
+        let warnings = [];
         if (args.status === "complete") {
             const aggregate = codexGoalMode(plan) === "aggregate";
             const final = isFinalRunCompletionCandidate(plan, goal);
+            const closesBatch = batchClosedBy(plan, goal.id) !== undefined;
             if (final) {
                 requireAllCriteriaPass(goal);
                 requireAllPlanCriteriaPass(plan);
+                requireAllValidationBatchesClosed(plan, goal.id);
             }
             else if (aggregate)
                 requireEssentialCriteriaPass(goal);
             else
                 requireAllCriteriaPass(goal);
-            const snapshot = await readCodexGoalSnapshotInput(args.codexGoalJson, repoRoot);
-            const reconciliation = reconcileCodexGoalSnapshot(snapshot, {
-                expectedObjective: expectedCodexObjective(plan, goal),
-                ...(aggregate ? { acceptedObjectives: compatibleCodexObjectives(plan) } : {}),
-                allowedStatuses: aggregate ? (final ? ["complete"] : ["active"]) : ["complete"],
-                requireSnapshot: true,
-                requireComplete: !aggregate || final,
-            });
-            codexGoal = reconciliation.snapshot.raw;
-            if (!reconciliation.ok) {
-                const objective = snapshot?.objective;
-                const mismatchedTaskObjective = snapshot?.available === true &&
-                    objective !== undefined &&
-                    normalizeObjective(objective) !== normalizeObjective(expectedCodexObjective(plan, goal));
-                const completedTaskScoped = mismatchedTaskObjective &&
-                    snapshot.status === "complete" &&
-                    (await canReconcileCompletedTaskScopedAggregateSnapshot(repoRoot, plan, goal, objective, evidence, scope));
-                const activeFinalTaskScoped = mismatchedTaskObjective &&
-                    snapshot.status === "active" &&
-                    (await canReconcileActiveFinalTaskScopedAggregateSnapshot(repoRoot, plan, goal, objective, evidence, scope));
-                const taskScoped = completedTaskScoped || activeFinalTaskScoped;
-                if (!taskScoped)
-                    throw new UlwLoopError(`${formatCodexGoalReconciliation(reconciliation)}${aggregate && snapshot?.status === "complete" && objective !== undefined ? buildTaskScopedAggregateReconciliationHint(goal, final) : ""}`, "ulw_loop_codex_snapshot_mismatch");
-            }
-            if (final)
-                aggregateCompletion = makeAggregateCompletion(now, evidence, codexGoal);
-            if (final || aggregateCompletion !== undefined) {
-                const input = await readJsonInput(args.qualityGateJson, repoRoot);
-                qualityGate = validateStrictQualityGate(input, {
+            let codexValidationError;
+            try {
+                const validation = await validateCheckpointCodexGoal({
                     repoRoot,
                     plan,
-                    finalGoal: goal,
-                    source: inspectGitProvenance(repoRoot).provenance,
+                    goal,
+                    raw: args.codexGoalJson,
+                    evidence,
                     ...(scope === undefined ? {} : { scope }),
                 });
+                codexGoal = validation.raw;
+                nextActions = validation.nextActions;
+                warnings = validation.warnings;
+                acknowledgeDriverObjective(plan, validation.unacknowledgedObjective);
             }
+            catch (error) {
+                if (!(error instanceof UlwLoopError))
+                    throw error;
+                codexValidationError = error;
+            }
+            if (closesBatch)
+                requireBatchFinalReady(plan, goal);
+            if (closesBatch && args.qualityGateJson === undefined)
+                throw new UlwLoopError("Validation batch final checkpoint requires --quality-gate-json.", "ULW_LOOP_VALIDATION_BATCH_GATE_REQUIRED");
+            if (final)
+                aggregateCompletion = makeAggregateCompletion(now, evidence, codexGoal);
+            if (final || aggregateCompletion !== undefined || closesBatch) {
+                try {
+                    qualityGate = validateQualityGate(await readJsonInput(args.qualityGateJson, repoRoot), {
+                        repoRoot,
+                        fs: QUALITY_GATE_FS,
+                        reviewerSurface: dependencies?.surface ?? resolveToolkitSurface(),
+                        ...(plan.evidenceLayoutVersion === 2
+                            ? { currentAttemptDir: ulwLoopAttemptEvidenceDir(goal.id, goal.attempt, scope) }
+                            : {}),
+                    });
+                    requireBatchGate(plan, goal, qualityGate);
+                }
+                catch (error) {
+                    if (!(error instanceof UlwLoopError) || codexValidationError === undefined)
+                        throw error;
+                    throw combineCheckpointValidationErrors(codexValidationError, error);
+                }
+            }
+            if (codexValidationError !== undefined)
+                throw codexValidationError;
             goal.status = "complete";
             goal.completedAt = now;
             goal.evidence = evidence;
@@ -169,12 +187,17 @@ export async function checkpointUlwLoop(repoRoot, args, scope) {
         goal.updatedAt = now;
         if (aggregateCompletion !== undefined)
             plan.aggregateCompletion = aggregateCompletion;
+        if (aggregateCompletion !== undefined)
+            nextActions = [...nextActions, 'aggregate complete: now update_goal({status:"complete"})'];
         plan.updatedAt = now;
-        await writePlan(repoRoot, plan, scope);
         const ledgerEntry = buildLedger(now, args, goal, qualityGate, codexGoal, aggregateCompletion);
-        await appendLedger(repoRoot, ledgerEntry, scope);
+        const entries = [ledgerEntry];
+        const closedBatch = args.status === "complete" ? batchClosedBy(plan, goal.id) : undefined;
+        if (closedBatch !== undefined)
+            entries.push({ at: now, kind: "batch_closed", goalId: goal.id, message: closedBatch.batchId });
+        await commit(repoRoot, scope, { plan, entries });
         return aggregateCompletion === undefined
-            ? { plan, goal, ledgerEntry }
-            : { plan, goal, ledgerEntry, aggregateCompletion };
+            ? { plan, goal, ledgerEntry, nextActions, warnings }
+            : { plan, goal, ledgerEntry, aggregateCompletion, nextActions, warnings };
     });
 }

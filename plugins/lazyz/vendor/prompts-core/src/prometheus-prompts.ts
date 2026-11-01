@@ -1,5 +1,5 @@
 import type { VariantTable } from "./types"
-import defaultPrompt from "../prompts/prometheus/default.md" with { type: "text" }
+import defaultPrompt from "../prompts/prometheus/default.md"
 
 export const prometheusPromptVariants = {
   default: {

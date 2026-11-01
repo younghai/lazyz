@@ -1,78 +1,104 @@
-import { createHash } from "node:crypto";
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { ulwLoopRelativeDir } from "./paths.js";
-import { invalid, textField } from "./quality-gate-fields.js";
-import { UlwLoopError } from "./types.js";
-const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-function qaRelativeRoot(scope) {
-    return `${ulwLoopRelativeDir(scope)}/qa`;
+import { resolve } from "node:path";
+import { isWithinAttemptDir } from "./paths.js";
+import { invalid, isPoisoned, markPoisonedArtifactKind, section, stringArray, textField, } from "./quality-gate-fields.js";
+export const SUPPORTED_SURFACES = ["cli", "http", "tmux", "browser", "gui", "data"];
+export const SUPPORTED_KINDS = [
+    "cli-transcript",
+    "log",
+    "screenshot",
+    "image",
+    "http-dump",
+    "data-diff",
+];
+const COMPATIBLE_KINDS = {
+    cli: ["cli-transcript", "log"],
+    tmux: ["cli-transcript", "log"],
+    http: ["http-dump"],
+    browser: ["screenshot", "image"],
+    gui: ["screenshot", "image"],
+    data: ["data-diff"],
+};
+function isSupportedSurface(value) {
+    return SUPPORTED_SURFACES.some((surface) => surface === value);
 }
-function within(parent, child) {
-    const path = relative(parent, child);
-    return path !== "" && path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+function isSupportedKind(value) {
+    return SUPPORTED_KINDS.some((kind) => kind === value);
 }
-function canonicalArtifactPath(repoRoot, path, field, scope) {
-    if (isAbsolute(path))
-        invalid(`${field} must be repository-relative.`, field);
-    const normalized = path.replaceAll("\\", "/");
-    const qaRoot = qaRelativeRoot(scope);
-    if (!normalized.startsWith(`${qaRoot}/`) || normalized.includes("/../") || normalized.endsWith("/..")) {
-        invalid(`${field} must be confined to ${qaRoot}.`, field);
+export function surfaceField(value, field) {
+    if (isSupportedSurface(value))
+        return value;
+    invalid(`${field} must be a supported manual QA surface (${SUPPORTED_SURFACES.join(", ")}).`, field);
+    return "cli";
+}
+export function kindField(value, field) {
+    if (isSupportedKind(value))
+        return value;
+    invalid(`${field} must be a supported artifact kind (${SUPPORTED_KINDS.join(", ")}); review/QA reports belong in codeReview.reportPath or gateReview.reportPath, not artifactRefs.`, field);
+    return "log";
+}
+export function compatibleKindsFor(surface) {
+    return COMPATIBLE_KINDS[surface];
+}
+export function artifactCompatible(surface, kind) {
+    return compatibleKindsFor(surface).includes(kind);
+}
+export function checkFile(path, field, opts) {
+    if (opts?.repoRoot === undefined || opts.fs === undefined || isPoisoned(field))
+        return;
+    const absolute = resolve(opts.repoRoot, path);
+    if (!opts.fs.existsSync(absolute)) {
+        invalid(`${field} must point to an existing artifact.`, field);
+        return;
     }
-    const canonicalRepo = realpathSync(repoRoot);
-    const expected = join(canonicalRepo, ...normalized.split("/"));
-    const absolute = resolve(repoRoot, path);
-    const stat = lstatSync(absolute);
-    if (stat.isSymbolicLink() || !stat.isFile())
-        invalid(`${field} must be a regular file, not a link.`, field);
-    const canonical = realpathSync(absolute);
-    const canonicalQa = realpathSync(join(repoRoot, qaRoot));
-    if (canonical !== expected || !within(canonicalQa, canonical))
-        invalid(`${field} escapes the scoped QA directory.`, field);
-    return canonical;
+    if (opts.fs.statSync(absolute).size <= 0)
+        invalid(`${field} must point to a non-empty artifact.`, field);
+    if (opts.currentAttemptDir !== undefined &&
+        !isWithinAttemptDir(absolute, resolve(opts.repoRoot, opts.currentAttemptDir)))
+        invalid(`${field} (${path}) must point to an artifact from the current attempt (${opts.currentAttemptDir}).`, field);
 }
-function fileSha256(path, field) {
-    const before = lstatSync(path);
-    const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-    try {
-        const opened = fstatSync(descriptor);
-        if (!opened.isFile() || opened.ino !== before.ino || opened.size !== before.size) {
-            invalid(`${field} changed while it was opened.`, field);
+export function artifactMap(refs) {
+    const byId = new Map();
+    for (const ref of refs) {
+        if (byId.has(ref.id))
+            invalid(`manualQa.artifactRefs contains duplicate ${ref.id}.`, "manualQa.artifactRefs");
+        byId.set(ref.id, ref);
+    }
+    return byId;
+}
+export function parseArtifactRefs(value, opts) {
+    if (!Array.isArray(value) || value.length === 0) {
+        invalid("manualQa.artifactRefs must not be empty.", "manualQa.artifactRefs");
+        return [];
+    }
+    return value.flatMap((item, index) => {
+        const prefix = `manualQa.artifactRefs[${index}]`;
+        const ref = section(item, prefix);
+        if (isPoisoned(prefix))
+            return [];
+        const pathField = `${prefix}.path`;
+        const idField = `${prefix}.id`;
+        const kindFieldName = `${prefix}.kind`;
+        const descriptionField = `${prefix}.description`;
+        const path = textField(ref["path"], pathField);
+        const id = textField(ref["id"], idField);
+        const kind = kindField(ref["kind"], kindFieldName);
+        if (isPoisoned(kindFieldName))
+            markPoisonedArtifactKind(id);
+        const description = textField(ref["description"], descriptionField);
+        checkFile(path, pathField, opts);
+        return [{ id, kind, description, path }];
+    });
+}
+export function referencedArtifacts(value, field, byId) {
+    const ids = stringArray(value, field);
+    if (isPoisoned(field))
+        return [];
+    return ids.flatMap((id) => {
+        const artifact = byId.get(id);
+        if (artifact === undefined) {
+            invalid(`${field} references unknown artifact ${id}.`, field);
+            return [];
         }
-        const digest = createHash("sha256").update(readFileSync(descriptor)).digest("hex");
-        const after = fstatSync(descriptor);
-        if (after.size !== opened.size || after.mtimeMs !== opened.mtimeMs) {
-            invalid(`${field} changed while it was hashed.`, field);
-        }
-        return digest;
-    }
-    finally {
-        closeSync(descriptor);
-    }
-}
-export function validateBoundFile(repoRoot, pathValue, hashValue, field, scope) {
-    const path = textField(pathValue, `${field}.path`);
-    const sha256 = textField(hashValue, `${field}.sha256`);
-    if (!SHA256_PATTERN.test(sha256))
-        invalid(`${field}.sha256 must be a lowercase SHA-256 digest.`, `${field}.sha256`);
-    let canonical;
-    try {
-        canonical = canonicalArtifactPath(repoRoot, path, `${field}.path`, scope);
-    }
-    catch (error) {
-        if (error instanceof UlwLoopError)
-            throw error;
-        invalid(`${field}.path must point to an existing scoped QA file.`, `${field}.path`);
-    }
-    try {
-        if (fileSha256(canonical, `${field}.path`) !== sha256)
-            invalid(`${field}.sha256 does not match the file.`, `${field}.sha256`);
-    }
-    catch (error) {
-        if (error instanceof UlwLoopError)
-            throw error;
-        invalid(`${field}.path could not be hashed safely.`, `${field}.path`);
-    }
-    return { path, sha256 };
+        return [artifact];
+    });
 }

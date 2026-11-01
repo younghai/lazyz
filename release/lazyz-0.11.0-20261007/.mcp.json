@@ -1,0 +1,48 @@
+{
+	"mcpServers": {
+		"grep_app": {
+			"url": "https://mcp.grep.app"
+		},
+		"context7": {
+			"url": "https://mcp.context7.com/mcp"
+		},
+		"codegraph": {
+			"command": "node",
+			"args": [
+				"components/codegraph/dist/serve.js"
+			],
+			"cwd": ".",
+			"enabled": true,
+			"timeoutMs": 30000
+		},
+		"git_bash": {
+			"command": "node",
+			"args": [
+				"vendor/git-bash-mcp/dist/cli.js",
+				"mcp"
+			],
+			"cwd": ".",
+			"enabled": true,
+			"timeoutMs": 30000
+		},
+		"lsp": {
+			"command": "node",
+			"args": [
+				"vendor/lsp-daemon/dist/cli.js",
+				"mcp"
+			],
+			"cwd": ".",
+			"enabled": true,
+			"timeoutMs": 30000
+		},
+		"ast_grep": {
+			"command": "node",
+			"args": [
+				"runtime/ast-grep-mcp/cli.js"
+			],
+			"cwd": ".",
+			"enabled": true,
+			"timeoutMs": 30000
+		}
+	}
+}

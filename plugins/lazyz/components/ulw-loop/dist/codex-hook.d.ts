@@ -10,6 +10,7 @@ export interface UserPromptSubmitPayload {
 }
 export interface UserPromptSubmitHookOptions {
     readonly includeUltraworkDirective?: boolean;
+    readonly ultraworkSkillFilePath?: string | null;
 }
 export interface PreToolUsePayload {
     readonly cwd: string;

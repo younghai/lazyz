@@ -241,3 +241,4 @@ For detailed guidance, consult these reference files:
 ---
 
 **Core execution principle:** Always apply intelligent tool selection based on operation characteristics, never use pandas, and always include numpy and pyarrow in the execution environment.
+

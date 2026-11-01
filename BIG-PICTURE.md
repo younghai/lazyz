@@ -1,30 +1,29 @@
 <!-- open-steps:begin -->
-# LazyZ 현재 지도
+# LazyZ 개발 작업 공간 지도
 
-기능 분석 기준: 2026-10-17 · 검증 갱신: 2026-10-18 · 0.11.0. 사용자가 실제로 운영한 서비스와
-소스에 구현된 기능을 구분한다. [상세 보고서](docs/reports/2026-10-17-feature-evolution.md).
+기준: 2026-10-17. 현재 제품 기능과 초기 비교는
+[공개용 상세 보고서](../lazyz-github/docs/reports/2026-10-17-feature-evolution.md),
+작업 결과는 [HTML 보고서](reports/ai-review/2026-10-17-feature-evolution-publication.html).
 
-| 기능 | 현재 단계 | 근거 | 남은 것 |
-| --- | --- | --- | --- |
-| 프로젝트 맥락·계획 | 소스 구현 | init-deep, ulw-plan | 계획 품질의 실제 업무 평가 |
-| 승인 후 실행 | 로컬 검증 | ulw-execute, executor verifier, 통일된 start-work | 실제 호스트 실행 확인 |
-| 작업별 예산·증거 | 소스 구현 | task-state, structured-receipt | 내부 API 전체 계량, 신뢰 실행 증거 |
-| 재개·완료 상태 | 제한적 구현 | work-status, continuation, ulw-loop | 압축 후 보장·상태 통합 |
-| 코드 탐색·검토 | 소스/선언 존재 | LSP, AST-grep, CodeGraph, 전문 스킬 | 실제 호스트/외부 도구 연결 |
-| 공개 저장소 준비 | 소스 게시·CI 통과 | 8f875db, 1,391 테스트, Linux/macOS × Node 20/22 네 조합 성공 | 실제 호스트 운영·별도 release 발행은 미검증 |
-| 웹 홈페이지·호스팅 | 제공하지 않음 | GitHub Pages 비활성 조회 | 별도 요청이 있을 때 범위 결정 |
+| 영역 | 역할 | 현재 판단 |
+| --- | --- | --- |
+| plugins/lazyz | ZCode 플러그인 0.11.0의 소스·빌드 입력·prebuilt | 공개용 동기화의 유일한 제품 소스 |
+| xcode | 별도 CLI 제품 | 이번 분석/배포 구조 정리에서 수정·내보내기 제외 |
+| root 복구용 패키지·third-party | upstream 작업/복구 맥락 | 공개 plugin은 자체 vendor를 사용; root 전체 복사 금지 |
+| docs·reports | 설계·날짜별 분석·실행 증거 | 현재 기능과 과거 결과를 구분 |
+| .omo·.zcode·.gjc·개인 문서 | 로컬 작업 상태와 사용자 자료 | 공개하지 않음 |
+| ../lazyz-github | 공개 저장소용 checkout | plugin 설치 경로 유지, 별도 current docs/governance |
 
-흐름: 요청 → 프로젝트 맥락 → 계획 → 사람 승인 → 예산 내 실행 → 증거 → 사람 검토.
+제품 흐름: 요청 → 맥락 → 계획 → 승인 → 작업 예산 → 실행 → 증거 → 재개/완료.
+13개 역할·29개 스킬·20개 훅·6개 MCP는 소스 집계다. 실제 호스트 동작을
+전부 확인했다는 뜻은 아니다. 상태는 Boulder/ledger와 versioned goals로 분리되어
+있으며 `/start-work`의 이전 안내가 남아 있다.
 
-현재 파일 영역은 plugin, 현재 docs, 과거 waterfall, 유지보수 scripts, GitHub CI로
-구분한다. 설치 경로는 `plugins/lazyz`다. Xcode와 개인 작업 파일은 포함하지 않는다.
+개발 HEAD는 7월 30일이며 미커밋 변경이 많다. 파일 해시 snapshot을 함께 보아야
+현재 코드를 식별할 수 있다. Git census상 저장소는 104일, 연결된 plugin/docs는
+7월 20일, Xcode는 7월 30일 기록이다. 이는 현재 파일 변경일이 아니다.
+2027-01-01까지 활동 신호가 얕으므로 이력만으로 영역을 폐기하지 않는다.
 
-작업 전 Git 이력 census: 95일 된 저장소, docs/plugins는 7월 20일,
-marketplace는 7월 14일이 마지막 커밋 시점이다. 모두 연결된 영역으로 분류됐다.
-이 날짜는 미커밋 현재 파일의 수정 날짜가 아니다. 6개월 이력이 쌓이는
-2027-01-10 전에는 활동 신호가 얕으며, 오래됐다는 이유만으로 삭제하지 않는다.
-
-검증: 10월 18일 로컬 빌드·테스트와 원격 CI 네 조합 성공 결과를 [보고서](reports/ai-review/2026-10-18-build-test-publication.html)에 기록했다.
-실제 ZCode 운영, 별도 GitHub Release 발행, 비용·속도 개선은 확인되지 않았다.
-OmO 전용 전체 설치 테스트는 LazyZ 제품 검증과 구분한다.
+이번에는 제품 폴더를 물리적으로 옮기지 않았다. 설치 계약을 유지하면서 공개
+경계를 문서/동기화 도구로 분리했다. 실제 ZCode·배포·비용/성능 개선은 미검증이다.
 <!-- open-steps:end -->

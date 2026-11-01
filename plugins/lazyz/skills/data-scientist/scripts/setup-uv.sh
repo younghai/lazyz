@@ -58,3 +58,4 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 log "OK: $(uv --version)"
+

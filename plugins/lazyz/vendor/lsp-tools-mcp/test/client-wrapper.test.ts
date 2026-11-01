@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,7 +11,6 @@ import { recordInstallDecision } from "../src/lsp/server-install-state.js";
 import type { ResolvedServer, ServerLookupResult } from "../src/lsp/types.js";
 
 import { FakeLspClient } from "./helpers/fake-lsp-client.js";
-import { withTempRequestContext } from "./helpers/request-context.js";
 
 function restoreEnv(name: "LSP_TOOLS_MCP_USER_CONFIG", previous: string | undefined): void {
 	if (previous === undefined) {
@@ -56,7 +55,7 @@ describe("formatServerLookupError install decisions", () => {
 
 	it("#given no recorded decision #when formatting not_installed #then asks the user and explains decline recording", () => {
 		// when
-		const message = withTempRequestContext(() => formatServerLookupError(notInstalled));
+		const message = formatServerLookupError(notInstalled);
 
 		// then
 		expect(message).toContain("NOT INSTALLED");
@@ -70,10 +69,10 @@ describe("formatServerLookupError install decisions", () => {
 
 	it("#given a declined decision #when formatting not_installed #then returns a minimal one-line ignorable note", () => {
 		// given
-		withTempRequestContext(() => recordInstallDecision("rust", "declined"));
+		recordInstallDecision("rust", "declined");
 
 		// when
-		const message = withTempRequestContext(() => formatServerLookupError(notInstalled));
+		const message = formatServerLookupError(notInstalled);
 
 		// then
 		expect(message.trim().split("\n")).toHaveLength(1);
@@ -85,10 +84,10 @@ describe("formatServerLookupError install decisions", () => {
 
 	it("#given an allowed decision #when formatting not_installed #then keeps install steps but skips the ask", () => {
 		// given
-		withTempRequestContext(() => recordInstallDecision("rust", "allowed"));
+		recordInstallDecision("rust", "allowed");
 
 		// when
-		const message = withTempRequestContext(() => formatServerLookupError(notInstalled));
+		const message = formatServerLookupError(notInstalled);
 
 		// then
 		expect(message).toContain("NOT INSTALLED");
@@ -98,11 +97,11 @@ describe("formatServerLookupError install decisions", () => {
 	});
 
 	it("#given any decision state #when formatting not_installed #then keeps the hook quiet marker", () => {
-		const noDecision = withTempRequestContext(() => formatServerLookupError(notInstalled));
-		withTempRequestContext(() => recordInstallDecision("rust", "declined"));
-		const declined = withTempRequestContext(() => formatServerLookupError(notInstalled));
-		withTempRequestContext(() => recordInstallDecision("rust", "allowed"));
-		const allowed = withTempRequestContext(() => formatServerLookupError(notInstalled));
+		const noDecision = formatServerLookupError(notInstalled);
+		recordInstallDecision("rust", "declined");
+		const declined = formatServerLookupError(notInstalled);
+		recordInstallDecision("rust", "allowed");
+		const allowed = formatServerLookupError(notInstalled);
 
 		for (const message of [noDecision, declined, allowed]) {
 			expect(message).toContain("NOT INSTALLED");
@@ -149,25 +148,20 @@ describe("withLspClient", () => {
 
 		try {
 			// when
-			const canonicalNestedWorkspace = realpathSync(nestedWorkspace);
-			const result = await withTempRequestContext(
-				() =>
-					withLspClient(
-						filePath,
-						async (_client, workspaceRoot) => {
-							rootsSeen.push(workspaceRoot);
-							return workspaceRoot;
-						},
-						"rename",
-						{ manager },
-					),
-				{ cwd: root },
+			const result = await withLspClient(
+				filePath,
+				async (_client, workspaceRoot) => {
+					rootsSeen.push(workspaceRoot);
+					return workspaceRoot;
+				},
+				"rename",
+				{ manager },
 			);
 
 			// then
-			expect(withTempRequestContext(() => findWorkspaceRoot(filePath), { cwd: root })).toBe(canonicalNestedWorkspace);
-			expect(result).toBe(canonicalNestedWorkspace);
-			expect(rootsSeen).toEqual([canonicalNestedWorkspace]);
+			expect(findWorkspaceRoot(filePath)).toBe(nestedWorkspace);
+			expect(result).toBe(nestedWorkspace);
+			expect(rootsSeen).toEqual([nestedWorkspace]);
 			expect(clients[0]?.stopCallCount).toBe(0);
 		} finally {
 			restoreEnv("LSP_TOOLS_MCP_USER_CONFIG", previousUserConfig);

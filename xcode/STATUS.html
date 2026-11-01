@@ -1,0 +1,866 @@
+<title>xcode 진행 상황 — 목표 · 완료 · 남은 것</title>
+<style>
+/* =============================================================================
+ * 프로토타입(xcode/prototype)에서 확립한 토큰 체계를 그대로 쓴다.
+ * 같은 제품의 산출물이므로 시각적으로 한 몸이어야 한다.
+ * 다만 여기는 계측기가 아니라 문서다 — 밀도를 낮추고 행간을 연다.
+ * ========================================================================== */
+:root {
+  --bg-0:#0A0D12; --bg-1:#10151C; --bg-2:#161C25; --bg-3:#1D2530;
+  --line-1:#222B37; --line-2:#2C3745;
+  --txt-1:#E4EAF2; --txt-2:#A3AEBD; --txt-3:#6A7787; --txt-4:#47525F;
+  --accent:#52C7E8; --accent-ink:#52C7E8;
+  --accent-weak:rgba(82,199,232,.12); --accent-line:rgba(82,199,232,.34);
+  --ok:#4FB783;    --ok-ink:#4FB783;    --ok-weak:rgba(79,183,131,.13);
+  --warn:#E0B341;  --warn-ink:#E0B341;  --warn-weak:rgba(224,179,65,.13);
+  --caution:#E2833C; --caution-ink:#E2833C; --caution-weak:rgba(226,131,60,.13);
+  --danger:#EE5F6E; --danger-ink:#EE5F6E; --danger-weak:rgba(238,95,110,.13);
+  --info:#7E9CF5;  --info-ink:#7E9CF5;  --info-weak:rgba(126,156,245,.13);
+  --shadow:none;
+  --font-ui:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,
+            "Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Cascadia Mono",
+              Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg-0:#EEF1F5; --bg-1:#FFFFFF; --bg-2:#F6F8FA; --bg-3:#E7ECF1;
+    --line-1:#E1E7ED; --line-2:#C7D0DA;
+    --txt-1:#0E141B; --txt-2:#3D4854; --txt-3:#667283; --txt-4:#949FAC;
+    --accent:#0E7FA0; --accent-ink:#0A6280;
+    --accent-weak:rgba(14,127,160,.10); --accent-line:rgba(14,127,160,.36);
+    --ok:#2E9E6B; --ok-ink:#1C7A4F; --ok-weak:rgba(46,158,107,.11);
+    --warn:#D9A21B; --warn-ink:#7A5600; --warn-weak:rgba(217,162,27,.14);
+    --caution:#D2762A; --caution-ink:#8A4408; --caution-weak:rgba(210,118,42,.13);
+    --danger:#D93A48; --danger-ink:#A3202C; --danger-weak:rgba(217,58,72,.11);
+    --info:#3B6FD4; --info-ink:#2A54A8; --info-weak:rgba(59,111,212,.11);
+    --shadow:0 1px 2px rgba(14,20,27,.05), 0 6px 18px rgba(14,20,27,.05);
+  }
+}
+:root[data-theme="light"]{
+  --bg-0:#EEF1F5; --bg-1:#FFFFFF; --bg-2:#F6F8FA; --bg-3:#E7ECF1;
+  --line-1:#E1E7ED; --line-2:#C7D0DA;
+  --txt-1:#0E141B; --txt-2:#3D4854; --txt-3:#667283; --txt-4:#949FAC;
+  --accent:#0E7FA0; --accent-ink:#0A6280;
+  --accent-weak:rgba(14,127,160,.10); --accent-line:rgba(14,127,160,.36);
+  --ok:#2E9E6B; --ok-ink:#1C7A4F; --ok-weak:rgba(46,158,107,.11);
+  --warn:#D9A21B; --warn-ink:#7A5600; --warn-weak:rgba(217,162,27,.14);
+  --caution:#D2762A; --caution-ink:#8A4408; --caution-weak:rgba(210,118,42,.13);
+  --danger:#D93A48; --danger-ink:#A3202C; --danger-weak:rgba(217,58,72,.11);
+  --info:#3B6FD4; --info-ink:#2A54A8; --info-weak:rgba(59,111,212,.11);
+  --shadow:0 1px 2px rgba(14,20,27,.05), 0 6px 18px rgba(14,20,27,.05);
+}
+:root[data-theme="dark"]{
+  --bg-0:#0A0D12; --bg-1:#10151C; --bg-2:#161C25; --bg-3:#1D2530;
+  --line-1:#222B37; --line-2:#2C3745;
+  --txt-1:#E4EAF2; --txt-2:#A3AEBD; --txt-3:#6A7787; --txt-4:#47525F;
+  --accent:#52C7E8; --accent-ink:#52C7E8;
+  --accent-weak:rgba(82,199,232,.12); --accent-line:rgba(82,199,232,.34);
+  --ok:#4FB783; --ok-ink:#4FB783; --ok-weak:rgba(79,183,131,.13);
+  --warn:#E0B341; --warn-ink:#E0B341; --warn-weak:rgba(224,179,65,.13);
+  --caution:#E2833C; --caution-ink:#E2833C; --caution-weak:rgba(226,131,60,.13);
+  --danger:#EE5F6E; --danger-ink:#EE5F6E; --danger-weak:rgba(238,95,110,.13);
+  --info:#7E9CF5; --info-ink:#7E9CF5; --info-weak:rgba(126,156,245,.13);
+  --shadow:none;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%}
+body{
+  background:var(--bg-0); color:var(--txt-1);
+  font-family:var(--font-ui); font-size:15px; line-height:25px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:940px; margin:0 auto; padding:48px 24px 96px}
+.mono{font-family:var(--font-mono)}
+.num{font-family:var(--font-mono); font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:1ms!important}}
+
+/* --- 헤더 --------------------------------------------------------------- */
+.masthead{border-bottom:1px solid var(--line-2); padding-bottom:28px; margin-bottom:36px}
+.eyebrow{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.10em;
+  text-transform:uppercase; color:var(--txt-4); margin:0 0 12px;
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+}
+h1{
+  margin:0 0 12px; font-size:38px; line-height:44px; font-weight:600;
+  letter-spacing:-.022em; text-wrap:balance;
+}
+h1 em{font-style:normal; color:var(--accent-ink)}
+.lede{margin:0; font-size:17px; line-height:28px; color:var(--txt-2); max-width:62ch}
+
+/* --- 요약 밴드 ----------------------------------------------------------- */
+.tracks{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px;
+  background:var(--line-1); border:1px solid var(--line-1); border-radius:8px;
+  overflow:hidden; margin:32px 0 12px; box-shadow:var(--shadow);
+}
+.track{background:var(--bg-1); padding:18px 18px 16px; min-width:0}
+.track .n{
+  font-family:var(--font-mono); font-size:11px; color:var(--txt-4);
+  letter-spacing:.06em; display:block; margin-bottom:6px;
+}
+.track h3{margin:0 0 3px; font-size:16px; font-weight:600; line-height:22px}
+.track .sub{margin:0 0 14px; font-size:12.5px; line-height:18px; color:var(--txt-3)}
+.meter{height:5px; background:var(--bg-3); border-radius:99px; overflow:hidden; margin-bottom:8px}
+.meter i{display:block; height:100%; border-radius:99px; background:var(--accent)}
+.meter i.done{background:var(--ok)}
+.track .figs{
+  display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:12px;
+  color:var(--txt-3);
+}
+.track .figs b{font-size:15px; font-weight:600; color:var(--txt-1)}
+.overall{
+  display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  font-size:13px; color:var(--txt-3); margin-bottom:44px;
+}
+.overall b{
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  font-size:15px; color:var(--txt-1); font-weight:600;
+}
+
+/* --- 섹션 --------------------------------------------------------------- */
+section{margin:0 0 52px}
+h2{
+  margin:0 0 6px; font-size:13px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; font-family:var(--font-mono); color:var(--accent-ink);
+  display:flex; align-items:center; gap:10px;
+}
+h2::after{content:""; flex:1; height:1px; background:var(--line-1)}
+h3.sec{margin:24px 0 10px; font-size:20px; font-weight:600; letter-spacing:-.012em; line-height:28px}
+h4.sub{
+  margin:26px 0 8px; font-size:12px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; font-family:var(--font-mono); color:var(--txt-3);
+}
+p{margin:0 0 14px; max-width:66ch}
+p.tight{margin-bottom:8px}
+strong{font-weight:600; color:var(--txt-1)}
+code{
+  font-family:var(--font-mono); font-size:13px; background:var(--bg-3);
+  padding:1px 5px; border-radius:3px; color:var(--txt-1);
+  overflow-wrap:anywhere;
+}
+a{color:var(--accent-ink)}
+
+/* --- 칩 / 상태 ---------------------------------------------------------- */
+.chip{
+  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  font-family:var(--font-mono); font-size:11px; line-height:18px;
+  padding:1px 8px; border-radius:99px; border:1px solid var(--line-2);
+  background:var(--bg-2); color:var(--txt-2);
+}
+.chip.ok{background:var(--ok-weak); color:var(--ok-ink); border-color:transparent}
+.chip.warn{background:var(--warn-weak); color:var(--warn-ink); border-color:transparent}
+.chip.info{background:var(--info-weak); color:var(--info-ink); border-color:transparent}
+.chip.accent{background:var(--accent-weak); color:var(--accent-ink); border-color:transparent}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--txt-4);flex:none}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)}
+.dot.idle{background:var(--txt-4)} .dot.accent{background:var(--accent)}
+
+/* --- 체크리스트 표 ------------------------------------------------------- */
+.tablewrap{overflow-x:auto; border:1px solid var(--line-1); border-radius:8px; background:var(--bg-1)}
+table{border-collapse:collapse; width:100%; table-layout:fixed; min-width:600px}
+th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--line-1); vertical-align:top}
+tr:last-child td{border-bottom:none}
+th{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--txt-4); font-weight:500; background:var(--bg-2); white-space:nowrap;
+}
+td{font-size:14px; line-height:21px; color:var(--txt-2)}
+td.id{font-family:var(--font-mono); font-size:11.5px; color:var(--txt-3); white-space:nowrap}
+td.item{color:var(--txt-1)}
+td.note{font-size:12.5px; line-height:19px; color:var(--txt-3)}
+td.st{white-space:nowrap}
+col.c-id{width:15%} col.c-item{width:31%} col.c-st{width:14%} col.c-note{width:40%}
+tr.is-done td.item{color:var(--txt-2)}
+tr.is-todo{background:var(--bg-2)}
+
+/* --- 목록 --------------------------------------------------------------- */
+ul.plain{margin:0 0 16px; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px}
+ul.plain li{
+  display:grid; grid-template-columns:18px minmax(0,1fr); gap:10px;
+  font-size:14.5px; line-height:23px; color:var(--txt-2);
+}
+ul.plain li .g{font-family:var(--font-mono); font-size:13px; color:var(--txt-4); line-height:23px}
+ul.plain li.ok .g{color:var(--ok-ink)}
+ul.plain li.todo .g{color:var(--txt-4)}
+ul.plain li b{color:var(--txt-1)}
+
+/* --- 카드 --------------------------------------------------------------- */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr)); gap:14px; margin:18px 0}
+.card{
+  background:var(--bg-1); border:1px solid var(--line-1); border-radius:8px;
+  padding:16px 17px; min-width:0;
+}
+.card h5{margin:0 0 7px; font-size:14.5px; font-weight:600; display:flex; gap:8px; align-items:center}
+.card p{margin:0; font-size:13px; line-height:20px; color:var(--txt-3); max-width:none}
+.card .big{
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  font-size:27px; line-height:32px; font-weight:600; color:var(--accent-ink);
+  display:block; margin:2px 0 4px;
+}
+
+/* --- 콜아웃 ------------------------------------------------------------- */
+.callout{
+  border-left:2px solid var(--accent); background:var(--accent-weak);
+  padding:14px 18px; border-radius:0 6px 6px 0; margin:18px 0;
+}
+.callout.warn{border-left-color:var(--warn); background:var(--warn-weak)}
+.callout p{margin:0; max-width:64ch; font-size:14px; line-height:22px; color:var(--txt-2)}
+.callout p + p{margin-top:9px}
+.callout .k{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--txt-3); display:block; margin-bottom:5px;
+}
+
+/* --- 통계 줄 ------------------------------------------------------------ */
+.stats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  border:1px solid var(--line-1); border-radius:8px; overflow:hidden;
+  background:var(--line-1); gap:1px; margin:18px 0;
+}
+.stat{background:var(--bg-1); padding:14px 16px; min-width:0}
+.stat .v{
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+  font-size:21px; font-weight:600; color:var(--txt-1); display:block; line-height:26px;
+}
+.stat .l{font-size:11.5px; color:var(--txt-3); line-height:17px}
+
+/* --- 타임라인 ----------------------------------------------------------- */
+.timeline{margin:18px 0 0; padding:0; list-style:none}
+.timeline li{
+  position:relative; padding:0 0 22px 26px; border-left:1px solid var(--line-2);
+}
+.timeline li:last-child{border-left-color:transparent; padding-bottom:0}
+.timeline li::before{
+  content:""; position:absolute; left:-4.5px; top:7px; width:8px; height:8px;
+  border-radius:50%; background:var(--bg-0); border:2px solid var(--txt-4);
+}
+.timeline li.done::before{background:var(--ok); border-color:var(--ok)}
+.timeline li.now::before{background:var(--accent); border-color:var(--accent)}
+.timeline .t{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  color:var(--txt-4); text-transform:uppercase; display:block; margin-bottom:2px;
+}
+.timeline .h{font-size:15.5px; font-weight:600; color:var(--txt-1); line-height:23px}
+.timeline .d{font-size:13.5px; line-height:21px; color:var(--txt-3); margin-top:3px; max-width:60ch}
+
+footer{
+  margin-top:64px; padding-top:22px; border-top:1px solid var(--line-1);
+  font-size:12.5px; line-height:20px; color:var(--txt-4);
+}
+footer .row{display:flex; gap:16px; flex-wrap:wrap; align-items:center}
+
+.themebtn{
+  position:fixed; top:16px; right:16px; z-index:10;
+  width:34px; height:34px; border-radius:50%; cursor:pointer;
+  border:1px solid var(--line-2); background:var(--bg-1); color:var(--txt-3);
+  font-size:15px; line-height:1; display:grid; place-items:center;
+}
+.themebtn:hover{color:var(--txt-1); border-color:var(--txt-4)}
+
+@media (max-width:760px){
+  .wrap{padding:32px 18px 64px}
+  h1{font-size:29px; line-height:36px}
+  .lede{font-size:15.5px; line-height:26px}
+  .tracks{grid-template-columns:minmax(0,1fr)}
+  body{font-size:14.5px}
+}
+</style>
+
+<button class="themebtn" id="themebtn" type="button" title="라이트/다크 전환" aria-label="테마 전환">◐</button>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>xcode · 진행 상황 리포트</span>
+    <span class="chip"><span class="dot accent"></span>2026-07-26</span>
+  </p>
+  <h1>에이전트가 <em>끝까지</em> 일하게 만드는 하네스</h1>
+  <p class="lede">
+    설계 문서와 시뮬레이션 프로토타입이 끝났고, Phase&nbsp;1 구현이 진행 중이다.
+    에이전트 루프는 <strong>실제 LLM(DeepSeek v4)으로 검증됐다</strong>. 오케스트레이션을
+    <code>@xcode/sdk</code> 로 빼내 in-process 임베드와 stdin 프로토콜이 같은 코어를 쓴다.
+    <strong>2026-07-27 방향 전환</strong> — pi 실측(216,454줄 · 프로바이더 45종) 후
+    substrate 경쟁을 그만두고 <strong>정책층 툴킷</strong>으로 좁혔다. TUI·데스크톱 셸을 걷어냈고,
+    걷어낸 뒤에도 벤치 33/33 이 그대로다.
+  </p>
+</header>
+
+<div class="tracks">
+  <div class="track">
+    <span class="n">TRACK 01</span>
+    <h3>설계 문서</h3>
+    <p class="sub">waterfall 9단계 + 제안서 3종</p>
+    <div class="meter"><i class="done" style="width:100%"></i></div>
+    <div class="figs"><span><b>19</b> / 19 종</span><span class="chip ok">완료</span></div>
+  </div>
+  <div class="track">
+    <span class="n">TRACK 02</span>
+    <h3>서비스 프로토타입</h3>
+    <p class="sub">4개 렌즈 · 시뮬레이션 재생</p>
+    <div class="meter"><i class="done" style="width:100%"></i></div>
+    <div class="figs"><span><b>4</b> / 4 뷰</span><span class="chip ok">완료</span></div>
+  </div>
+  <div class="track">
+    <span class="n">TRACK 03</span>
+    <h3>Phase 1 구현</h3>
+    <p class="sub">P0 필수 항목 기준</p>
+    <div class="meter"><i class="done" style="width:100%"></i></div>
+    <div class="figs"><span><b>12</b> / 12 항목</span><span class="chip ok">완료</span></div>
+  </div>
+</div>
+
+<p class="overall">
+  <span>Phase 1 전체 (P0 + P1)</span>
+  <b>18 / 18</b>
+  <span>· P0 12/12 · P1 6/6 · TUI 2건은 범위에서 제거</span>
+</p>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>목표</h2>
+  <h3 class="sec">무엇을 만드는가</h3>
+  <p>
+    개발자가 자연어로 코딩 태스크를 주면 <strong>계획 → 실행 → 검증까지 끝내는</strong>
+    agent-native 코딩 하네스. 기존 도구는 짧은 대화엔 강하지만 길어지면 컨텍스트를 잃고
+    중간에 멈춘다. 그 지점을 정면으로 겨냥한다.
+  </p>
+  <p>
+    기반 모델은 <code>pi-coding-agent</code>. 4-package 구조, JSONL 세션 트리,
+    이벤트 기반 루프, minimal core + aggressive extensibility 철학을 그대로 계승한다.
+  </p>
+
+  <h4 class="sub">차별점 셋</h4>
+  <div class="cards">
+    <div class="card">
+      <h5><span class="dot accent"></span>진짜 Agent Loop</h5>
+      <p>한 번 답하고 끝나는 게 아니라, 툴을 쥐고 결과를 확인하며 일이 끝날 때까지 스스로 반복한다.</p>
+    </div>
+    <div class="card">
+      <h5><span class="dot accent"></span>계층형 Compaction</h5>
+      <p>중복 제거 → 절단 → 도구 인식 축약 → 요약 → 하드캡. 값싼 무손실부터 시작해 필요할 때만 비싼 요약으로 간다.</p>
+    </div>
+    <div class="card">
+      <h5><span class="dot accent"></span>Dynamic Workflow</h5>
+      <p>실패하면 되돌리고, 컨텍스트가 차면 압축으로 빠지고, 위험하면 사람에게 넘긴다. 고정 파이프라인이 아니다.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p><span class="k">Phase 1 완료 기준 (문서 확정)</span></p>
+    <p>
+      샘플 태스크 10개 중 <strong>7개 이상 완료</strong> · 완료 태스크의 테스트 통과율
+      <strong>≥80%</strong> · 사용자 개입 <strong>≤3회/태스크</strong> ·
+      컴팩션 3회 이내 완료율 <strong>≥80%</strong> · secret 노출 <strong>0건</strong> ·
+      미승인 리소스 차단 <strong>100%</strong>
+    </p>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>지금까지 온 길</h2>
+  <ul class="timeline">
+    <li class="done">
+      <span class="t">Track 01 — 완료</span>
+      <span class="h">설계 문서 19종</span>
+      <p class="d">
+        기획 · 요구사항 · 아키텍처 · 상세설계 · 구현가이드 · 테스트 · 배포 · 유지보수 · 런북,
+        그리고 제안서 3종(에이전틱 워크플로 / 컨텍스트 컴팩션 / pi 기반 모델 통합).
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">Track 02 — 완료</span>
+      <span class="h">시뮬레이션 프로토타입</span>
+      <p class="d">
+        한 번의 에이전트 실행을 4개 렌즈로 재생한다. LLM·백엔드·외부 요청 없이
+        사전 authoring 된 312개 이벤트를 순수 리듀서로 되감고 되돌린다.
+        <strong>여기서 미확정 스펙 3건이 강제로 결정됐다.</strong>
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">Track 03 — 완료</span>
+      <span class="h">Phase 1 구현 · P0 12/12 · P1 6/6</span>
+      <p class="d">
+        프로바이더 · 루프 · 세션 트리 · 컴팩션 · 툴 · 분류 · 계획 · 검증이 동작한다.
+        e2e 테스트에서 스크립트된 모델이 실제로 파일을 읽고 고치고 테스트를 통과시킨다.
+      </p>
+    </li>
+    <li>
+      <span class="t">2026-07-26 — 완료</span>
+      <span class="h">Live LLM 검증 통과</span>
+      <p class="d">
+        DeepSeek <code>v4-flash</code> · <code>v4-pro</code> 양쪽에서 classify → 실행 → 검증 전 경로 통과.
+        <strong>여기서만 드러난 결함 3건을 잡았다</strong> (아래 참조).
+      </p>
+    </li>
+    <li class="now">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">Gemini 프로바이더 · 결함이 말랐다</span>
+      <p class="d">
+        dogfood 5종을 더 돌려 <strong>새 결함 0 · 재발 0</strong> 을 확인하고
+        (기준: 재발 0 · 새 결함 1 이하) 프로바이더로 넘어갔다.
+        <strong>Gemini</strong> 는 OpenAI 호환이 아니라 메시지 모양 · 툴 감싸기 ·
+        <strong>툴 호출 id 없음</strong>이 전부 다르다. 함수 호출로 끝나도
+        <code>finishReason: STOP</code> 이 오는 함정을 잡았다 — 그대로 넘기면
+        루프가 "할 일 끝"으로 읽고 툴을 실행하지 않는다.
+        키는 URL 이 아니라 헤더로 보낸다(로그·프록시에 남는다). 테스트 10건.
+        <code>--list-models</code> 로 <strong>키가 있는 모델만</strong> 보여준다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-29 — 완료</span>
+      <span class="h">dogfooding — 결함 6건, 그중 하나는 보안</span>
+      <p class="d">
+        xcode 로 xcode 를 고치게 하고 우리가 판정하는 하네스(<code>dogfood.sh</code>)를 만들었다.
+        벤치 픽스처(5파일)로는 안 보이던 것이 실제 저장소(66파일)에서 쏟아졌다 —
+        형식 자가검증 부재 · 완료 항목이 "남은 일"로 남는 배선 · <strong>verify 게이트가
+        test 만 봐서 타입 실패에 retry 가 반응 못 하던 것</strong> · 재시도가 실패 이유를
+        모른 채 도는 것. 그리고 가장 중요한 것:
+        <strong>심볼릭 링크를 타고 샌드박스를 벗어나 원본 저장소가 수정됐다.</strong>
+        <code>safePath</code> 가 문자열만 검사했기 때문이다 — 모노레포·node_modules 가 있는
+        모든 저장소에서 성립하는 결함이었다. realpath 검사로 고치고 회귀 5건을 붙였다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">워크플로 그래프 — 빠져 있던 retry 엣지</span>
+      <p class="d">
+        <code>session.ts</code> 의 if/else 를 <strong>노드·엣지 데이터</strong>로 뺐다.
+        엔진은 xcode 를 모르고 "어떤 결과면 어디로"만 안다 — 사용자가 자기 그래프를
+        줄 수 있는 이유다. 그리고 원안이 요구한
+        <strong>"검증 실패 → 다시 구현"이 구현에 통째로 빠져 있던 것</strong>을 채웠다.
+        위에서 아래로 흐르는 구조에는 되돌아가는 엣지를 넣을 자리가 없었기 때문이다.
+        예산 가드 · <code>maxSteps</code> · 턴 캡으로 무한 루프를 세 겹으로 막는다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">컴팩션 조사자 — 요약을 agent loop 로</span>
+      <p class="d">
+        원안 그대로: <em>"compaction 도 하나의 agent loop 로 만든다."</em>
+        조사자가 <code>log_outline</code>·<code>log_grep</code>·<code>log_read</code> 로 기록을 뒤진 뒤 요약을 쓴다.
+        조사 범위는 <strong>전체</strong>, 대체 범위는 <strong>머리뿐</strong>(<code>replaceUpTo</code>) —
+        이걸 분리하지 않으면 조사자가 "이 기록은 현재 목표와 무관하다"고 단정한다
+        (근거는 유지 구간에 있는데). 실측: 현재 과업 집중도 <strong>0.11 → 0.67</strong>,
+        유지 구간의 JOIN 실패 이력을 찾아내 <strong>재발 방지 게이트로 승격</strong>했다.
+        단일 호출로는 원리적으로 불가능한 결과다 — 그 정보가 창 밖에 있기 때문이다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">방향 전환 — 정책층 툴킷으로</span>
+      <p class="d">
+        pi 를 실측했다: <strong>928 파일 · 216,454줄 · 프로바이더 45종 · 테스트 343건</strong>.
+        우리는 71 파일 · 14,333줄이었다. 그런데 pi 소스에 <code>classify</code>·<code>planner</code>·
+        <code>workflow</code>·<code>human_gate</code>·<code>working memory</code> 는 <strong>하나도 없다</strong> —
+        pi 는 substrate 이고 정책층을 비워뒀다.
+        substrate 경쟁을 그만두고 TUI·데스크톱 셸을 걷어냈다(2,600줄 · 1.3GB).
+        <strong>걷어낸 뒤 벤치 33/33, 기준선 대비 변화 없음</strong> — 지운 것이 능력이 아니었다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">벤치 n≥3 — 첫 판에 진짜 취약점이 나왔다</span>
+      <p class="d">
+        태스크마다 3회씩 돌리고 결과를 분포로 본다. 새 지표 「안정성」이 흔들리는 태스크를
+        통과에서 떼어낸다. 첫 실행에서 <code>trust</code> 가 2/3 로 흔들렸고, 파고드니
+        <strong>툴 출력이 무방비 인젝션 통로</strong>였다 — 신뢰 게이트가 시스템 프롬프트는
+        막았지만 에이전트가 <code>read</code> 로 연 파일의 지시를 3회 중 2회 따랐다.
+        시스템 프롬프트에 신뢰 경계를 명시해 막았고, 기준선을 파일로 남겨
+        <code>--compare</code> 가 회귀를 잡는다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">파일 체크포인트 — 분기의 빠진 짝을 채웠다</span>
+      <p class="d">
+        세션 트리는 대화를 fork 하는데 파일은 현재에 남아 있었다 — 분기 서사가 절반만 참이었다.
+        write/edit 를 툴 경계에서 감싸 수정 전후를 기록하고, <code>--rollback</code> 으로 되돌린다.
+        <strong>사용자의 git 은 건드리지 않는다</strong>(스냅숏은 세션 옆에), 그리고
+        <strong>사람이 그 사이 손댄 파일은 건너뛰고 보고한다</strong> — 조용히 덮어쓰는 것이 최악이다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">재진입 브리핑 · 컨텍스트 렌즈 — 차별점을 화면에</span>
+      <p class="d">
+        재개 화면이 로그에서 <strong>브리핑</strong>이 됐다 — 결정 순서로(답할 것 → 바뀐 것 → 다음),
+        결과의 목소리로, 모든 항목에 열어볼 수 있는 근거를 달아서. 재료는 워킹 메모리에
+        이미 다 있었고 없던 것은 렌더러뿐이었다.
+        IDE 에는 <strong>컨텍스트 궤적</strong>을 올렸다 — 실제 궤적과 아무것도 안 했을 때의
+        궤적을 겹쳐 그린다. 프로토타입이 시뮬레이션으로 주장하던 것을 이번엔 실측으로 그린다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">ContextPolicy — 불변식이 사례를 대신한다</span>
+      <p class="d">
+        창 크기에 대한 클램프가 세 곳에 복제돼 있던 것을 정책 객체 하나로 모았다.
+        창 16종 × 예산 4종을 훑는 property test 가 <strong>바로 전에 내가 넣은 값의 결함</strong>을
+        잡았다 — 예약분 상한 20% 는 작은 창에서 soft 구간의 폭을 0 으로 만든다.
+        사례를 하나씩 적는 테스트였다면 못 잡았을 것이다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">구조 정리 — 에이전트 생성 단일화 · 신뢰 게이트 완결</span>
+      <p class="d">
+        <code>new Agent()</code> 를 부르던 두 자리를 <code>createManagedAgent()</code> 하나로 모았다.
+        스크러빙·유입 관문·컴팩션이 <strong>생성으로부터 따라온다</strong> — 조사 에이전트가
+        비어 있던 문제가 구조적으로 닫혔고, <code>check.sh</code> 가 직접 생성을 막는다.
+        그리고 <strong>AGENTS.md 가 신뢰 게이트 밖에 있던 구멍</strong>을 닫았다 — 저장소가 쓴
+        텍스트가 검사 없이 시스템 프롬프트에 들어가고 있었다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">유입 관문 — 사다리를 건너뛰지 않게 만들었다</span>
+      <p class="d">
+        병렬 툴 호출이 컨텍스트를 한 번에 52k 로 밀어올려 80·95% 게이트가 늘 건너뛰어졌다.
+        <strong>툴 결과가 컨텍스트에 들어가기 전에</strong> 예산에 맞춰 줄이는 관문을 신설했다 —
+        실측 51,626 → 6,506 토큰으로 유입, 최종 컨텍스트 7,780(예산 16,000).
+        <code>transformContext</code> 가 쌓인 것을 줄인다면 관문은 쌓이기 전에 막는다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-27 — 완료</span>
+      <span class="h">컴팩션 live 가동 — 결함 4건 추가 발견</span>
+      <p class="d">
+        <code>bigcontext</code> 태스크로 컨텍스트를 실제로 밀어올려 <strong>51,927 → 6,807 토큰</strong>
+        압축 후에도 완주. 그 과정에서 창보다 큰 <code>reserveTokens</code>(매 턴 컴팩션),
+        <code>keepRecentTokens</code>(요약 단계 사망), 병렬 툴 호출의 보호 구간 독차지,
+        소스 파일을 꼬리 50줄로 자르던 문제를 잡았다.
+        <strong>앞선 「필요한 것은 남겼다」 보고는 정정한다</strong> — 실제로는 값이 사라지고
+        에이전트가 다시 찾아왔다. 증명된 성질은 보존이 아니라 재구성 가능이다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-26 — 완료</span>
+      <span class="h">완료 기준 벤치 — 11/11, 결함 3건 발견</span>
+      <p class="d">
+        10개 샘플 태스크를 실제 모델로 돌려 §5 지표를 전부 측정했다.
+        <strong>유닛 테스트 174건이 통과하는 상태에서 결함 3건이 살아 있었다</strong> —
+        조사 에이전트의 스크러버 누락(키가 stdout 으로 유출), 답할 사람 없는 게이트의
+        무한 대기(exit 13), 아무도 호출하지 않던 ProjectTrust. 셋 다 고치고 회귀 테스트를 붙였다.
+        <strong>컴팩션은 live 에서 한 번도 걸리지 않았다</strong> — 이건 통과가 아니라 미측정이다.
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-26 — 완료</span>
+      <span class="h">이어서 일하기 (재개 + 워킹 메모리)</span>
+      <p class="d">
+        <code>-c</code> 로 세션을 이어 열면 <strong>대화와 워킹 메모리가 함께 살아난다.</strong>
+        컴팩션을 거친 세션은 요약 체크포인트에서 재개하므로 첫 턴부터 컨텍스트가 터지지 않는다.
+        컴팩션 요약의 <code>## Key Decisions</code> 가 워킹 메모리로 승격되고, 가드는 손실을
+        보고만 하지 않고 되살린다. live 검증 통과 (<code>scripts/resume-check.sh</code>).
+      </p>
+    </li>
+    <li class="done">
+      <span class="t">2026-07-26 — 완료</span>
+      <span class="h">Tauri 데스크톱 앱 기동</span>
+      <p class="d">
+        앱 부팅 → webview 로드 → <code>start_session</code> → Node 사이드카 spawn →
+        <code>ready(deepseek-v4-pro)</code> 까지 실측 확인. GUI 앱이 셸 <code>PATH</code> 를
+        상속하지 않는 문제는 <code>XCODE_NODE</code> 로 node 경로를 명시해 해결했다.
+        <strong>이것으로 P0 가 전부 닫혔다.</strong>
+      </p>
+    </li>
+  </ul>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>완료 — Track 02 프로토타입</h2>
+  <div class="stats">
+    <div class="stat"><span class="v">4</span><span class="l">렌즈 (뷰)</span></div>
+    <div class="stat"><span class="v">312</span><span class="l">이벤트</span></div>
+    <div class="stat"><span class="v">18</span><span class="l">테스트 통과</span></div>
+    <div class="stat"><span class="v">248<span style="font-size:13px">KB</span></span><span class="l">단일 HTML</span></div>
+    <div class="stat"><span class="v">0</span><span class="l">외부 요청</span></div>
+  </div>
+
+  <ul class="plain">
+    <li class="ok"><span class="g">✓</span><span><b>3-패널 IDE</b> — 대화/계획/진행. 좌측 이벤트 거터가 실제 런타임 이벤트 이름을 노출한다.</span></li>
+    <li class="ok"><span class="g">✓</span><span><b>컴팩션 파이프라인</b> — 5단계, 80/95/100% 게이트, 워킹 메모리 before/after 디프.</span></li>
+    <li class="ok"><span class="g">✓</span><span><b>동적 워크플로 그래프</b> — 8노드, retry 루프, 사람 승인 게이트에서 재생 정지.</span></li>
+    <li class="ok"><span class="g">✓</span><span><b>세션 트리</b> — 엔트리 10종 전부, 컴팩션 밴드, fork/clone.</span></li>
+  </ul>
+
+  <div class="callout">
+    <p><span class="k">프로토타입이 확정한 스펙 3건</span></p>
+    <p>
+      <strong>1. 컴팩션 결합 방식</strong> — 파이프라인 4단계가 “무엇을 줄일지”, cut point /
+      <code>firstKeptEntryId</code> / <code>retainedTail</code> 이 “어디서 자를지”를 정한다.
+      두 설계는 배타적이지 않았다.
+    </p>
+    <p>
+      <strong>2. 세션 엔트리 스키마</strong> — 상세설계서의 10종 / <code>parentId</code> 를 정본으로
+      채택(API설계서의 5종 / <code>parent</code> 안은 폐기).
+    </p>
+    <p>
+      <strong>3. 워킹 메모리 안전장치</strong> — checksum 동일성이 아니라 <strong>보호 필드 단조성</strong>.
+      <code>decisions[]</code> 가 자라기 때문에 checksum 은 애초에 성립하지 않는다.
+    </p>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>완료 — Track 03 구현</h2>
+  <div class="stats">
+    <div class="stat"><span class="v">68</span><span class="l">TypeScript 파일</span></div>
+    <div class="stat"><span class="v">14,498</span><span class="l">줄</span></div>
+    <div class="stat"><span class="v">221</span><span class="l">테스트 통과</span></div>
+    <div class="stat"><span class="v">0</span><span class="l">런타임 의존성</span></div>
+  </div>
+
+  <h4 class="sub">패키지별 규모</h4>
+  <div class="tablewrap">
+    <table>
+      <colgroup><col class="c-id"><col class="c-item"><col class="c-st"><col class="c-note"></colgroup>
+      <thead><tr><th>패키지</th><th>담당</th><th>규모</th><th>핵심 구성</th></tr></thead>
+      <tbody>
+        <tr><td class="id">@xcode/ai</td><td class="item">프로바이더 추상화</td>
+            <td class="st num">11 파일 · 1,251줄</td>
+            <td class="note">Anthropic · OpenAI 호환(=OpenAI/DeepSeek/Ollama) · Mock, SSE 파서, 토큰 추정, ModelRegistry, auth(0600)</td></tr>
+        <tr><td class="id">@xcode/agent-core</td><td class="item">에이전트 루프</td>
+            <td class="st num">8 파일 · 1,227줄</td>
+            <td class="note">agentLoop / agentLoopContinue, 이벤트 버스, 툴 레지스트리, steering·follow-up 큐, convertToLlm</td></tr>
+        <tr><td class="id">@xcode/coding-agent</td><td class="item">세션 · 컴팩션 · 툴</td>
+            <td class="st num">21 파일 · 4,596줄</td>
+            <td class="note">JSONL 세션 트리, CompactionEngine, 내장 툴 6종, ProjectTrust, classify, Planner, verify, 워킹 메모리, <strong>스크러버 · 컨텍스트 파일 · 감사</strong></td></tr>
+        <tr><td class="id">@xcode/cli</td><td class="item">진입점</td>
+            <td class="st num">4 파일 · 553줄</td>
+            <td class="note">print / json 모드, 프로바이더 자동 선택, stdin 배선. <strong>오케스트레이션 없음</strong> — 렌더링만 한다</td></tr>
+        <tr><td class="id">@xcode/sdk</td><td class="item">오케스트레이션 (신규)</td>
+            <td class="st num">6 파일 · 1,183줄</td>
+            <td class="note">classify → plan → loop → verify. in-process 임베드 + stdin 프로토콜. CLI · TUI · Tauri 가 전부 이 위에 얹힌다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4 class="sub">P0 — Phase 1 필수 (12 / 12)</h4>
+  <div class="tablewrap">
+    <table>
+      <colgroup><col class="c-id"><col class="c-item"><col class="c-st"><col class="c-note"></colgroup>
+      <thead><tr><th>ID</th><th>항목</th><th>상태</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr class="is-done"><td class="id">P0-AI-001</td><td class="item">Provider abstraction</td><td class="st"><span class="chip ok">완료</span></td><td class="note">Anthropic · OpenAI 호환 · Ollama · Mock 4종</td></tr>
+        <tr class="is-done"><td class="id">P0-AI-002</td><td class="item">Event schema</td><td class="st"><span class="chip ok">완료</span></td><td class="note">pi 런타임 이벤트명 그대로 · 직렬화/역직렬화</td></tr>
+        <tr class="is-done"><td class="id">P0-AGENT-001</td><td class="item">Agent loop</td><td class="st"><span class="chip ok">완료</span></td><td class="note">병렬/순차 툴 배치, terminate, maxTurns, abort</td></tr>
+        <tr class="is-done"><td class="id">P0-AGENT-002</td><td class="item">JSONL Session Tree</td><td class="st"><span class="chip ok">완료</span></td><td class="note">엔트리 10종, branch / fork / clone, 손상 파일 복구</td></tr>
+        <tr class="is-done"><td class="id">P0-AGENT-003</td><td class="item">CompactionEngine</td><td class="st"><span class="chip ok">완료</span></td><td class="note">5단계, 80/95/100% 게이트, cut point 보호</td></tr>
+        <tr class="is-done"><td class="id">P0-AGENT-004</td><td class="item">Tool registry</td><td class="st"><span class="chip ok">완료</span></td><td class="note">등록·조회·덮어쓰기, 출력 자동 절단, preflight</td></tr>
+        <tr class="is-done"><td class="id">P0-AGENT-005</td><td class="item">Project Trust</td><td class="st"><span class="chip ok">완료</span></td><td class="note">ask / always / never, 미승인 로드 차단</td></tr>
+        <tr class="is-done"><td class="id">P0-CODE-001</td><td class="item">내장 툴</td><td class="st"><span class="chip ok">완료</span></td><td class="note">read · write · edit · bash · ls · grep (문서 요구는 5종)</td></tr>
+        <tr class="is-done"><td class="id">P0-CODE-002</td><td class="item">Planner</td><td class="st"><span class="chip ok">완료</span></td><td class="note">읽기 전용 툴로 조사 → 구조화 계획 → 체크리스트. 진행률은 실제 수정 파일로 판정</td></tr>
+        <tr class="is-done"><td class="id">P0-CODE-003</td><td class="item">Simple classify</td><td class="st"><span class="chip ok">완료</span></td><td class="note">휴리스틱 우선 + LLM 폴백. 단순/복잡/위험 3-way</td></tr>
+        <tr class="is-done"><td class="id">P0-CODE-004</td><td class="item">Basic verify</td><td class="st"><span class="chip ok">완료</span></td><td class="note">러너 5종 카운트 파싱 · exit code 폴백</td></tr>
+        <tr class="is-done"><td class="id">P0-CLI-001</td><td class="item">Print / JSON 모드</td><td class="st"><span class="chip ok">완료</span></td><td class="note"><code>-p</code> · <code>--json</code> 동작 확인</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4 class="sub">P1 — Phase 1 포함, P0 다음 (7 / 7)</h4>
+  <div class="tablewrap">
+    <table>
+      <colgroup><col class="c-id"><col class="c-item"><col class="c-st"><col class="c-note"></colgroup>
+      <thead><tr><th>ID</th><th>항목</th><th>상태</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr class="is-done"><td class="id">P1-AGENT-001</td><td class="item">Working Memory</td><td class="st"><span class="chip ok">완료</span></td><td class="note">구조 · 보호 필드 가드 · 렌더 · <strong>실행 후 자동 갱신</strong></td></tr>
+        <tr class="is-done"><td class="id">P1-AGENT-002</td><td class="item">Stop / Resume</td><td class="st"><span class="chip ok">완료</span></td><td class="note">CLI <code>-c</code>/<code>-r</code> 배선 완료. SDK 에 세션 주입 가능</td></tr>
+        <tr class="is-done"><td class="id">P1-AGENT-003</td><td class="item">Audit log</td><td class="st"><span class="chip ok">완료</span></td><td class="note"><code>--audit</code> — 세션 JSONL 을 질의한다. 별도 로그를 만들지 않는다(어긋날 여지 제거)</td></tr>
+        <tr class="is-done"><td class="id">P1-CODE-001</td><td class="item">Secret scrubber</td><td class="st"><span class="chip ok">완료</span></td><td class="note">11종 패턴 + 등록 키. <strong>컨텍스트·세션 JSONL 진입 전</strong>에 가린다</td></tr>
+        <tr class="is-done"><td class="id">P1-CODE-002</td><td class="item">Context file loader</td><td class="st"><span class="chip ok">완료</span></td><td class="note"><code>AGENTS.md</code>/<code>CLAUDE.md</code> 중첩 로드. 루트→하위 순서로 구체 규칙이 이긴다</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>테스트가 실제로 잡은 것</h2>
+  <p>
+    구현 중 테스트가 잡아낸 결함 셋. 셋 다 조용히 넘어갔으면 나중에 훨씬 비쌌을 것들이다.
+  </p>
+  <ul class="plain">
+    <li class="ok"><span class="g">1</span><span>
+      <b>사용자 프롬프트가 세션에 저장되지 않던 버그.</b>
+      <code>agentLoop</code> 이 user 메시지를 배열에만 넣고 <code>message_end</code> 를 내지 않아
+      영속화 구독자가 원 요청을 못 봤다. <code>--continue</code> 로 이어 열면 에이전트가 목표를 잃는 상태였다.
+    </span></li>
+    <li class="ok"><span class="g">2</span><span>
+      <b>요약이 컨텍스트를 늘리던 경우.</b> 요약 대상 구간이 작으면 요약본이 원본보다 커진다.
+      <code>MIN_SUMMARIZE_TOKENS</code> 아래는 요약하지 않도록 막았다.
+    </span></li>
+    <li class="ok"><span class="g">3</span><span>
+      <b>테스트 카운트 파싱 누락.</b> <code>"3 failed | 21 passed"</code> 를 통과로 오인했다.
+      exit code 만 믿으면 나는 사고다.
+    </span></li>
+  </ul>
+  <p>
+    추가로, 구현 과정에서 <strong>프로토타입에서는 보이지 않던 설계 문제</strong>가 하나 드러났다 —
+    컴팩션 단계별 적용 구간을 나누지 않으면 2단계(절단)가 4단계(요약)의 재료를 먼저 지워버린다.
+    요약 구간 / 유지 구간 / 최신 턴 셋으로 분리해 해결했다.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>남은 것</h2>
+
+  <h4 class="sub">다음 증분 — 우선순위 순</h4>
+  <div class="cards">
+    <div class="card">
+      <h5><span class="chip accent">01</span>툴 보강</h5>
+      <span class="big">diff · 대용량 edit</span>
+      <p>실제 저장소에서 grep·find 만으로는 부족하다. 변경 미리보기와
+         큰 파일 부분 수정. 실사용 로드맵 4주차.</p>
+    </div>
+    <div class="card">
+      <h5><span class="chip accent">02</span>핸드오프 전송</h5>
+      <span class="big">4가지</span>
+      <p>에이전트 간 결과 전달 — in-process → 파일 → HTTP → 큐.
+         지금은 함수 호출 하나뿐이고 프로토콜이 없다. 원안의 마지막 빈칸.</p>
+    </div>
+    <div class="card">
+      <h5><span class="chip accent">03</span>비용 미표시</h5>
+      <span class="big">usage 미사용</span>
+      <p><code>agent.usage</code> 는 모으는데 아무도 안 쓴다. 컨텍스트 경제학이 피치인
+         제품이 지출을 안 보여주는 건 앞뒤가 안 맞는다.</p>
+    </div>
+    <div class="card">
+      <h5><span class="chip accent">04</span>세션 트리 UI</h5>
+      <span class="big">분기 · 클론</span>
+      <p>「이어서 열기」는 최근 세션만 연다. 프로토타입 View 4 가 보여준
+         분기점 선택과 fork/clone 은 아직 화면이 없다.</p>
+    </div>
+  </div>
+
+  <h4 class="sub">알려진 격차</h4>
+  <ul class="plain">
+    <li class="todo"><span class="g">○</span><span>
+      <b>세션 목록 UI 없음.</b> 「이어서 열기」는 가장 최근 세션만 연다.
+      여러 세션 중에서 고르거나 분기점을 보는 화면은 프로토타입에만 있다.
+    </span></li>
+    <li class="todo"><span class="g">○</span><span>
+      <b>워킹 메모리를 에이전트가 직접 쓰지는 않는다.</b> 실행 결과와 컴팩션 요약에서
+      자동으로 만들어진다. 턴 중간에 에이전트가 스스로 결정을 적는 경로는 아직 없다.
+    </span></li>
+    <li class="todo"><span class="g">○</span><span>
+      <b>완료 기준 미측정.</b> 「샘플 태스크 10개 중 7개 이상」 같은 지표는 live 모델이
+      붙어야 잴 수 있다. 지금은 재는 장치가 없다.
+    </span></li>
+  </ul>
+
+  <div class="callout">
+    <p><span class="k">Live 검증 결과 — 2026-07-26</span></p>
+    <p>
+      <strong>DeepSeek v4-flash · v4-pro 양쪽에서 전 경로 통과.</strong>
+      실제 모델이 코드베이스를 읽고, 버그를 고치고, 테스트를 실행해 통과시켰다.
+      <code>v4-pro</code> 는 <code>greet(name)</code> 의 파라미터를 보존한 정확한 수정을 했다.
+    </p>
+    <p>
+      <strong>Mock 만으로는 절대 드러나지 않았을 결함 3건을 여기서 잡았다.</strong>
+      ① 잘못된 모델 id 로 400 이 났는데 classify 가 조용히 삼키고 진행 —
+      원인이 세 단계 뒤에야 드러났다.
+      ② DeepSeek v4 는 <strong>둘 다 reasoning 모델</strong>이라 응답 전에 사고 토큰을 쏟는데,
+      구조화 출력 호출의 <code>maxTokens</code> 를 300 으로 잡아 사고가 예산을 다 먹고 JSON 이 잘렸다.
+      짧게 생각한 날은 통과해서 <strong>간헐적으로만</strong> 실패했다.
+      ③ 프로바이더 오류가 원시 스택으로 노출됐다.
+    </p>
+    <p>
+      재현: <code>./scripts/live-check.sh deepseek-v4-pro</code> — 격리된 임시 프로젝트에서
+      실제 모델이 버그를 고치는지 자동 판정한다. 사용자 저장소는 건드리지 않는다.
+    </p>
+  </div>
+
+  <h4 class="sub">범위 밖 — 이후 단계</h4>
+  <div class="tablewrap">
+    <table>
+      <colgroup><col class="c-id"><col class="c-item"><col class="c-st"><col class="c-note"></colgroup>
+      <thead><tr><th>단계</th><th>항목</th><th>상태</th><th>제외 이유</th></tr></thead>
+      <tbody>
+        <tr><td class="id">Phase 1.5</td><td class="item">Extension runtime · Custom skill · Prompt directory · ReviewerAgent · Project Memory write</td><td class="st"><span class="chip info">계획</span></td><td class="note">내장 툴과 core loop 가 먼저 안정돼야 한다</td></tr>
+        <tr><td class="id">Phase 2</td><td class="item">Graph Engine (DAG 빌더) · QaAgent · Package install · Codegraph/LSP · Admin 대시보드</td><td class="st"><span class="chip info">계획</span></td><td class="note">Phase 1 은 <code>classify</code> 단순 분기만</td></tr>
+        <tr><td class="id">Phase 3</td><td class="item">Skill Marketplace · 팀 협업 / SSO</td><td class="st"><span class="chip info">계획</span></td><td class="note">생태계·엔터프라이즈 단계</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <p><span class="k">pi 철학에 따른 명시적 배제</span></p>
+    <p>
+      sub-agents · MCP · plan mode · permission popups · background bash · 내장 to-do 는
+      <strong>core 에 넣지 않는다</strong>. extension / 파일 규약 / tmux 로 대체한다.
+      core 를 비대하게 만드는 방향은 의도적으로 거부한다.
+    </p>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<section>
+  <h2>바로 확인하는 법</h2>
+  <p>구현체는 <strong>설치 없이 그대로 돈다</strong>. Node 24 가 <code>.ts</code> 를 직접 실행하고 테스트 러너도 내장이다.</p>
+  <div class="tablewrap">
+    <table>
+      <colgroup><col class="c-id"><col class="c-item"><col class="c-st"><col class="c-note"></colgroup>
+      <thead><tr><th>대상</th><th>명령</th><th>결과</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td class="id">구현 테스트</td><td class="item"><code>cd xcode/impl &amp;&amp; ./test.sh</code></td><td class="st num">221 / 221</td><td class="note">네트워크 불필요</td></tr>
+        <tr><td class="id">lint + 타입</td><td class="item"><code>./scripts/check.sh</code></td><td class="st"><span class="chip ok">통과</span></td><td class="note">biome + tsc</td></tr>
+        <tr><td class="id">CLI 실행</td><td class="item"><code>./xcode-test.sh -p "…"</code></td><td class="st num">exit 3</td><td class="note">위험 작업이면 human_gate 에서 정지</td></tr>
+        <tr><td class="id">완료 기준 벤치</td><td class="item"><code>node bench/run.mjs --repeat 3 --concurrency 3</code></td><td class="st num">33 / 33</td><td class="note">11 태스크 × 3회. 격리 임시 프로젝트 · 판정은 에이전트 보고가 아닌 독립 검증기</td></tr>
+        <tr><td class="id">재개 검증</td><td class="item"><code>./scripts/resume-check.sh deepseek-v4-pro</code></td><td class="st"><span class="chip ok">통과</span></td><td class="note">두 번 실행해 「1회차를 기억하지 못하면 답할 수 없는 질문」을 던진다</td></tr>
+        <tr><td class="id">Live 검증</td><td class="item"><code>./scripts/live-check.sh deepseek-v4-pro</code></td><td class="st"><span class="chip ok">통과</span></td><td class="note">격리된 임시 프로젝트에서 실제 모델 왕복. 키 없으면 넣는 법을 안내한다</td></tr>
+        <tr><td class="id">프로토타입</td><td class="item"><code>open xcode/prototype/dist/xcode-prototype.html</code></td><td class="st"><span class="chip ok">동작</span></td><td class="note">더블클릭, 서버 불필요</td></tr>
+        <tr><td class="id">프로토타입 테스트</td><td class="item"><code>cd xcode/prototype &amp;&amp; node --test test/*.test.mjs</code></td><td class="st num">18 / 18</td><td class="note">원장·리듀서 검증</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="row">
+    <span>xcode 진행 상황 리포트 · 2026-07-26</span>
+    <span class="chip">문서 19종</span>
+    <span class="chip">프로토타입 완료</span>
+    <span class="chip ok">구현 P0 12/12</span>
+    <span class="chip ok">live 검증 통과</span>
+    <span class="chip">테스트 239건 통과</span>
+  </div>
+  <p style="margin-top:10px;max-width:64ch">
+    수치는 저장소 실측값이다. 「완료」는 해당 항목의 코드와 테스트가 존재하고 통과함을 뜻하며,
+    live LLM 환경에서의 검증은 별도로 표시했다.
+  </p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById("themebtn");
+  if (!btn) return;
+  try {
+    var saved = localStorage.getItem("xc-status-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  } catch (e) { /* 샌드박스 */ }
+
+  btn.addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) {
+      cur = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark" : "light";
+    }
+    var next = cur === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("xc-status-theme", next); } catch (e) { /* 샌드박스 */ }
+  });
+})();
+</script>

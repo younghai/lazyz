@@ -1,42 +1,13 @@
 import { describe, expect, test } from "bun:test"
+import { z } from "zod"
 import { parseConfigSections } from "./config-section-parser"
 
-type TestConfig = {
-  nested?: { label: string }
-  names?: string[]
-}
-
-const ConfigSchema = {
-  safeParse(input: unknown) {
-    const record = typeof input === "object" && input !== null ? input as Record<string, unknown> : {}
-    const data: TestConfig = {}
-    const issues: Array<{ path: Array<string | number>; message: string }> = []
-
-    if (record.nested !== undefined) {
-      const nested = record.nested
-      if (typeof nested === "object" && nested !== null && typeof (nested as Record<string, unknown>).label === "string") {
-        data.nested = { label: (nested as Record<string, string>).label }
-      } else {
-        issues.push({ path: ["nested"], message: "Invalid nested section" })
-      }
-    }
-
-    if (record.names !== undefined) {
-      if (Array.isArray(record.names) && record.names.every((name) => typeof name === "string")) {
-        data.names = record.names
-      } else {
-        const invalidIndex = Array.isArray(record.names)
-          ? record.names.findIndex((name) => typeof name !== "string")
-          : 0
-        issues.push({ path: ["names", Math.max(invalidIndex, 0)], message: "Invalid input: expected string, received number" })
-      }
-    }
-
-    return issues.length === 0
-      ? { success: true as const, data }
-      : { success: false as const, error: { issues } }
-  },
-}
+const ConfigSchema = z.object({
+  nested: z.object({
+    label: z.string(),
+  }).optional(),
+  names: z.array(z.string()).optional(),
+})
 
 describe("parseConfigSections", () => {
   test("#given one invalid config section #when parsing section-wise #then valid sections are preserved", () => {

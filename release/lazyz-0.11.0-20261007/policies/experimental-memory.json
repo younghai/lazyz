@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"feature": "experimental-memory",
+	"defaultEnabled": false,
+	"runtimeStatus": "blocked-pending-security-review",
+	"storage": {
+		"scope": "project-only",
+		"path": ".omo/memory",
+		"userGlobalAllowed": false,
+		"repositoryIdentityIsolationRequired": true
+	},
+	"requiredControls": [
+		"redaction",
+		"export",
+		"delete",
+		"backup",
+		"migration",
+		"locking",
+		"untrusted-input-quarantine",
+		"prompt-injection-defense"
+	],
+	"implementationImportsAllowed": []
+}

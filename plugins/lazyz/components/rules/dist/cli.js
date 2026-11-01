@@ -272,7 +272,7 @@ var require_scan = __commonJS(function(exports, module) {
   var scan = (input, options) => {
     const opts = options || {};
     const length = input.length - 1;
-    const scanToEnd = opts.parts === true || opts.tokens === true || opts.scanToEnd === true;
+    const scanToEnd = opts.parts === true || opts.scanToEnd === true;
     const slashes = [];
     const tokens = [];
     const parts = [];
@@ -379,18 +379,14 @@ var require_scan = __commonJS(function(exports, module) {
             negatedExtglob = true;
           }
           if (scanToEnd === true) {
-            let parens = 0;
             while (eos() !== true && (code = advance())) {
               if (code === CHAR_BACKWARD_SLASH) {
                 backslashes = token.backslashes = true;
-                advance();
+                code = advance();
                 continue;
               }
-              if (code === CHAR_LEFT_PARENTHESES) {
-                parens++;
-                continue;
-              }
-              if (code === CHAR_RIGHT_PARENTHESES && --parens === 0) {
+              if (code === CHAR_RIGHT_PARENTHESES) {
+                isGlob = token.isGlob = true;
                 finished = true;
                 break;
               }
@@ -445,18 +441,13 @@ var require_scan = __commonJS(function(exports, module) {
       if (opts.noparen !== true && code === CHAR_LEFT_PARENTHESES) {
         isGlob = token.isGlob = true;
         if (scanToEnd === true) {
-          let parens = 1;
           while (eos() !== true && (code = advance())) {
-            if (code === CHAR_BACKWARD_SLASH) {
-              backslashes = token.backslashes = true;
-              advance();
-              continue;
-            }
             if (code === CHAR_LEFT_PARENTHESES) {
-              parens++;
+              backslashes = token.backslashes = true;
+              code = advance();
               continue;
             }
-            if (code === CHAR_RIGHT_PARENTHESES && --parens === 0) {
+            if (code === CHAR_RIGHT_PARENTHESES) {
               finished = true;
               break;
             }
@@ -530,7 +521,7 @@ var require_scan = __commonJS(function(exports, module) {
     if (opts.parts === true || opts.tokens === true) {
       let prevIndex;
       for (let idx = 0;idx < slashes.length; idx++) {
-        const n = prevIndex !== undefined ? prevIndex + 1 : start;
+        const n = prevIndex ? prevIndex + 1 : start;
         const i = slashes[idx];
         const value = input.slice(n, i);
         if (opts.tokens) {
@@ -543,18 +534,19 @@ var require_scan = __commonJS(function(exports, module) {
           depth(tokens[idx]);
           state.maxDepth += tokens[idx].depth;
         }
-        if (i >= start) {
+        if (idx !== 0 || value !== "") {
           parts.push(value);
-          prevIndex = i;
         }
+        prevIndex = i;
       }
-      const n = prevIndex !== undefined ? prevIndex + 1 : start;
-      const value = input.slice(n);
-      parts.push(value);
-      if (opts.tokens && prevIndex && prevIndex + 1 < input.length) {
-        tokens[tokens.length - 1].value = value;
-        depth(tokens[tokens.length - 1]);
-        state.maxDepth += tokens[tokens.length - 1].depth;
+      if (prevIndex && prevIndex + 1 < input.length) {
+        const value = input.slice(prevIndex + 1);
+        parts.push(value);
+        if (opts.tokens) {
+          tokens[tokens.length - 1].value = value;
+          depth(tokens[tokens.length - 1]);
+          state.maxDepth += tokens[tokens.length - 1].depth;
+        }
       }
       state.slashes = slashes;
       state.parts = parts;
@@ -1396,7 +1388,6 @@ var require_parse = __commonJS(function(exports, module) {
           rest = rest.slice(3);
           consume("/**", 3);
         }
-        const isEnd = eos() || state.parens > 0 && rest === ")".repeat(state.parens) && !extglobs.some((extglob) => extglob.type === "negate");
         if (prior.type === "bos" && eos()) {
           prev.type = "globstar";
           prev.value += value;
@@ -1406,7 +1397,7 @@ var require_parse = __commonJS(function(exports, module) {
           consume(value);
           continue;
         }
-        if (prior.type === "slash" && prior.prev.type !== "bos" && !afterStar && isEnd) {
+        if (prior.type === "slash" && prior.prev.type !== "bos" && !afterStar && eos()) {
           state.output = state.output.slice(0, -(prior.output + prev.output).length);
           prior.output = `(?:${prior.output}`;
           prev.type = "globstar";

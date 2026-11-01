@@ -7,14 +7,17 @@ node_modules/
 **/dist/
 **/*.tsbuildinfo
 
+!plugins/lazyz/dist/
+plugins/lazyz/dist/*
+!plugins/lazyz/dist/cli/
+!plugins/lazyz/dist/cli/**
+
 # Ship the plugin's prebuilt hook components and MCP runtimes so that
 # `zcode plugin add lazyz@lazyz` works without a build step.
 !plugins/lazyz/components/*/dist/
 !plugins/lazyz/components/*/dist/**
 !plugins/lazyz/vendor/*/dist/
 !plugins/lazyz/vendor/*/dist/**
-!plugins/lazyz/dist/
-!plugins/lazyz/dist/**
 
 # omo internal runtime artifacts
 .omo/
@@ -65,17 +68,3 @@ package-lock.json
 # OS
 .DS_Store
 Thumbs.db
-
-# ZCode local session/plan files (never ship)
-.zcode/
-
-# Environment files
-.env
-.env.*
-
-# Local analysis, caches and export backups are never publication inputs.
-.gjc/
-.codegraph/
-.tmp-*/
-**/.tmp-*/
-publication-backup*/

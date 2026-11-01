@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { handleLspMcpRequest } from "../src/mcp.js";
-import { withTempRequestContext } from "./helpers/request-context.js";
 
 describe("lsp MCP server", () => {
 	it("responds to initialize with tool capabilities", async () => {
@@ -90,7 +89,6 @@ describe("lsp MCP server", () => {
 describe("lsp MCP install_decision routing", () => {
 	const tempDirectories: string[] = [];
 	const saved = new Map<string, string | undefined>();
-	let contextRoot = "";
 
 	function setEnv(name: string, value: string): void {
 		if (!saved.has(name)) saved.set(name, process.env[name]);
@@ -99,7 +97,6 @@ describe("lsp MCP install_decision routing", () => {
 
 	beforeEach(() => {
 		const dir = mkdtempSync(join(tmpdir(), "lsp-mcp-decisions-"));
-		contextRoot = dir;
 		tempDirectories.push(dir);
 		setEnv("LSP_TOOLS_MCP_INSTALL_DECISIONS", join(dir, "lsp-install-decisions.json"));
 		setEnv("LSP_TOOLS_MCP_USER_CONFIG", join(dir, "absent-user.json"));
@@ -121,30 +118,24 @@ describe("lsp MCP install_decision routing", () => {
 	});
 
 	it("routes install_decision tool calls", async () => {
-		const response = await withTempRequestContext(() =>
-			handleLspMcpRequest({
-				jsonrpc: "2.0",
-				id: 5,
-				method: "tools/call",
-				params: { name: "install_decision", arguments: { server_id: "typescript", decision: "declined" } },
-			}),
-			{ cwd: contextRoot },
-		);
+		const response = await handleLspMcpRequest({
+			jsonrpc: "2.0",
+			id: 5,
+			method: "tools/call",
+			params: { name: "install_decision", arguments: { server_id: "typescript", decision: "declined" } },
+		});
 
 		expect(response).toMatchObject({ jsonrpc: "2.0", id: 5, result: { isError: false } });
 		expect(response?.result?.content?.[0]?.text).toContain("typescript");
 	});
 
 	it("routes the legacy lsp_install_decision alias", async () => {
-		const response = await withTempRequestContext(() =>
-			handleLspMcpRequest({
-				jsonrpc: "2.0",
-				id: 6,
-				method: "tools/call",
-				params: { name: "lsp_install_decision", arguments: { server_id: "typescript", decision: "allowed" } },
-			}),
-			{ cwd: contextRoot },
-		);
+		const response = await handleLspMcpRequest({
+			jsonrpc: "2.0",
+			id: 6,
+			method: "tools/call",
+			params: { name: "lsp_install_decision", arguments: { server_id: "typescript", decision: "allowed" } },
+		});
 
 		expect(response).toMatchObject({ jsonrpc: "2.0", id: 6, result: { isError: false } });
 	});

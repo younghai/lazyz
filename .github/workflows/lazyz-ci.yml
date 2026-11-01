@@ -1,0 +1,116 @@
+name: LazyZ CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/lazyz/**"
+      - ".github/workflows/lazyz-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "plugins/lazyz/**"
+      - ".github/workflows/lazyz-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.os }} · node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["20", "22"]
+    defaults:
+      run:
+        working-directory: plugins/lazyz
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify generated artifacts are current
+        run: |
+          set -e
+          git diff --exit-code -- ':(glob)components/*/dist/**' ':(glob)vendor/*/dist/**' 'runtime/ast-grep-mcp/**' 'skills/**' 'hooks/**' 'components/work-status/README.md'
+          test -z "$(git ls-files --others --exclude-standard -- ':(glob)components/*/dist/**' ':(glob)vendor/*/dist/**' 'runtime/ast-grep-mcp/**' 'skills/**' 'hooks/**')"
+
+      - name: Verify ZCode compatibility residues
+        run: npm run check:zcode
+
+      - name: Typecheck components
+        run: npm run typecheck:components
+
+      - name: Test root safety and runtime checks
+        run: npm test
+
+      - name: Test components
+        run: npm run test:components
+
+      - name: Stage and smoke-test release payload
+        run: |
+          set -e
+          payload_dir=$(mktemp -d)
+          npm run build:release -- --output "$payload_dir"
+          node "$payload_dir/dist/cli/index.js" doctor --json
+          node "$payload_dir/dist/cli/index.js" ulw-loop --help
+          test -z "$(find "$payload_dir" -type d \( -name src -o -name test -o -name tests -o -name node_modules \) -print -quit)"
+          test -z "$(find "$payload_dir" -type f \( -name bun.lock -o -name package-lock.json -o -name pnpm-lock.yaml -o -name yarn.lock \) -print -quit)"
+          test ! -e "$payload_dir/vendor/omo-codex"
+          test -f "$payload_dir/vendor/lsp-daemon/dist/cli.js"
+          test -f "$payload_dir/vendor/git-bash-mcp/dist/cli.js"
+          test -f "$payload_dir/runtime/ast-grep-mcp/cli.js"
+
+      - name: Verify hook outputs and MCP runtimes
+        run: |
+          set -e
+          for component in bootstrap codegraph comment-checker git-bash lazycodex-executor-verify lsp rules start-work-continuation telemetry ultrawork ulw-loop work-status; do
+            test -f "components/$component/dist/cli.js" || { echo "Missing components/$component/dist/cli.js"; exit 1; }
+          done
+          test -f vendor/git-bash-mcp/dist/cli.js
+          test -f vendor/lsp-daemon/dist/cli.js
+          test -f vendor/lsp-tools-mcp/dist/cli.js
+
+      - name: Verify hook and MCP manifest references
+        run: |
+          set -e
+          grep -oE '(components|vendor|runtime)/[a-z-]+/(dist/)?[a-z.-]+' hooks/hooks.json .mcp.json \
+            | cut -d: -f2 | sort -u | while read -r ref; do
+              test -f "$ref" || { echo "Broken reference: $ref"; exit 1; }
+            done
+
+      - name: Verify boulder parser sync
+        run: |
+          set -e
+          work_status="components/work-status/src/work-status.ts"
+          continuation="components/start-work-continuation/src/boulder-reader.ts"
+          work_statuses=$(grep -m1 'type BoulderWorkStatus' "$work_status" | grep -oE '"[a-z]+"' | sort)
+          continuation_statuses=$(grep -m1 'type BoulderWorkStatus' "$continuation" | grep -oE '"[a-z]+"' | sort)
+          if [ "$work_statuses" != "$continuation_statuses" ]; then
+            echo "BoulderWorkStatus values diverge between $work_status and $continuation"
+            exit 1
+          fi

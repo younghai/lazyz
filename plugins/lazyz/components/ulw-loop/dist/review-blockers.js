@@ -1,8 +1,10 @@
 // biome-ignore-all format: compact port must stay within the requested pure LOC budget.
-import { readCodexGoalSnapshotInput, reconcileCodexGoalSnapshot } from "./codex-goal-snapshot.js";
-import { codexGoalMode, compatibleCodexObjectives, expectedCodexObjective, isFinalRunCompletionCandidate } from "./goal-status.js";
+import { CodexGoalSnapshotError, formatCodexGoalReconciliation, readCodexGoalSnapshotInput, reconcileCodexGoalSnapshot, } from "./codex-goal-snapshot.js";
+import { acknowledgeDriverObjective, acknowledgedDriverObjectives } from "./driver-objective-ack.js";
+import { compatibleCodexObjectives, expectedCodexObjective, isFinalRunCompletionCandidate } from "./goal-status.js";
+import { commit } from "./plan-commit.js";
 import { seedDefaultSuccessCriteria } from "./plan-crud.js";
-import { appendLedger, readUlwLoopPlan, withUlwLoopMutationLock, writePlan } from "./plan-io.js";
+import { readUlwLoopPlan, withUlwLoopMutationLock } from "./plan-io.js";
 import { iso, UlwLoopError } from "./types.js";
 const BLOCKER_FIELDS = "blockedReason blockerSignature blockerOccurrenceCount requiredExternalDecision nonRetriable failedAt failureReason completedAt blocker blockerEvidence blockerOccurrences blockedAt".split(" ");
 function ulwLoopError(message, code) {
@@ -17,12 +19,13 @@ function nextGoalId(plan) {
 }
 function appendBlockerGoal(plan, args, now) {
     const index = plan.goals.length;
+    const id = nextGoalId(plan);
     const goal = {
-        id: nextGoalId(plan),
+        id,
         title: args.title,
         objective: args.objective,
         status: "pending",
-        successCriteria: seedDefaultSuccessCriteria(index, args.objective),
+        successCriteria: seedDefaultSuccessCriteria(index, args.objective, { goalId: id }),
         attempt: 0,
         createdAt: now,
         updatedAt: now,
@@ -41,10 +44,14 @@ export async function recordFinalReviewBlockers(repoRoot, args, scope) {
         if (!isFinalRunCompletionCandidate(plan, goal))
             ulwLoopError(`${goal.id} is not final.`, "ulw_loop_not_final_story");
         const snapshot = await readCodexGoalSnapshotInput(args.codexGoalJson, repoRoot);
-        const aggregate = codexGoalMode(plan) === "aggregate";
-        const reconciliation = reconcileCodexGoalSnapshot(snapshot, { expectedObjective: expectedCodexObjective(plan, goal), ...(aggregate ? { acceptedObjectives: compatibleCodexObjectives(plan) } : {}), allowedStatuses: ["active"], requireSnapshot: true, requireComplete: false });
+        const reconciliation = reconcileCodexGoalSnapshot(snapshot, {
+            expectedObjective: expectedCodexObjective(plan, goal),
+            acceptedObjectives: compatibleCodexObjectives(plan),
+            acknowledgedObjectives: acknowledgedDriverObjectives(plan),
+        });
         if (!reconciliation.ok)
-            ulwLoopError(reconciliation.errors.join(" "), "ulw_loop_codex_snapshot_mismatch");
+            throw new CodexGoalSnapshotError(formatCodexGoalReconciliation(reconciliation));
+        acknowledgeDriverObjective(plan, reconciliation.unacknowledgedObjective);
         const now = iso();
         for (const field of BLOCKER_FIELDS)
             Reflect.deleteProperty(goal, field);
@@ -56,15 +63,20 @@ export async function recordFinalReviewBlockers(repoRoot, args, scope) {
             delete plan.activeGoalId;
         const newGoal = appendBlockerGoal(plan, args, now);
         plan.updatedAt = now;
-        const codexGoal = reconciliation.snapshot.raw;
+        const codexGoal = snapshot?.raw;
         const blockedEntry = { at: now, kind: "goal_review_blocked", goalId: goal.id, status: goal.status, evidence: args.evidence, codexGoal };
         const addedEntry = { at: now, kind: "goal_added", goalId: newGoal.id, status: newGoal.status, evidence: args.evidence, message: newGoal.title };
         const summaryEntry = { at: now, kind: "goal_review_blocked", goalId: goal.id, status: goal.status, evidence: args.evidence, codexGoal, message: `Review blockers recorded; appended ${newGoal.id}.` };
         Reflect.set(summaryEntry, "kind", "blocker_recorded");
         const ledgerEntries = [blockedEntry, addedEntry, summaryEntry];
-        await writePlan(repoRoot, plan, scope);
-        for (const entry of ledgerEntries)
-            await appendLedger(repoRoot, entry, scope);
-        return { plan, blockedGoal: goal, newGoal, ledgerEntries };
+        await commit(repoRoot, scope, { plan, entries: ledgerEntries });
+        return {
+            plan,
+            blockedGoal: goal,
+            newGoal,
+            ledgerEntries,
+            nextActions: reconciliation.nextActions,
+            warnings: reconciliation.warnings,
+        };
     });
 }

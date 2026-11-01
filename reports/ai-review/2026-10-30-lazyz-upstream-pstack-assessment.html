@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LazyZ upstream · pstack 비교 — AI 활용 검증</title>
+  <style>
+    body{font:16px/1.6 system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 24px;color:#172534;background:#f5f7fa}section{background:white;padding:24px;margin:20px 0;border:1px solid #d7e0e9;border-radius:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd5df;padding:10px;text-align:left;vertical-align:top}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px}.flow{display:flex;gap:12px;flex-wrap:wrap}.flow span{padding:12px;background:#edf3ff;border:1px solid #c7d6f4;border-radius:8px}@media print{body{background:white;margin:0}section{break-inside:avoid}}
+  </style>
+</head>
+<body>
+  <h1>LazyZ upstream · pstack 비교 — AI 활용 검증</h1>
+  <p>2026-10-30 · 프로젝트 루트: /Users/young2026/Downloads/personal_project/lazyz · 범위: LazyZ의 현재 진행 중인 0.12 동기화, LazyCodex main(e809c369), pstack workflow map 비교 및 운영 개선 제안</p>
+
+  <section>
+    <h2>결과와 검증 한계</h2>
+    <p><strong>부분 완료:</strong> 변경 없이 비교 분석과 우선순위 제안을 만들었다. 핵심 판단은 “기능 확대”보다 “선택 동기화가 source와 dist에서 재현되는지”를 먼저 해결하는 것이다.</p>
+    <p>실제 업무 개선 판정: <strong>개선 미검증</strong>. 이번 작업은 제안·분석만 수행했으며, 실제 ZCode 호스트에서의 설치·훅 실행·운영 지표는 측정하지 않았다.</p>
+    <p>입력: 현재 LazyZ 작업 트리, LazyCodex 공개 main, pstack workflow map. 결과: upstream 채택 전략과 P0~P2 운영 백로그. 성공 기준: 이미 해결된 과거 문제를 재보고하지 않고, ZCode 이식 경계와 현재 진행 중인 동기화 위험을 분리해 제시하는 것.</p>
+  </section>
+
+  <section>
+    <h2>7원칙 완료 확인</h2>
+    <p>상태: 적용 / 부분 적용 / 해당 없음 / 미검증</p>
+    <table>
+      <thead><tr><th>원칙</th><th>상태</th><th>근거·이유</th><th>다음조치</th></tr></thead>
+      <tbody>
+        <tr><td>1. 맥락·방향·결과 우선</td><td>적용</td><td>사용자가 지정한 upstream 및 pstack 자료를 먼저 읽고, 현재 0.12 작업 트리와 과거 0.1.x 상태를 구분했다.</td><td>다음 구현 계획도 이 분석의 P0 순서를 기준으로 작성한다.</td></tr>
+        <tr><td>2. AI 원리 그림 설명</td><td>적용</td><td>아래에 입력→분석→우선순위→사람 검토 흐름을 Mermaid와 정적 흐름도로 함께 기록했다.</td><td>사람이 제안 채택 범위와 릴리스 시점을 결정한다.</td></tr>
+        <tr><td>3. 60/30/10 배분 제안</td><td>부분 적용</td><td>장기 포트폴리오로 60% 반복 운영 안정화, 30% 기존 동기화/배포 방식 개선, 10% 유지보수 자동화 실험을 제안할 수 있다. 실제 투입 비율은 기록되지 않았다.</td><td>2~3개 릴리스의 작업 분류와 시간을 기록한 뒤 재평가한다.</td></tr>
+        <tr><td>4. 빈도·효과·낮은 위험 우선</td><td>적용</td><td>source/dist 드리프트와 dispatch 계약 끊김은 모든 재빌드·모든 governed Agent 호출에 영향을 주므로 새 기능보다 우선한다.</td><td>P0를 해결한 뒤 lifecycle smoke와 상태 스키마를 다룬다.</td></tr>
+        <tr><td>5. 실제 적용·적합성 검증</td><td>미검증</td><td>실제 ZCode 설치·호스트 훅·사용자 작업을 실행하지 않았다. 분석 결과는 정적 소스와 공개 upstream 근거다.</td><td>사용자가 구현을 요청한 뒤, 허용된 범위에서 ZCode lifecycle acceptance scenario를 수행한다.</td></tr>
+        <tr><td>6. 성공 workflow 재사용</td><td>부분 적용</td><td>재사용 후보는 “upstream 선택 동기화 → source adapter → build artifact → lifecycle contract”이다. 아직 성공 운영 사례로 검증되지는 않았다.</td><td>두 번 이상의 릴리스에서 재현 가능성·복구 절차가 확인될 때만 표준 workflow로 승격한다.</td></tr>
+        <tr><td>7. 전후 결과 HTML 보고</td><td>적용</td><td>이 HTML은 범위, 근거, 전후 측정 부재, 위험, 다음 조치를 보존한다.</td><td>구현 후 별도 보고에서 실제 변경과 허용된 검증 근거를 연결한다.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>입력 → 처리 → 결과와 사람 검토</h2>
+    <div class="flow" aria-label="정적 흐름도"><span>LazyZ 현재 작업 트리</span><span>→ upstream/pstack 대조</span><span>→ P0~P2 제안</span><span>→ 유지보수자 채택·구현 판단</span></div>
+    <p>AI는 지정된 공개 자료와 로컬 소스의 계약·경계·변경 상태를 비교해 우선순위를 제안했다. 제안은 사용자·유지보수자의 구현 권한이나 릴리스 승인을 대체하지 않는다.</p>
+    <h3>Mermaid 소스</h3>
+    <pre class="mermaid-source">flowchart LR
+  A[LazyZ 작업 트리와 운영 문서] --> B[LazyCodex와 pstack 비교]
+  B --> C[동기화·계약·운영 위험 식별]
+  C --> D[P0~P2 개선 백로그]
+  D --> E[사람의 범위·릴리스 판단]
+  E --> F[승인된 구현과 실제 호스트 검증]</pre>
+  </section>
+
+  <section>
+    <h2>실제 업무 결과의 전후 비교</h2>
+    <table>
+      <thead><tr><th>차원</th><th>기준선</th><th>이후 결과</th><th>기간·단위</th><th>출처</th><th>판정·한계</th></tr></thead>
+      <tbody>
+        <tr><td>품질</td><td>비교 전 운영 품질 지표 없음</td><td>변경 없음; 위험 우선순위만 정리</td><td>2026-10-30, 단일 분석</td><td>로컬 소스·공개 문서</td><td>개선 미검증</td></tr>
+        <tr><td>시간</td><td>릴리스·동기화 소요 시간 미측정</td><td>측정 없음</td><td>기록 없음</td><td>없음</td><td>개선 미검증</td></tr>
+        <tr><td>비용</td><td>모델·빌드·운영 비용 미측정</td><td>측정 없음</td><td>기록 없음</td><td>없음</td><td>개선 미검증</td></tr>
+        <tr><td>위험</td><td>0.12 선택 동기화가 source보다 dist에 먼저 존재하는 위험</td><td>위험을 문서화했으나 완화 변경은 하지 않음</td><td>2026-10-30, 정적 분석</td><td>components/ulw-loop/src, dist 및 build script</td><td>위험 감소 미검증</td></tr>
+      </tbody>
+    </table>
+    <p>코드 빌드·테스트 통과 여부와 실제 품질·시간·비용·위험 개선은 별개다. 이 보고서에는 전후 비교 가능한 운영 데이터가 없으므로 개선을 주장하지 않는다.</p>
+  </section>
+
+  <section>
+    <h2>포트폴리오와 적용 후보</h2>
+    <p>제안: 반복 업무 60% / 기존 방법 개선 30% / 새로운 실험 10%. 단일 작업 할당량이 아니며 실제 배분은 미측정이다.</p>
+    <ul>
+      <li><strong>60% 반복 운영 안정화:</strong> upstream 동기화 provenance, source→dist 소유권, manifest/package/README 버전 일치. 반복성이 높고 실패 시 플러그인 전체에 영향이 크다.</li>
+      <li><strong>30% 기존 방식 개선:</strong> pstack의 stage 모델을 LazyZ의 ulw-plan→ulw-execute에 매핑하고, 단일 versioned Dispatch/Receipt contract를 둔다.</li>
+      <li><strong>10% 실험:</strong> 실제 ZCode lifecycle acceptance scenario와 post-merge observation contract. 호스트 차이 때문에 작은 범위로 시작한다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>재사용 workflow와 후속조치</h2>
+    <ol>
+      <li><strong>P0 — 재현 가능한 선택 동기화:</strong> ulw-loop spawn guard/admission/Stop 기능을 source adapter로 이식하거나, hash가 기록된 opaque runtime으로 명확히 고정한다. 둘을 혼합하지 않는다.</li>
+      <li><strong>P1 — 계약과 provenance:</strong> deprecated start-work가 아닌 독립된 versioned Dispatch/Receipt reference로 모든 skill 링크를 옮기고, 0.12.0 version·upstream 5.1.51 provenance를 package, manifest, README, vendor lock에 일치시킨다.</li>
+      <li><strong>P1 — 실제 surface contract:</strong> SessionStart, UserPromptSubmit, Pre/PostToolUse, Stop, local MCP와 누락 런타임 안내를 하나의 host lifecycle acceptance contract로 정의한다.</li>
+      <li><strong>P2 — 상태와 유지보수:</strong> Boulder/goals/ledger의 typed writer·shared parser·migration path를 설계하고, 반복 장애는 hook·fixture·skill rule에 기록한다.</li>
+    </ol>
+    <p>제한: Codex 전용 thread/goal API, model TOML, installer config mutation, 무제한 continuation은 ZCode에 그대로 이식하지 않는다. LazyZ의 명시적 승인, privacy-default telemetry OFF, namespaced role, ZCode의 Stop 제한은 유지한다.</p>
+    <p>권한: 이 보고서는 제안만 한다. 설치·배포·업스트림 병합·외부 메시지·유료 호출 권한을 부여하지 않는다.</p>
+  </section>
+
+  <section>
+    <h2>산출물·검증 증거</h2>
+    <ul>
+      <li>새 보고서: reports/ai-review/2026-10-30-lazyz-upstream-pstack-assessment.html</li>
+      <li>분석 근거: pstack map, LazyCodex main e809c369, LazyZ의 changelog·hooks·ulw-loop source/dist·sync-skills 계약</li>
+      <li>검증 미실행 (사용자 전역 정책): 보고서 저장 후 재읽기, 테스트, 린트, 타입 검사, 빌드, 실제 ZCode host lifecycle 실행을 수행하지 않았다.</li>
+    </ul>
+  </section>
+</body>
+</html>

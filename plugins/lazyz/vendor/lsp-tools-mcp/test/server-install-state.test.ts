@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -10,8 +10,6 @@ import {
 	loadInstallDecisions,
 	recordInstallDecision,
 } from "../src/lsp/server-install-state.js";
-import { contextEnv } from "../src/request-context.js";
-import { withTempRequestContext } from "./helpers/request-context.js";
 
 const ENV = "LSP_TOOLS_MCP_INSTALL_DECISIONS";
 const tempDirectories: string[] = [];
@@ -46,10 +44,8 @@ describe("server install state", () => {
 		const path = useDecisionsFile();
 
 		// when
-		const record = withTempRequestContext(() => {
-			recordInstallDecision("rust", "declined", "2026-06-10T00:00:00.000Z");
-			return loadInstallDecision("rust");
-		});
+		recordInstallDecision("rust", "declined", "2026-06-10T00:00:00.000Z");
+		const record = loadInstallDecision("rust");
 
 		// then
 		expect(record).toEqual({ decision: "declined", decidedAt: "2026-06-10T00:00:00.000Z" });
@@ -62,10 +58,10 @@ describe("server install state", () => {
 	it("#given an unknown server #when loading its decision #then returns undefined", () => {
 		// given
 		useDecisionsFile();
-		withTempRequestContext(() => recordInstallDecision("rust", "declined"));
+		recordInstallDecision("rust", "declined");
 
 		// when / then
-		expect(withTempRequestContext(() => loadInstallDecision("gopls"))).toBeUndefined();
+		expect(loadInstallDecision("gopls")).toBeUndefined();
 	});
 
 	it("#given no decisions file #when loading #then treats it as empty", () => {
@@ -73,8 +69,8 @@ describe("server install state", () => {
 		useDecisionsFile();
 
 		// when / then
-		expect(withTempRequestContext(() => loadInstallDecisions())).toEqual({});
-		expect(withTempRequestContext(() => loadInstallDecision("rust"))).toBeUndefined();
+		expect(loadInstallDecisions()).toEqual({});
+		expect(loadInstallDecision("rust")).toBeUndefined();
 	});
 
 	it("#given a corrupt decisions file #when loading #then tolerates it as empty", () => {
@@ -84,23 +80,20 @@ describe("server install state", () => {
 		writeFileSync(path, "{ this is not json", "utf8");
 
 		// when / then
-		expect(withTempRequestContext(() => loadInstallDecisions())).toEqual({});
-		expect(withTempRequestContext(() => loadInstallDecision("rust"))).toBeUndefined();
+		expect(loadInstallDecisions()).toEqual({});
+		expect(loadInstallDecision("rust")).toBeUndefined();
 	});
 
 	it("#given an existing decision #when recording a new one #then overwrites with the latest", () => {
 		// given
 		useDecisionsFile();
-		withTempRequestContext(() => recordInstallDecision("rust", "declined", "2026-06-10T00:00:00.000Z"));
+		recordInstallDecision("rust", "declined", "2026-06-10T00:00:00.000Z");
 
 		// when
-		withTempRequestContext(() => recordInstallDecision("rust", "allowed", "2026-06-10T01:00:00.000Z"));
+		recordInstallDecision("rust", "allowed", "2026-06-10T01:00:00.000Z");
 
 		// then
-		expect(withTempRequestContext(() => loadInstallDecision("rust"))).toEqual({
-			decision: "allowed",
-			decidedAt: "2026-06-10T01:00:00.000Z",
-		});
+		expect(loadInstallDecision("rust")).toEqual({ decision: "allowed", decidedAt: "2026-06-10T01:00:00.000Z" });
 	});
 
 	it("#given a recorded decision #when writing atomically #then leaves no temp artifact behind", () => {
@@ -108,7 +101,7 @@ describe("server install state", () => {
 		const path = useDecisionsFile();
 
 		// when
-		withTempRequestContext(() => recordInstallDecision("rust", "allowed"));
+		recordInstallDecision("rust", "allowed");
 
 		// then
 		const entries = readdirSync(dirname(path));
@@ -122,7 +115,7 @@ describe("server install state", () => {
 		process.env[ENV] = path;
 
 		// when / then
-		expect(withTempRequestContext(() => getInstallDecisionsPath())).toBe(path);
+		expect(getInstallDecisionsPath()).toBe(path);
 	});
 
 	it("#given no env override #when resolving the path #then defaults beside the user config", () => {
@@ -133,9 +126,7 @@ describe("server install state", () => {
 		const path = getInstallDecisionsPath();
 
 		// then
-		const userConfig = contextEnv("LSP_TOOLS_MCP_USER_CONFIG");
-		expect(userConfig).toBeDefined();
-		expect(dirname(path)).toBe(dirname(userConfig ?? ""));
+		expect(path).toBe(join(homedir(), ".codex", "lsp-install-decisions.json"));
 		expect(path).not.toContain(`${sep}.pi${sep}`);
 	});
 });

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LazyZ Service Workflow Report</title>
+  <style>
+    :root {
+      --bg: #f6f8fa;
+      --fg: #1f2328;
+      --muted: #57606a;
+      --border: #d0d7de;
+      --accent: #0969da;
+      --accent-light: #ddf4ff;
+      --code-bg: #f3f4f6;
+      --table-header: #f6f8fa;
+      --card: #ffffff;
+      --shadow: 0 1px 2px rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    header {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+    }
+    header h1 { margin: 0 0 12px; font-size: 2rem; }
+    header .meta { color: var(--muted); font-size: 0.95rem; }
+    header .meta span { display: inline-block; margin-right: 20px; }
+    nav {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 16px;
+      z-index: 10;
+    }
+    nav h2 { margin: 0 0 12px; font-size: 1rem; }
+    nav ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 6px 20px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    nav a { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+    nav a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    section h2 {
+      margin: 0 0 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.5rem;
+    }
+    section h3 { margin: 28px 0 12px; font-size: 1.2rem; color: var(--fg); }
+    p { margin: 0 0 14px; }
+    ul, ol { margin: 0 0 16px; padding-left: 24px; }
+    li { margin-bottom: 6px; }
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 0.92rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--table-header); font-weight: 600; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .highlight {
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
+    .flow {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 24px 0 40px;
+    }
+    @media (max-width: 720px) {
+      .container { padding: 20px 16px; }
+      header { padding: 24px; }
+      section { padding: 22px; }
+      nav { position: static; }
+      nav ul { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LazyZ Service Workflow Report</h1>
+      <div class="meta">
+        <span><strong>Repository:</strong> <code>/Users/young2026/Downloads/personal_project/lazyz</code></span>
+        <span><strong>Plugin root:</strong> <code>plugins/lazyz/</code></span>
+        <span><strong>Version:</strong> <code>0.10.2</code></span>
+        <span><strong>Generated:</strong> 2026-07-14</span>
+      </div>
+    </header>
+
+    <nav>
+      <h2>목차</h2>
+      <ul>
+        <li><a href="#executive-summary">1. Executive Summary</a></li>
+        <li><a href="#architecture">2. Repository Architecture</a></li>
+        <li><a href="#commands">3. User-Facing Commands</a></li>
+        <li><a href="#skills">4. Skills Layer</a></li>
+        <li><a href="#hooks">5. Lifecycle Hooks</a></li>
+        <li><a href="#mcp">6. MCP Servers</a></li>
+        <li><a href="#dataflow">7. Service Data Flow</a></li>
+        <li><a href="#build">8. Build &amp; Deployment</a></li>
+        <li><a href="#telemetry">9. Telemetry &amp; Privacy</a></li>
+        <li><a href="#operations">10. Operational Considerations</a></li>
+        <li><a href="#diagram">11. Summary Diagram</a></li>
+      </ul>
+    </nav>
+
+    <section id="executive-summary">
+      <h2>1. Executive Summary</h2>
+      <p>
+        LazyZ는 OmO / LazyCodex agent harness의 ZCode 배포판입니다.
+        프로젝트 메모리 생성, 의사결정이 완전한 계획 수립, 지속 가능한 실행, 검증된 완료를
+        하나의 설치 가능한 ZCode 플러그인으로 패키징합니다.
+      </p>
+      <div class="highlight">
+        <strong>Typical workflow:</strong>
+        <pre>/init-deep → /ulw-plan "feature" → approve plan → /start-work → review → done</pre>
+      </div>
+      <p>
+        실제 처리는 스킬 레이어, 수명주기 훅 레이어, 그리고 소수의 로컬/원격 MCP 도구가 담당합니다.
+      </p>
+    </section>
+
+    <section id="architecture">
+      <h2>2. Repository Architecture</h2>
+      <pre>
+lazyz/
+├── plugins/lazyz/              # The ZCode plugin (installable artifact)
+│   ├── .zcode-plugin/plugin.json
+│   ├── .mcp.json               # MCP server declarations
+│   ├── commands/               # 4 slash-command wrappers
+│   ├── skills/                 # 23+ skill instruction bundles
+│   ├── hooks/hooks.json        # Lifecycle hook registry
+│   ├── components/             # TypeScript hook & MCP implementations
+│   ├── vendor/                 # Vendored upstream packages
+│   └── scripts/                # Build, sync, and diagnostic scripts
+├── shared-skills/              # Cross-harness skill source bundle
+├── lsp-tools-mcp/              # LSP tools as an MCP server
+├── prompts-core/               # Prompt loading & model-variant routing
+├── model-core/                 # Model resolution & capability detection
+├── rules-engine/               # Rule discovery & AGENTS.md utilities
+├── comment-checker-core/       # Comment-checker parser/runner
+└── utils/                      # Shared TypeScript utilities
+      </pre>
+
+      <h3>Architectural roles</h3>
+      <table>
+        <thead>
+          <tr><th>Layer / Package</th><th>Role</th><th>Key paths</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>plugins/lazyz/</code></td><td>ZCode plugin artifact. Exposes commands, skills, hooks, MCP servers.</td><td><code>.zcode-plugin/plugin.json</code>, <code>commands/</code>, <code>skills/</code>, <code>hooks/hooks.json</code>, <code>.mcp.json</code>, <code>components/</code>, <code>vendor/</code></td></tr>
+          <tr><td><code>shared-skills/</code></td><td>Cross-harness <code>SKILL.md</code> bundle shared with OpenCode/Codex editions.</td><td><code>shared-skills/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+          <tr><td><code>lsp-tools-mcp/</code></td><td>LSP tools packaged as a stdio MCP server.</td><td><code>lsp-tools-mcp/src/tools.ts</code>, <code>src/mcp.ts</code></td></tr>
+          <tr><td><code>prompts-core/</code></td><td>Harness-agnostic prompt loading and model-variant routing.</td><td><code>plugins/lazyz/vendor/prompts-core/src/</code></td></tr>
+          <tr><td><code>model-core/</code></td><td>Model resolution, capability detection, fallback chains.</td><td><code>plugins/lazyz/vendor/model-core/src/</code></td></tr>
+          <tr><td><code>rules-engine/</code></td><td>Rule discovery, matching, <code>AGENTS.md</code> context utilities.</td><td><code>plugins/lazyz/vendor/rules-engine/src/</code></td></tr>
+          <tr><td><code>comment-checker-core/</code></td><td>Comment-checker parsing and runner core.</td><td><code>plugins/lazyz/vendor/comment-checker-core/src/</code></td></tr>
+          <tr><td><code>utils/</code></td><td>Shared utilities: config loading, codegraph helpers, env expansion, git worktree, etc.</td><td><code>utils/src/</code>, <code>plugins/lazyz/vendor/utils/src/</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="commands">
+      <h2>3. User-Facing Commands</h2>
+      <p>모든 명령은 <code>plugins/lazyz/commands/</code>에 있는 얇은 마크다운 래퍼입니다. 각 래퍼는 ZCode가 지정된 스킬을 로드하도록 지시합니다.</p>
+      <table>
+        <thead>
+          <tr><th>Command</th><th>Skill invoked</th><th>Purpose</th><th>Inputs</th><th>Outputs</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>/init-deep</code></td><td><code>init-deep</code></td><td>Hierarchical project memory through <code>AGENTS.md</code>.</td><td><code>[--create-new] [--max-depth=N]</code></td><td><code>AGENTS.md</code> files across the repository</td></tr>
+          <tr><td><code>/ulw-plan</code></td><td><code>ulw-plan</code></td><td>Explore-first, decision-complete planning.</td><td><code>"what to build"</code></td><td><code>.omo/plans/&lt;slug&gt;.md</code>, <code>.omo/drafts/&lt;slug&gt;.md</code></td></tr>
+          <tr><td><code>/start-work</code></td><td><code>start-work</code></td><td>Durable plan execution with tracked progress.</td><td><code>[plan-name] [--worktree &lt;path&gt;]</code></td><td><code>.omo/boulder.json</code>, <code>.omo/start-work/ledger.jsonl</code>, <code>ORCHESTRATION COMPLETE</code></td></tr>
+          <tr><td><code>/ulw-loop</code></td><td><code>ulw-loop</code></td><td>Verified completion loop for open-ended, multi-goal work.</td><td><code>"task" [--completion-promise=TEXT] [--strategy=reset|continue]</code></td><td><code>.omo/ulw-loop/goals.json</code>, ledger</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Typical workflow</h3>
+      <pre>/init-deep
+/ulw-plan "Add OAuth2 login"
+    → model explores, writes plan, asks for approval
+/start-work
+    → executes checkboxes, runs reviews, marks complete</pre>
+      <p><code>/ulw-loop</code>은 장기적이거나 탐색적이거나 다중 목표 작업을 위해 예약되어 있습니다.</p>
+    </section>
+
+    <section id="skills">
+      <h2>4. Skills Layer</h2>
+      <p>
+        스킬은 <code>plugins/lazyz/skills/&lt;name&gt;/SKILL.md</code>에 있는 마크다운 지침 번들입니다.
+        많은 스킬이 <code>shared-skills/</code> 또는 컴포넌트별 디렉터리에서 시작되며,
+        <code>scripts/sync-skills.mjs</code>를 통해 정규화됩니다.
+      </p>
+
+      <h3>Core skills</h3>
+      <table>
+        <thead>
+          <tr><th>Skill</th><th>Location</th><th>Purpose</th><th>Trigger</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>init-deep</code></td><td><code>skills/init-deep/SKILL.md</code></td><td>Hierarchical <code>AGENTS.md</code> generation.</td><td><code>/init-deep</code> command</td></tr>
+          <tr><td><code>ulw-plan</code></td><td><code>skills/ulw-plan/SKILL.md</code></td><td>Decision-complete planning (Prometheus).</td><td><code>/ulw-plan</code> command; phrases like “plan this”</td></tr>
+          <tr><td><code>start-work</code></td><td><code>skills/start-work/SKILL.md</code></td><td>Boulder-based plan execution.</td><td><code>/start-work</code> command</td></tr>
+          <tr><td><code>ulw-loop</code></td><td><code>skills/ulw-loop/SKILL.md</code></td><td>Durable multi-goal loop.</td><td><code>/ulw-loop</code> command</td></tr>
+          <tr><td><code>review-work</code></td><td><code>skills/review-work/SKILL.md</code></td><td>5-lane parallel review.</td><td>Final gate of <code>start-work</code>; explicit command</td></tr>
+          <tr><td><code>remove-ai-slops</code></td><td><code>skills/remove-ai-slops/SKILL.md</code></td><td>Behavior-preserving cleanup of AI-looking code.</td><td>“remove slop”, “clean AI code”</td></tr>
+          <tr><td><code>frontend</code></td><td><code>skills/frontend/SKILL.md</code></td><td>UI/UX/design-system discipline.</td><td>Frontend/UI/design requests</td></tr>
+          <tr><td><code>programming</code></td><td><code>skills/programming/SKILL.md</code></td><td>Strict TS/Rust/Python/Go discipline, TDD, 250 LOC ceiling.</td><td>Code edits in supported languages</td></tr>
+          <tr><td><code>lsp</code></td><td><code>skills/lsp/SKILL.md</code></td><td>LSP diagnostics, definitions, references, rename.</td><td>Auto-loaded; symbol/diagnostic questions</td></tr>
+          <tr><td><code>ast-grep</code></td><td><code>skills/ast-grep/SKILL.md</code></td><td>Structural search and rewrite.</td><td>Structural code matching requests</td></tr>
+          <tr><td><code>rules</code></td><td><code>skills/rules/SKILL.md</code></td><td>Project rule injection behavior.</td><td>User asks about rules</td></tr>
+          <tr><td><code>comment-checker</code></td><td><code>skills/comment-checker/SKILL.md</code></td><td>Responding to comment-checker hook feedback.</td><td>Auto-loaded after edit hooks</td></tr>
+          <tr><td><code>git-master</code></td><td><code>skills/git-master/SKILL.md</code></td><td>Atomic commits and git history.</td><td>Git operations</td></tr>
+          <tr><td><code>debugging</code></td><td><code>skills/debugging/SKILL.md</code></td><td>Hypothesis-driven debugging.</td><td>Debug requests</td></tr>
+          <tr><td><code>teammode</code></td><td><code>skills/teammode/SKILL.md</code></td><td>Lightweight multi-agent collaboration.</td><td>“team”, “parallel members”</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Skill triggering mechanisms</h3>
+      <ol>
+        <li><strong>Command wrappers</strong> explicitly name a skill (e.g., <code>/ulw-plan</code> → <code>ulw-plan</code>).</li>
+        <li><strong>ZCode auto-loads</strong> skills whose <code>description</code> frontmatter matches the prompt.</li>
+        <li><strong>Hooks inject skill directives</strong>:
+          <ul>
+            <li><code>ultrawork</code> UserPromptSubmit hook injects the ultrawork directive when the prompt contains “ultrawork” / “ulw”.</li>
+            <li><code>ulw-loop</code> UserPromptSubmit hook steers loop goals.</li>
+            <li><code>rules</code> SessionStart/UserPromptSubmit hooks inject project rules.</li>
+          </ul>
+        </li>
+        <li><strong>Post-tool hooks</strong> surface feedback that loads <code>comment-checker</code>, <code>lsp</code>, or <code>rules</code> guidance after edits.</li>
+      </ol>
+      <p>
+        빌드 시 <code>sync-skills.mjs</code>는 ZCode 전용 “Harness Tool Compatibility” 블록을 삽입하여
+        upstream <code>call_omo_agent</code> / <code>task</code> / <code>spawn_agent</code> 예시를
+        ZCode의 기본 <code>Agent</code> 도구에 매핑합니다.
+      </p>
+    </section>
+
+    <section id="hooks">
+      <h2>5. Lifecycle Hooks</h2>
+      <p>
+        훅은 <code>plugins/lazyz/hooks/hooks.json</code>에 선언됩니다.
+        각 훅 명령은 <code>scripts/run-hook.sh</code>에 의해 래핑되며,
+        Node.js 20+와 컴포넌트의 사전 빌드된 <code>dist/cli.js</code> 존재를 확인합니다.
+      </p>
+
+      <h3>Hook inventory</h3>
+      <table>
+        <thead>
+          <tr><th>ZCode Event</th><th>Component</th><th>Matcher</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>bootstrap</code></td><td>—</td><td>Provisions LazyZ runtime dependencies if not already done for this version.</td></tr>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>codegraph</code></td><td>—</td><td>Checks CodeGraph initialization; spawns background worker if needed.</td></tr>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>rules</code></td><td>—</td><td>Loads project rules into context.</td></tr>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>telemetry</code></td><td>—</td><td>Emits the daily-active telemetry event (at most once per UTC day).</td></tr>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>work-status</code></td><td>—</td><td>Resume prompts, init-deep suggestion, local MCP build-missing warning, manual-QA notice.</td></tr>
+          <tr><td><span class="badge">SessionStart</span></td><td><code>migrate-codex-config.mjs</code></td><td>—</td><td>Migrates legacy Codex config.</td></tr>
+          <tr><td><span class="badge">UserPromptSubmit</span></td><td><code>ultrawork</code></td><td>—</td><td>Injects the ultrawork directive when prompt mentions ultrawork/ulw.</td></tr>
+          <tr><td><span class="badge">UserPromptSubmit</span></td><td><code>ulw-loop</code></td><td>—</td><td>Steers ulw-loop goals; optionally includes ultrawork directive.</td></tr>
+          <tr><td><span class="badge">UserPromptSubmit</span></td><td><code>rules</code></td><td>—</td><td>Re-injects project rules for the current prompt.</td></tr>
+          <tr><td><span class="badge">PreToolUse</span></td><td><code>git-bash</code></td><td><code>^Bash$</code></td><td>Recommends the <code>git_bash</code> MCP for git shell commands.</td></tr>
+          <tr><td><span class="badge">PostToolUse</span></td><td><code>comment-checker</code></td><td><code>Edit\|Write\|ApplyPatch</code></td><td>Runs comment-checker on edited files; blocks if warnings found.</td></tr>
+          <tr><td><span class="badge">PostToolUse</span></td><td><code>lsp</code></td><td><code>Edit\|Write\|ApplyPatch</code></td><td>Runs LSP diagnostics on mutated files; blocks on errors.</td></tr>
+          <tr><td><span class="badge">PostToolUse</span></td><td><code>rules</code></td><td><code>Edit\|Write\|ApplyPatch</code></td><td>Matches file-specific project rules after edits.</td></tr>
+          <tr><td><span class="badge">PostToolUse</span></td><td><code>codegraph</code></td><td><code>mcp__codegraph__.*</code></td><td>Provides CodeGraph guidance after codegraph tool use.</td></tr>
+          <tr><td><span class="badge">PostToolUse</span></td><td><code>lazycodex-executor-verify</code></td><td><code>Agent\|Task</code></td><td>Verifies executor evidence after subagent stops.</td></tr>
+          <tr><td><span class="badge">Stop</span></td><td><code>start-work-continuation</code></td><td>—</td><td>If <code>.omo/boulder.json</code> has remaining work, blocks stop and injects continuation directive.</td></tr>
+        </tbody>
+      </table>
+      <p>Aggregate registry: <strong>13 logical hook entries</strong> across <strong>5 ZCode events</strong>.</p>
+    </section>
+
+    <section id="mcp">
+      <h2>6. MCP Servers</h2>
+      <p>MCP 서버는 <code>plugins/lazyz/.mcp.json</code>에 선언됩니다.</p>
+      <table>
+        <thead>
+          <tr><th>Server</th><th>Type</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>grep_app</code></td><td>Remote</td><td>Zero-config web search.</td></tr>
+          <tr><td><code>context7</code></td><td>Remote</td><td>Zero-config documentation context.</td></tr>
+          <tr><td><code>codegraph</code></td><td>Local (<code>components/codegraph/dist/serve.js</code>)</td><td>Code-graph queries. <code>required: false</code>.</td></tr>
+          <tr><td><code>git_bash</code></td><td>Local (<code>vendor/git-bash-mcp/dist/cli.js</code>)</td><td>Git-aware bash execution. <code>required: false</code>.</td></tr>
+          <tr><td><code>lsp</code></td><td>Local (<code>vendor/lsp-daemon/dist/cli.js</code>)</td><td>Language-server tools. <code>required: false</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        로컬 서버는 사전 빌드된 <code>dist/</code> 파일과 함께 제공됩니다.
+        파일이 누락된 경우 <code>work-status</code> SessionStart 훅이 하루에 한 번 경고합니다.
+      </p>
+    </section>
+
+    <section id="dataflow">
+      <h2>7. Service Data Flow</h2>
+      <p>사용자 요청은 다음 단계를 거칩니다:</p>
+      <div class="flow">
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
+│  User prompt    │────▶│  Command wrapper │────▶│  Skill loaded       │
+│  (/ulw-plan …)  │     │  (commands/*.md) │     │  (skills/*/SKILL.md)│
+└─────────────────┘     └──────────────────┘     └─────────────────────┘
+                                                          │
+┌─────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Context injection (SessionStart / UserPromptSubmit hooks)               │
+│  • rules: project rules from AGENTS.md / instruction files               │
+│  • ultrawork / ulw-loop: directive injection                             │
+│  • work-status: resume / suggestion / build-missing notices              │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Exploration / planning / execution                                      │
+│  • Native tools: Read, Grep, Glob, Bash, Agent, Edit, Write             │
+│  • MCP tools: codegraph_explore, lsp_*, grep_app, git_bash              │
+│  • Helpers: ast_grep_helper.py, scripts/scaffold-plan.mjs               │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Approval gate (ulw-plan)                                                │
+│  Writes draft + plan, presents brief, waits for explicit approval.       │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Execution (start-work)                                                  │
+│  Reads .omo/boulder.json + selected plan.                                │
+│  For each checkbox: dispatch parallel Agent subagents, verify with tests │
+│  + manual QA, append evidence to .omo/start-work/ledger.jsonl.          │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Continuation (Stop hook)                                                │
+│  start-work-continuation checks .omo/boulder.json.                       │
+│  If work remains, blocks stop and re-injects continuation directive.     │
+│  Default cap: 10 continuations/session.                                  │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Verification loops                                                      │
+│  • review-work: 5-lane parallel review                                   │
+│  • debugging audit                                                       │
+│  • remove-ai-slops / programming quality gates                           │
+└────────────────────────────────────────────────────────────────────────┘
+│
+▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  Completion                                                              │
+│  Prints ORCHESTRATION COMPLETE when all checkboxes and review gates pass.│
+└────────────────────────────────────────────────────────────────────────┘
+      </div>
+
+      <h3>Continuation mechanism</h3>
+      <p>
+        모델 턴이 종료되면 <code>start-work-continuation</code> Stop 훅이 <code>.omo/boulder.json</code>을 검사합니다.
+        확인되지 않은 작업이 남아 있으면 <code>decision: block</code>과 연속 지시문을 반환합니다.
+        이를 통해 수 시간에 걸친 계획도 수동 재시작 없이 여러 ZCode 턴에 걸쳐 진행할 수 있습니다.
+        세션당 기본 상한은 <code>DEFAULT_MAX_CONTINUATIONS = 10</code>이며,
+        <code>LAZYZ_START_WORK_MAX_CONTINUATIONS</code>로 재정의할 수 있습니다.
+      </p>
+    </section>
+
+    <section id="build">
+      <h2>8. Build &amp; Deployment Workflow</h2>
+
+      <h3>End-user installation</h3>
+      <p>빌드가 필요 없습니다. 모든 훅과 로컬 MCP 서버에 대해 사전 빌드된 <code>dist/</code>가 포함되어 제공됩니다.</p>
+      <pre>zcode plugin marketplace add https://github.com/code-yeongyu/lazyz
+zcode plugin add lazyz@lazyz</pre>
+      <p>요구사항:</p>
+      <ul>
+        <li>macOS 또는 Linux용 ZCode(이번 릴리스에서는 Windows를 지원하지 않음).</li>
+        <li><code>PATH</code>에 Node.js 20+.</li>
+      </ul>
+
+      <h3>Build from source</h3>
+      <pre>cd plugins/lazyz
+npm install
+npm run build</pre>
+      <p>Node.js 20+ 외에 <strong>Bun</strong>이 필요합니다.</p>
+
+      <h3>Build pipeline</h3>
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Script</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><code>scripts/sync-version.mjs</code></td><td>Stamps <code>0.10.2</code> into plugin and component manifests.</td></tr>
+          <tr><td>2</td><td><code>scripts/sync-hook-status-messages.mjs</code></td><td>Updates <code>(LazyZ 0.10.2) …</code> status messages in all <code>hooks.json</code> files.</td></tr>
+          <tr><td>3</td><td><code>scripts/build-bundled-mcp-runtimes.mjs</code></td><td>Builds <code>lsp-tools-mcp</code>, <code>lsp-daemon</code>, <code>git-bash-mcp</code>.</td></tr>
+          <tr><td>4</td><td><code>scripts/materialize-shared-upstreams.mjs</code></td><td>No-op in LazyZ (frontend refs are pre-committed).</td></tr>
+          <tr><td>5</td><td><code>scripts/sync-skills.mjs</code></td><td>Copies component + shared skills into <code>plugins/lazyz/skills/</code>, injects ZCode compatibility guidance and <code>agents/openai.yaml</code> display metadata.</td></tr>
+          <tr><td>6</td><td><code>scripts/build-components.mjs</code></td><td>Uses <code>bun build</code> to bundle every component’s <code>src/cli.ts</code> into <code>dist/cli.js</code>.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Hook launcher diagnostics</h3>
+      <p>
+        <code>scripts/run-hook.sh</code>는 훅을 실행하기 전에 Node.js와 <code>dist/cli.js</code>의 존재를 확인합니다.
+        무언가 누락되면 세션을 실패시키지 않고 stderr에 진단 메시지를 출력합니다.
+      </p>
+    </section>
+
+    <section id="telemetry">
+      <h2>9. Telemetry &amp; Privacy Workflow</h2>
+
+      <h3>Daily-active telemetry</h3>
+      <table>
+        <thead>
+          <tr><th>Attribute</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Event</td><td><code>omo_codex_daily_active</code></td></tr>
+          <tr><td>Trigger</td><td><code>SessionStart</code> hook (<code>components/telemetry/</code>)</td></tr>
+          <tr><td>Frequency</td><td>At most once per UTC day per machine</td></tr>
+          <tr><td>Distinct ID</td><td><code>sha256("omo-codex:" + hostname)</code> — raw hostname is not sent</td></tr>
+          <tr><td>Captured</td><td>Product/runtime metadata, OS metadata, coarse machine shape, locale, timezone, shell/terminal hints, <code>source</code>, <code>reason</code>, <code>day_utc</code></td></tr>
+          <tr><td><strong>Not captured</strong></td><td>Prompts, transcripts, source files, file paths, tokens, API keys, hostnames, git remotes, usernames, emails, error diagnostics</td></tr>
+          <tr><td>Endpoint</td><td>PostHog (<code>https://us.i.posthog.com</code> by default)</td></tr>
+          <tr><td>State file</td><td><code>$XDG_DATA_HOME/omo-codex/posthog-activity.json</code> or <code>~/.local/share/omo-codex/posthog-activity.json</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Opt-out controls</h3>
+      <p>첫 실행 전:</p>
+      <pre>touch ~/.omo/telemetry-disabled</pre>
+      <p>또는 환경 변수를 통해:</p>
+      <pre>export OMO_CODEX_DISABLE_POSTHOG=1
+export OMO_CODEX_SEND_ANONYMOUS_TELEMETRY=0
+# Global variants also accepted:
+export OMO_DISABLE_POSTHOG=1
+export OMO_SEND_ANONYMOUS_TELEMETRY=0</pre>
+      <p>
+        옵트아웃되면 telemetry 컴포넌트는 no-op PostHog 클라이언트를 생성하고 네트워크 호출을 하지 않습니다.
+      </p>
+
+      <h3>Product events</h3>
+      <p>
+        최상위 <code>README.md</code>는 옵트인, 로컬 전용 product-events 모드(<code>LAZYZ_PRODUCT_EVENTS=1</code> / <code>OMO_PRODUCT_EVENTS=1</code>)를 문서화하고 있으며,
+        <code>plan_start</code>, <code>work_complete</code>, <code>resume_prompted</code>, <code>init_deep_suggested</code>, <code>build_missing</code> 같은 이벤트를
+        <code>~/.lazyz/product-events.jsonl</code>에 기록합니다.
+      </p>
+      <div class="highlight">
+        <strong>Status:</strong> 해당 기능은 코드베이스에 아직 구현되어 있지 않습니다.
+        <code>plugins/lazyz/docs/known-limitations.md</code>는 “Telemetry is DAU-only … Tracked for Sprint 2: opt-in (default OFF) product events.”라고 명시합니다.
+      </div>
+    </section>
+
+    <section id="operations">
+      <h2>10. Key Operational Considerations</h2>
+      <table>
+        <thead>
+          <tr><th>Concern</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Platform support</td><td>macOS and Linux only for this release.</td></tr>
+          <tr><td>Runtime dependency</td><td>Node.js 20+ must be on <code>PATH</code>; Bun is only required for source builds.</td></tr>
+          <tr><td>Self-contained install</td><td>Prebuilt <code>dist/</code> ships for all hooks and local MCP servers.</td></tr>
+          <tr><td>Continuation cap</td><td><code>DEFAULT_MAX_CONTINUATIONS = 10</code>, overridable via <code>LAZYZ_START_WORK_MAX_CONTINUATIONS</code>.</td></tr>
+          <tr><td>Quality gates</td><td>comment-checker (post-edit warnings), lsp (post-edit errors), rules (post-edit file rules), review-work (pre-completion).</td></tr>
+          <tr><td>Manual QA channel</td><td><code>start-work</code> expects a manual QA confirmation step for changes that cannot be verified automatically.</td></tr>
+          <tr><td>Config migration</td><td><code>migrate-codex-config.mjs</code> SessionStart hook handles legacy Codex configs.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="diagram">
+      <h2>11. Summary Diagram</h2>
+      <div class="flow">
+┌──────────────────────────────────────────────────────────────────────┐
+│                         ZCode Client                                  │
+│  /init-deep  /ulw-plan  /start-work  /ulw-loop                       │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                     LazyZ Plugin (plugins/lazyz/)                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
+│  │  Commands   │  │   Skills    │  │    Hooks    │  │ MCP servers │  │
+│  │  (4 wrappers)│  │  (23+ bundles)│ │ (13 entries)│ │ (5 servers) │  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+        ┌─────────────────────────┼─────────────────────────┐
+        ▼                         ▼                         ▼
+┌───────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│ Local tools   │      │  Vendored cores │      │  Remote tools   │
+│ (Read, Grep,  │      │ (lsp-tools-mcp, │      │ (grep_app,      │
+│  Bash, Agent) │      │  codegraph,     │      │  context7)      │
+│               │      │  git-bash-mcp)  │      │                 │
+└───────────────┘      └─────────────────┘      └─────────────────┘
+                                  │
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Project workspace                             │
+│  AGENTS.md  .omo/plans/  .omo/boulder.json  .omo/start-work/ledger   │
+└──────────────────────────────────────────────────────────────────────┘
+      </div>
+    </section>
+
+    <footer>
+      End of report · LazyZ Service Workflow Analysis
+    </footer>
+  </div>
+</body>
+</html>

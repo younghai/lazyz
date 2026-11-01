@@ -138,3 +138,4 @@ def _roots(defaults: list[Path], extra_roots: tuple[Path, ...], children: tuple[
         candidates.append(root)
         candidates.extend(root / child for child in children)
     return existing(candidates)
+

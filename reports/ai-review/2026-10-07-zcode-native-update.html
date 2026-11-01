@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LazyZ 0.11.0 — ZCode 네이티브 업데이트</title>
+<style>body{font:16px/1.65 system-ui,sans-serif;max-width:1160px;margin:40px auto;padding:0 24px;color:#172534;background:#f5f7fa}section{background:white;padding:24px;margin:20px 0;border:1px solid #d7e0e9;border-radius:12px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #ccd5df;padding:10px;text-align:left;vertical-align:top}th{background:#edf3ff}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px;font-size:13px}code{overflow-wrap:anywhere}h1,h2{line-height:1.3}.flow{display:flex;gap:12px;flex-wrap:wrap}.flow span{padding:12px;background:#edf3ff;border:1px solid #c7d6f4;border-radius:8px}.notice{border-left:5px solid #b66b14;padding:12px;background:#fff6e5}.ok{color:#146443}a{color:#1558a2}@media(max-width:760px){section{padding:14px}table{display:block;overflow:auto}}@media print{body{background:white;margin:0}section{break-inside:avoid}}</style></head><body>
+<h1>LazyZ 0.11.0<br>ZCode에 맞춘 런타임·실행 흐름 업데이트</h1>
+<p>2026-10-07 · 작업 루트: <code>/Users/young2026/Downloads/personal_project/lazyz</code><br>기준: LazyCodex/omo-ai 5.1.22, ZCode v3.14.3 공개 소스·공식 문서. 기존 작업과 보안 보강을 보존한 선택적 이식.</p>
+
+<section><h2>완료 판정</h2>
+<p class="ok"><strong>로컬 구현, 빌드, 변경 범위 검사 및 소스 없는 배포 묶음 확인 완료.</strong> ZCode용 훅, 모델 상속, 작업 실행 계약, 데이터 격리, 계획/실행 흐름, 진단·문서를 함께 업데이트했다.</p>
+<p class="notice">실제 ZCode 호스트 운영 완료는 아니다. 현재 셸 PATH에서 <code>zcode</code>를 찾지 못했으며, 앱 설치 여부 자체를 단정하지 않는다. 실호스트 플러그인 로딩·모델 호출·MCP 연결·Windows 동작은 미검증이다. Git 커밋·푸시·설치·배포·유료 호출은 하지 않았다.</p>
+<table><tr><th>판정 항목</th><th>상태와 근거</th></tr>
+<tr><td>요청 결과</td><td>LazyZ 0.11.0 소스, 생성된 런타임, 설명서, 803개 파일의 배포 묶음 작성 완료. 전체 빌드, 루트 48/48 테스트, 호환성 검사와 배포 CLI 확인 통과.</td></tr>
+<tr><td>사용자에게 필요한 결정</td><td>로컬 업데이트에 추가 결정 없음. 실사용 설치·배포는 이번에 실행하지 않았음.</td></tr>
+<tr><td>남은 항목</td><td>실호스트 통합, 실제 업무 성능, Windows 호환성은 별도 관찰 필요. 아래 제한에 기록.</td></tr>
+<tr><td>종료 가능 여부</td><td>로컬 업데이트 작업 종료 가능. 운영 준비 완료로 표시하지 않음.</td></tr>
+<tr><td>보안 관련 변경</td><td>구조화된 백그라운드 작업의 증거 누락 방지, 프로세스 훅 경로 검사, rules/LSP 캐시 충돌 방지. 기존 경로 격리·허용 목록·manifest 검증 유지.</td></tr>
+<tr><td>되돌리기</td><td>미커밋 변경 상태이며 기존 작업과 섞여 있음. 전체 reset 금지. 이 보고서의 대상 파일을 기준으로 이번 수정만 선택적으로 되돌려야 함. 기존 캐시는 삭제하지 않음.</td></tr></table>
+<p>실제 업무 개선 판정: <strong>개선 미검증</strong>. 로컬 회귀와 구조적 비용 감소는 확인했지만, 동일 업무의 전후 시간·요금·성공률 자료는 없다.</p></section>
+
+<section><h2>최신 소스를 어떻게 반영했나</h2>
+<p>2026-10-07 npm 조회에서 <code>lazycodex-ai</code>와 <code>omo-ai</code> 모두 latest는 <strong>5.1.22</strong>, beta는 <strong>5.1.0</strong>이었다. beta를 최신으로 간주하지 않았다. 두 패키지의 gitHead는 <code>d9af7f0931603f66c9fbe93f84e33630dcbb87bb</code>였다. ZCode는 2026-09-24 공개된 <strong>v3.14.3</strong>, 커밋 <code>29628c9acdb81b703bbd4080c207a0e7ce5e276e</code>를 기준으로 했다.</p>
+<table><tr><th>비교 영역</th><th>채택·유지</th><th>그대로 가져오지 않은 이유</th></tr>
+<tr><td>계획·실행</td><td>명시적 계획 요청, 의도 구분, 계획 승인과 실행 요청 분리, <code>/ulw-execute</code> 추가, 기존 <code>/start-work</code> 호환 유지.</td><td>Codex/Senpi 전용 goal/thread 호출을 ZCode에서 사용한다고 가정하지 않음.</td></tr>
+<tr><td>완료 판정</td><td>실행 전 목표 등록, 안정적인 taskId와 새로운 runId, ReceiptV1·현재 소스·기준·해시 증거 연결 유지.</td><td>기존 LazyZ의 더 엄격한 호출 예산·실패 차단·manifest 검증을 상위 배포본으로 덮어쓰지 않음.</td></tr>
+<tr><td>검사·디버깅</td><td>재현 우선, 불안정 테스트의 원인 분리, 사용자 검사 정책 우선, 규모에 맞는 검사 지침.</td><td>모든 작업에 무조건 전체 TDD·리뷰·설치를 강제하거나 실제 실행하지 않은 증거를 생성하지 않음.</td></tr>
+<tr><td>에이전트</td><td>ZCode enabled-plugin agents 자동 탐색, <code>lazyz:&lt;role&gt;</code>, 13개 역할의 <code>model: inherit</code>.</td><td>Codex 모델 TOML, reasoning/service tier 설정 및 특정 공급자 모델 고정을 이식하지 않음.</td></tr>
+<tr><td>런타임</td><td>native process/argv 훅과 ZCode 데이터 위치. 기존의 동일한 entry guard·spawn·업데이트 상태 유틸리티 재사용.</td><td>동일 기능의 런타임·설치기 중복 추가를 피함. 브라우저 패키지나 외부 도구를 설치하지 않음.</td></tr>
+<tr><td>제품 경계</td><td><code>plugins/lazyz</code>의 ZCode 제품을 업데이트하고 Xcode는 분리 유지.</td><td>Xcode/pi 전체 재기반 작업은 이 요청의 ZCode 최적화와 다른 변경이며 진행하지 않음.</td></tr></table>
+<p><code>vendor.lock.json</code>에 비교 시점·버전·integrity·채택/제외 내용을 추가했다. 기존 4.19.4 및 beta 선택 이식 이력을 유지했다. <strong>전체 vendor가 5.1.22로 교체됐다는 의미가 아니다.</strong></p></section>
+
+<section><h2>구조와 서비스 흐름</h2>
+<pre>plugins/lazyz/
+  .zcode-plugin/ + hooks/ + .mcp.json   ZCode가 읽는 통합 계약
+  agents/ + skills/ + commands/       역할·계획·실행 안내
+  runtime/                           CLI·진단·설치·배포 무결성
+  components/                        rules, LSP, executor, goals, continuation 등
+  vendor/                            기존에 고정한 공통 엔진과 MCP 런타임
+  dist/ + components/*/dist/          소스 없이 실행하는 배포 코드
+작업 저장소 .omo/                     계획·목표·작업 상태·실행 증거
+ZCODE_PLUGIN_DATA/rules/sessions/     규칙 캐시
+ZCODE_PLUGIN_DATA/lsp/sessions/       LSP 캐시</pre>
+<div class="flow" aria-label="정적 서비스 흐름"><span>요청·작업 범위</span><span>→ 계획·명시적 실행</span><span>→ 작업 ID·예산 예약</span><span>→ ZCode Agent 실행</span><span>→ 실제 결과·증거 검사</span><span>→ 완료 또는 남은 작업</span><span>→ 사람의 설치·배포 판단</span></div>
+<p>AI는 제공된 목표·파일·도구 결과로 다음 행동을 구성한다. LazyZ는 훅과 파일 계약으로 이를 안내·검사한다. 모델의 숨겨진 내부 계산을 관찰한 것은 아니다. 코드 탐색·정적 분석은 CodeGraph/LSP/AST-grep 등 로컬 MCP, 참조 검색은 기존 원격 MCP 경계를 사용한다.</p>
+<h3>Mermaid 소스</h3><pre class="mermaid-source">flowchart TD
+  U[사용자 입력과 범위] --&gt; P[계획과 실행 요청 구분]
+  P --&gt; G[목표와 완료 기준 등록]
+  G --&gt; PRE[PreToolUse: ID와 예산 예약]
+  PRE --&gt; A[ZCode foreground Agent]
+  A --&gt; POST[PostToolUse: 실제 결과와 Receipt 검증]
+  POST --&gt; STOP[Stop: 완료 또는 제한된 계속 실행]
+  STOP --&gt; H[사람의 결과 검토와 설치 배포 결정]
+  U --&gt; R[비구조화 읽기 전용 조사]
+  R --&gt; BG[background 가능: 호스트 완료 알림]
+  A --&gt; MCP[CodeGraph / LSP / AST-grep / Git Bash]
+</pre>
+<p>구조화된 Dispatch를 보낸 모든 역할은 foreground로 실행한다. Explore도 구조화 계약을 사용하면 같은 제한을 받는다. 일반 읽기 전용 조사만 background가 가능하다. <code>async_launched</code>는 완료가 아니며, 누락된 완료 영수증을 성공으로 처리하지 않는다. ZCode의 <code>SendMessage</code>는 존재하지만 그 응답만으로 LazyZ 완료 영수증이 자동 검증되지는 않는다.</p></section>
+
+<section><h2>변경 전 → 변경 후</h2><table><tr><th>영역</th><th>기존 상태</th><th>0.11.0</th><th>효과와 한계</th></tr>
+<tr><td>훅 실행</td><td>셸 래퍼와 별도 Node 버전 확인 후 실행.</td><td>20개 훅 / 6개 사용 이벤트, 직접 <code>node + args + timeoutMs</code>. 18개 전환, compact/clear 전용 2개 추가.</td><td>일반 훅의 래퍼 계층 Node 기동 2회 → 1회. 전체 내부 프로세스 수나 지연시간의 50% 감소라는 뜻은 아님.</td></tr>
+<tr><td>입력 호환성</td><td>일부 handler가 model/turn_id를 필수로 처리해 유효한 ZCode 이벤트를 무시할 수 있었음.</td><td>선택 metadata 정상 처리. built rules CLI에서 SessionStart/UserPromptSubmit/PostToolUse 확인.</td><td>실호스트 E2E 대신 공식 입력 형태를 격리 CLI에 전달한 검사.</td></tr>
+<tr><td>캐시</td><td>같은 plugin data의 sessions 파일에 rules/LSP가 충돌할 수 있었음.</td><td>컴포넌트별 경로 분리. compact/clear 시 LSP/Git 상태 갱신.</td><td>충돌 재현 후 분리 테스트 통과. 이전 캐시는 그대로 두고 새 위치에 재생성.</td></tr>
+<tr><td>에이전트 결과</td><td>background launch를 실제 결과로 오인하거나 구조화 작업을 미해결 상태로 남길 가능성.</td><td>호출 전 구조화 background 거부. 이미 시작된 async 결과는 unresolved로 유지.</td><td>호스트에 없는 완료 이벤트를 가정하지 않음.</td></tr>
+<tr><td>대화록 I/O</td><td>ultrawork가 전체 transcript를 읽어 검사.</td><td>일반 프롬프트는 읽기 생략. 대상 프롬프트는 최근 최대 512,000 bytes를 한 번 읽어 두 신호 검사.</td><td>512,017-byte fixture에서 tail 512,000 확인. 훨씬 이전의 marker는 검색 범위 밖이라는 제한 유지.</td></tr>
+<tr><td>진단·배포</td><td>기존 command 문자열 기반 진단은 process args의 경로를 놓칠 수 있었음.</td><td>argv entrypoint·이벤트·timeout·async 결정 훅 검사. capabilities에 출처와 hostVerified=false 표시.</td><td>누락 파일·경로 이탈 회귀 재현 후 통과. 진단은 호스트 실제 동작 검사와 다름.</td></tr>
+<tr><td>MCP</td><td>공식 stdio 계약에 없는 required 필드.</td><td>4개 로컬 서버에 enabled 및 30,000ms timeout. 기존 2개 원격 서버 유지.</td><td>lazy/defer를 지원한다고 주장하지 않음. 동시 기동·실연결은 호스트 소관.</td></tr></table></section>
+
+<section><h2>실행한 검사와 관찰</h2>
+<table><tr><th>검사</th><th>실제 결과</th><th>범위</th></tr>
+<tr><td>전체 LazyZ build</td><td>통과</td><td>버전·훅 메시지·skill 동기화, CLI 및 컴포넌트 bundle. 이후 rules/LSP 경로 수정분은 targeted bundle로 갱신.</td></tr>
+<tr><td>루트 Node 테스트</td><td>48 passed / 0 failed</td><td>doctor, 배포 무결성, 설정 격리, MCP handshake, native payload, source-free fixture 등. 첫 실행의 오래된 MCP 계약/계획 문구 assertion 2개를 변경된 계약과 shipped-copy equality로 갱신한 뒤 통과.</td></tr>
+<tr><td>ZCode 호환성 스캔</td><td>통과</td><td>지원하지 않는 오케스트레이션에 대한 변환 안내 및 훅 계약 검사.</td></tr>
+<tr><td>executor</td><td>structured hooks 12 passed, typecheck 통과</td><td>namespaced/bare 역할, 구조화 Explore background 거부, async acknowledgement, receipt·예산. 신규 Explore 사례 실패 재현 후 수정.</td></tr>
+<tr><td>rules / continuation / ultrawork</td><td>각각 5 / 5 / 2 tests passed, 세 컴포넌트 typecheck 통과</td><td>선택 metadata, Stop, bounded transcript; built payload는 루트 테스트에서도 별도로 확인.</td></tr>
+<tr><td>LSP / Git Bash</td><td>LSP 최종 focused CLI 2 + bootstrap 4 passed, Git Bash focused 2 passed. 두 typecheck 통과.</td><td>compact/clear 연결과 기존 adapter. 자동 LSP 진단 서버 Biome은 미설치로 사용하지 않음. 설치하지 않았음.</td></tr>
+<tr><td>소스 없는 실제 배포 묶음</td><td>803 files; doctor exit 0 / ok=true / 0.11.0</td><td>20 process hooks, entrypoints, versions, permissions, provenance, payload hashes 모두 pass. 임시 HOME의 설치 링크 없음 경고 1개는 예상 상태.</td></tr>
+<tr><td>배포 CLI 직접 사용</td><td>--help exit 0; capabilities exit 0; 잘못된 명령 exit 2</td><td>실제 dist 실행. ulw-execute 파일 및 13개 agents 포함 확인. 실제 provider는 호출하지 않음.</td></tr></table>
+<p>검사 권한: 사용자 no-auto-verification 정책을 읽었다. 이번 다중 파일 변경은 상위 개발 지침이 관련 테스트·빌드·실제 CLI 사용을 요구하므로 그 범위만 실행했다. 별도 리뷰 에이전트·Xcode 전체 테스트·유료 모델 QA는 실행하지 않았다. <strong>이 HTML의 렌더 검증 미실행 (사용자 전역 정책)</strong>.</p>
+<p>재현 명령: <code>cd plugins/lazyz &amp;&amp; npm test</code>, <code>npm run check:zcode</code>, <code>node dist/cli/index.js capabilities --json</code>. 소스 없는 묶음의 doctor는 임시 HOME과 release 모드로 실행했다. 명령 성공이 운영 성능을 입증하지는 않는다.</p></section>
+
+<section><h2>품질·시간·비용·위험의 실제 전후 비교</h2><table><tr><th>차원</th><th>기준선</th><th>이후 결과</th><th>기간·단위·출처</th><th>판정·한계</th></tr>
+<tr><td>품질</td><td>argv 경로 누락 및 구조화 Explore background 사례 실패 재현.</td><td>해당 회귀와 root 48개 통과. 선택 metadata·캐시 분리 확인.</td><td>2026-10-07, 사례/pass 개수; 이번 도구 실행 결과.</td><td>로컬 회귀 개선 확인. 실제 코딩 결과 정확도와 사용자 만족도는 미측정.</td></tr>
+<tr><td>시간</td><td>훅당 래퍼 Node 기동 2회, transcript 전체 읽기.</td><td>래퍼 계층 기동 1회, 대상 transcript 최대 512,000 bytes/회, 일반 프롬프트 읽기 없음.</td><td>같은 날, 기동 구조·byte 상한; hooks.json, ultrawork source 및 fixture.</td><td>구조·I/O 상한 개선. 동일 업무 p50/p95·총 소요 ms 전후 비교 없음.</td></tr>
+<tr><td>비용</td><td>실제 모델 요금/토큰 기준선 없음.</td><td>이 작업의 유료 provider 호출 없음. 모델은 사용자의 활성 모델 상속.</td><td>같은 날, 금액·token 미측정; 요청·실행 범위.</td><td>절감액 또는 요금 절감률 주장 불가.</td></tr>
+<tr><td>위험</td><td>캐시 충돌, 완료 알림 오인, argv 누락 가능성.</td><td>경로 분리, 호출 전 거부, 계약 검사로 재현한 경우 차단.</td><td>같은 날, 차단/통과 사례; 테스트·배포 doctor.</td><td>특정 위험 감소 확인. 악성 동일 UID 방어, 모든 취약점 부재, 운영 무사고는 입증하지 않음.</td></tr></table></section>
+
+<section><h2>7원칙 완료 확인</h2><table><tr><th>원칙</th><th>상태</th><th>근거·이유</th><th>다음조치</th></tr>
+<tr><td>1. 맥락·방향·결과 우선</td><td>적용</td><td>ZCode용 coding harness를 목표로 고정. 기존 미커밋 보강과 Xcode 제품 경계 보존.</td><td>추가 없음. 이후 설치 요청에서 대상 호스트만 확인.</td></tr>
+<tr><td>2. AI 원리 그림 설명</td><td>적용</td><td>입력→계획→호출→실제 증거→사람 검토의 정적 흐름과 Mermaid 소스 제공.</td><td>실제 호스트 동작과 혼동하지 않도록 경계 유지.</td></tr>
+<tr><td>3. 60/30/10 배분 제안</td><td>적용</td><td>아래 장기 포트폴리오 제안. 실제 시간 할당은 미측정.</td><td>단일 작업에 비율을 강제하지 않음.</td></tr>
+<tr><td>4. 빈도·효과·낮은 위험 우선</td><td>적용</td><td>매 훅의 추가 프로세스와 입력 탈락, 상태 충돌을 우선. 호스트 미지원 기능은 추가하지 않음.</td><td>실제 호출 빈도와 startup latency는 실호스트에서 측정 필요.</td></tr>
+<tr><td>5. 실제 적용·적합성 검증</td><td>부분 적용</td><td>실제 배포 CLI와 built hooks는 사용함. ZCode 앱·모델·업무 효율은 미검증.</td><td>설치 범위가 승인되는 별도 작업에서 대표 업무 1건 전후 비교.</td></tr>
+<tr><td>6. 성공 workflow 재사용</td><td>부분 적용</td><td>격리 payload→doctor→정상/오류 CLI 패턴은 기술적 성공 근거가 있음. 업무 자동화 성공 패턴은 아직 없음.</td><td>아래 한계·중단 기준을 유지하고 자동 설치/공유하지 않음.</td></tr>
+<tr><td>7. 전후 결과 HTML 보고</td><td>적용</td><td>한 보고서에 기간·단위·출처·누락 측정·완료 판정 통합.</td><td>렌더 QA는 수행하지 않음. 중복 완료 보고서는 생성하지 않음.</td></tr></table></section>
+
+<section><h2>포트폴리오·재사용 후보와 남은 경계</h2>
+<p>장기 배분 제안: 반복 업무 60% / 기존 방법 개선 30% / 새로운 실험 10%. 단일 작업의 할당량이 아니며 실제 배분은 미측정이다. 후보는 반복적인 배포 doctor·계약 확인(빈도 높음 추정, 낮은 외부 영향), transcript/훅 비용 개선(호출당 적용, 실제 총효과 미측정), ZCode native goal/memory 연계(공식 API 확정 전 실험 보류) 순서다.</p>
+<p>재사용 가능한 기술 패턴: 완성된 로컬 bundle 입력 → 빈 디렉터리로 allowlist 패키징 → 임시 HOME에서 release doctor → 도움말·정상·오류 입력 확인 → 사람이 배포 여부 판단. 성공 근거는 이번 803-file 묶음 관찰이다. manifest 불일치나 CLI 실패 시 중단하고 원본을 고쳐 새 묶음을 만든다. 이 패턴이 서비스 품질·비용 개선을 입증한 것은 아니다.</p>
+<ul><li>ZCode Stop 최대 3회는 연속 continuation 제한이다. 무한 실행 보장·지속적인 보안 경계가 아니다.</li>
+<li>백그라운드 작업 완료와 미드세션 compaction 복구를 완전 자동화했다고 주장하지 않는다.</li>
+<li>task 예산은 구조화된 호출 단위다. 공급자 청구 총액이나 모든 내부 도구 호출 비용을 강제하는 시스템은 아니다.</li>
+<li>Receipt는 현재 파일·소스와 연결하지만 외부 신뢰 실행자의 전자서명은 아니다. 동일 사용자 권한의 악성 코드에 대한 OS sandbox도 아니다.</li>
+<li>Boulder 상태는 기존 soft schema다. 새로운 DB나 광범위한 상태 마이그레이션을 만들지 않았다.</li>
+<li>Windows에서 셸 의존 하나를 제거했지만 전체 Windows 지원은 미검증이다.</li>
+<li>실호스트/모델/MCP/CodeGraph daemon 연결은 확인하지 않았다. Xcode 기존 문제는 이번 ZCode 변경과 별도이며 다시 검사하지 않았다.</li></ul></section>
+
+<section><h2>산출물과 다음 세션용 기록</h2>
+<ul><li><a href="../../release/lazyz-0.11.0-20261007">배포 폴더</a>의 실제 경로: <code>/Users/young2026/Downloads/personal_project/lazyz/release/lazyz-0.11.0-20261007</code>. 803 runtime files 및 payload-manifest.json.</li>
+<li>기준 HEAD <code>d1996f5051417ec693b9e42fbed0700f368e438e</code>. 배포 파일은 <strong>기존 변경과 이번 변경을 포함한 미커밋 working tree</strong>에서 생성했다. manifest sourceCommit은 기준 HEAD이며 현재 변경이 모두 커밋됐다는 의미가 아니다. 파일별 해시가 실제 payload 바이트를 묶는다.</li>
+<li>주요 변경: <code>plugins/lazyz/runtime/{zcode-contract,doctor,cli}.mjs</code>, <code>hooks/hooks.json</code>, <code>.mcp.json</code>, <code>agents/*.md</code>, <code>components/{rules,lsp,git-bash,telemetry,start-work-continuation,lazycodex-executor-verify,ultrawork}/src/</code>.</li>
+<li>흐름·패키징: <code>scripts/{sync-skills,sync-hook-status-messages,check-zcode-compatibility}.mjs</code>, <code>skills/</code>, <code>commands/ulw-execute.md</code>, package/plugin/component versions, package-manager-generated lockfiles, <code>vendor.lock.json</code>.</li>
+<li>새 회귀: <code>test/zcode-process-hooks.test.mjs</code>, <code>test/zcode-hook-payload.test.mjs</code>; 기존 structured hooks·continuation·Git Bash·MCP/sync 검사 갱신.</li>
+<li>설명서: <a href="../../plugins/lazyz/docs/zcode-native-0.11.md">ZCode-native 0.11 계약</a>, README, AGENTS, CHANGELOG, known-limitations. 실행 계획: <code>.omo/plans/2026-10-07-zcode-native-update.md</code>.</li>
+<li>기존 dirty worktree를 보존했고 커밋·푸시하지 않았다. lockfiles는 npm/bun의 offline lockfile-only 모드로 갱신했고 의존성 추가나 설치 스크립트 실행은 하지 않았다.</li></ul>
+<h3>공식 근거</h3><ul>
+<li><a href="https://registry.npmjs.org/lazycodex-ai/latest">lazycodex-ai latest metadata</a>, <a href="https://registry.npmjs.org/omo-ai/latest">omo-ai latest metadata</a>, <a href="https://registry.npmjs.org/omo-ai/beta">omo-ai beta metadata</a> — 조회 시점 2026-10-07, moving tag임.</li>
+<li><a href="https://github.com/code-yeongyu/oh-my-openagent/tree/d9af7f0931603f66c9fbe93f84e33630dcbb87bb">LazyCodex/OmO 비교 commit</a>; 설치된 5.1.22 및 배포 tarball 내용과 비교. 다운로드한 코드를 실행하지 않음.</li>
+<li><a href="https://github.com/zai-org/ZCode/releases/tag/v3.14.3">ZCode v3.14.3</a>; <a href="https://zcode.z.ai/en/docs/hooks">Hooks</a>, <a href="https://zcode.z.ai/en/docs/plugin">Plugins</a>, <a href="https://zcode.z.ai/en/docs/subagents">Subagents</a>, <a href="https://zcode.z.ai/en/docs/mcp-services">MCP</a>.</li>
+<li><a href="https://github.com/zai-org/ZCode/blob/29628c9acdb81b703bbd4080c207a0e7ce5e276e/apps/zcode-cli/packages/bootstrap/src/subagents.ts">플러그인 에이전트 로더</a>, <a href="https://github.com/zai-org/ZCode/blob/29628c9acdb81b703bbd4080c207a0e7ce5e276e/apps/zcode-cli/packages/contracts/src/tools/agent.ts">Agent 결과 계약</a>, <a href="https://github.com/zai-org/ZCode/blob/29628c9acdb81b703bbd4080c207a0e7ce5e276e/apps/zcode-cli/packages/adapters/src/plugins/mcp.ts">MCP resolver</a> — release SHA 고정 근거.</li></ul></section>
+</body></html>

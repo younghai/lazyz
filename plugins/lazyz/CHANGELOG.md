@@ -1,17 +1,61 @@
 # Changelog
 
-## 0.11.0 publication repairs — 2026-10-18
+## 0.12.0 — 2026-11-01
 
-- Remove implicit installs from LSP builders and regenerate MCP source bundles.
-- Declare esbuild directly and lock patched js-yaml/source-map-js/Vitest versions.
-- Align `/start-work` with approved-plan execution and test native hook argv.
-- Isolate LSP test contexts, preserve fail-closed core context rules, and handle
-  standalone resource probes without affecting daemon workspace confinement.
-- Load bundled Markdown prompts as text; preserve raw prompt content under Bun.
-- Make vendored tests portable and reconcile frozen capability metadata spelling
-  without changing provider routing or inherited ZCode model selection.
-- Local product check: 1,385 passing tests, component typechecks and compatibility.
-  This does not certify live ZCode, paid providers or the upstream Codex installer.
+Selective sync from upstream omo 5.1.54 (previous baseline: 5.1.22 in 0.11.0).
+
+### ulw-loop execution quality (from upstream 5.1.51–5.1.54)
+
+- `components/ulw-loop/dist` upgraded to the upstream build (self-contained,
+  no new dependencies; runtime-verified — the 0.11.0 dist rejected the new
+  hook subcommands, the new dist accepts all three).
+- Three new hooks with ZCode-native matchers (plugin total: 20 → 23 hooks
+  across 6 events):
+  - `PreToolUse` on `^(Agent|Task)$` — spawn guard (`pre-tool-use-spawn`):
+    polices subagent spawns while a ulw-loop is running.
+  - `PostToolUse` on `^(Agent|Task)$` — spawn admission recording
+    (`post-tool-use-spawn`).
+  - `Stop` — ulw-loop resume (`hook stop`): a paused loop continues on the
+    next turn within ZCode's Stop continuation limit.
+
+### start-work → ulw-execute unification
+
+- The `start-work` skill and `/start-work` command are deprecated and now
+  redirect to **ulw-execute** (same runtime, Boulder state, and evidence
+  ledger — nothing to migrate). `/start-work` stays as a compatibility alias.
+
+### Skill updates from upstream 5.1.54
+
+- `programming` — new four-question test authoring gate
+  (`references/testing/`: authoring gate + junk-classes table wired into the
+  language routing table); per-language scaffolding scripts migrated from
+  Python to TypeScript (`scripts/{go,python,rust}/new-project.ts`, shared
+  `run-tool.ts`).
+- `visual-qa` — new machine pre-check section (frontend detect SDK run before
+  human reviewers: contrast, type scale, overflow stress test), checklist
+  additions A13 (spacing rhythm) and B8 (type scale floor), refined A3
+  measure rule (65-75 chars desktop, ≥45 phone).
+
+### Deliberate divergence from upstream
+
+- `codegraph` MCP/component/hooks KEPT (upstream removed it): local sessions
+  show real `mcp__codegraph__` tool usage.
+- `benchmark-checklist` and `blast-radius` skills (ported from pstack, MIT)
+  remain LazyZ-only.
+- `ultimate-browsing`: added a ZCode note pointing interactive browser work
+  at the built-in browser-use plugin skills (control-browser /
+  web-gui-tester) first.
+
+### Operational notes
+
+- Restored the `lazyz@lazyz` registration in `~/.zcode/cli/config.json` after
+  a cache-directory move caused the host to unregister the plugin mid-session.
+- Re-applied the 0.11 publication repair (process.exit -> process.exitCode,
+  stdout drains before exit) onto the new upstream ulw-loop dist, where the
+  fix had not yet landed upstream.
+- The 0.11.0 cache snapshot is preserved at `~/.zcode-backup/lazyz-0.11.0`
+  for rollback.
+
 
 ## 0.11.0 — 2026-10-07
 

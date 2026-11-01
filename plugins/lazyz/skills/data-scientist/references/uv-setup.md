@@ -76,3 +76,4 @@ uv --version
 ## Offline / air-gapped
 
 Download the matching archive from the uv GitHub releases page, extract it, and put the `uv` binary anywhere on PATH. `uv run --with <pkg>` still needs network for first-time package resolution unless a mirror is configured via `UV_INDEX_URL`.
+

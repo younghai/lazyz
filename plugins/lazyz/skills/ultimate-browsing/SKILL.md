@@ -3,6 +3,12 @@ name: ultimate-browsing
 description: "Escalation skill for blocked or hard-to-reach web access — load it when a normal browse/fetch is blocked (WAF, 403, Cloudflare, JS-only render, login-gated, or a platform a generic fetcher cannot read). Tiered router: TIER 1 insane-search (headless extraction + WAF bypass via curl_cffi TLS impersonation, yt-dlp, Jina Reader, public APIs, Playwright real-Chrome fallback); TIER 1.5 agent-reach (platform-native readers for Chinese and social platforms: Xiaohongshu, Douyin, Weibo, Bilibili, V2EX, WeChat, plus Twitter/Reddit/LinkedIn/GitHub); TIER 2 Chrome stealth (CloakBrowser stealth Chromium + agent-browser CDP for clicks, forms, screenshots, video, cookie login). Triggers: blocked site, bypass bot detection, cloudflare/WAF bypass, scrape, stealth browser, import cookies, fill form, screenshot, play youtube, xiaohongshu, douyin, weibo, bilibili, v2ex, wechat article, podcast transcript. NOT for simple searches (use web-search) or plain fetches (use webfetch)."
 ---
 
+> **ZCode note:** for interactive browser automation (clicks, forms, screenshots,
+> JS-rendered pages), prefer the built-in ZCode **browser-use plugin** skills —
+> `browser-use:control-browser` and `browser-use:web-gui-tester` — before
+> escalating to the heavier tiers below. This skill's escalation tiers remain
+> for blocked or exotic targets the built-ins cannot reach.
+
 # Ultimate Browsing
 
 Escalation web access for tasks a normal browse or fetch cannot complete. Reach for this skill the moment a page is blocked (WAF / 403 / Cloudflare), needs JS rendering, hides behind a login, or lives on a platform a generic fetcher cannot read. Escalate only when the cheaper tier cannot do the job:

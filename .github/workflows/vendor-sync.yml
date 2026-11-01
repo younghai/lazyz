@@ -1,0 +1,75 @@
+name: Vendor provenance
+
+on:
+  push:
+    paths:
+      - "vendor.lock.json"
+      - "scripts/vendor-sync.mjs"
+      - "scripts/vendor-sync-schema.mjs"
+      - "scripts/vendor-sync.test.mjs"
+      - "scripts/readme-counts.mjs"
+      - "scripts/readme-counts.test.mjs"
+      - "README.md"
+      - "plugins/lazyz/README.md"
+      - "plugins/lazyz/agents/**"
+      - "plugins/lazyz/skills/**"
+      - "plugins/lazyz/commands/**"
+      - "plugins/lazyz/hooks/hooks.json"
+      - "plugins/lazyz/.mcp.json"
+      - "plugins/lazyz/vendor/omo-codex/package.json"
+      - "xcode/agent/package.json"
+      - "xcode/agent/package-lock.json"
+      - ".github/workflows/vendor-sync.yml"
+  pull_request:
+    paths:
+      - "vendor.lock.json"
+      - "scripts/vendor-sync.mjs"
+      - "scripts/vendor-sync-schema.mjs"
+      - "scripts/vendor-sync.test.mjs"
+      - "scripts/readme-counts.mjs"
+      - "scripts/readme-counts.test.mjs"
+      - "README.md"
+      - "plugins/lazyz/README.md"
+      - "plugins/lazyz/agents/**"
+      - "plugins/lazyz/skills/**"
+      - "plugins/lazyz/commands/**"
+      - "plugins/lazyz/hooks/hooks.json"
+      - "plugins/lazyz/.mcp.json"
+      - "plugins/lazyz/vendor/omo-codex/package.json"
+      - "xcode/agent/package.json"
+      - "xcode/agent/package-lock.json"
+      - ".github/workflows/vendor-sync.yml"
+  schedule:
+    - cron: "23 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Test vendor check
+        run: node --test scripts/vendor-sync.test.mjs
+
+      - name: Check local vendor provenance
+        run: node scripts/vendor-sync.mjs --check
+
+      - name: Test README inventory check
+        run: node --test scripts/readme-counts.test.mjs
+
+      - name: Check README inventory
+        run: node scripts/readme-counts.mjs --check
+
+      - name: Verify published artifacts, upstream commits, and tracked dist-tags
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: node scripts/vendor-sync.mjs --check --verify-upstream --check-latest

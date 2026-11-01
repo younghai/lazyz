@@ -51,3 +51,4 @@ if ($null -eq (Get-Command uv -ErrorAction SilentlyContinue)) {
 }
 
 Write-Step "OK: $((& uv --version) | Select-Object -First 1)"
+

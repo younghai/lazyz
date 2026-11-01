@@ -1,0 +1,89 @@
+{
+  "binding": {
+    "schemaVersion": 2,
+    "planFingerprint": "<copy from quality-context>",
+    "finalGoalId": "G002-final",
+    "finalGoalObjective": "Complete final goal",
+    "source": {
+      "commitSha": "<copy from quality-context>",
+      "treeOid": "<copy from quality-context>"
+    }
+  },
+  "codeReview": {
+    "by": "lazycodex-code-reviewer",
+    "recommendation": "APPROVE",
+    "codeQualityStatus": "CLEAR",
+    "reportPath": ".omo/ulw-loop/qa/code-review.md",
+    "reportSha256": "<sha256 of code-review.md>",
+    "evidence": "Diff and verification reviewed with no blockers.",
+    "blockers": []
+  },
+  "manualQa": {
+    "by": "lazycodex-qa-executor",
+    "status": "passed",
+    "evidence": "The criterion scenario ran through the CLI surface.",
+    "surfaceEvidence": [
+      {
+        "id": "surface-g002-c001",
+        "criterionRef": "G002-final/C001",
+        "surface": "cli",
+        "invocation": "npm test -- --criterion G002-final/C001",
+        "executionRef": "run-g002-c001",
+        "verdict": "passed",
+        "artifactRefs": ["artifact-g002-c001"]
+      }
+    ],
+    "adversarialCases": [
+      {
+        "id": "adversarial-malformed",
+        "criterionRef": "G002-final/C001",
+        "scenario": "Malformed input is rejected.",
+        "expectedBehavior": "The command exits successfully after proving fail-closed behavior.",
+        "executionRef": "run-g002-c001",
+        "verdict": "passed",
+        "artifactRefs": ["artifact-g002-c001"]
+      }
+    ],
+    "artifactRefs": [
+      {
+        "id": "artifact-g002-c001",
+        "kind": "cli-transcript",
+        "description": "Transcript proving G002-final/C001.",
+        "path": ".omo/ulw-loop/qa/g002-c001.txt",
+        "sha256": "<sha256 of g002-c001.txt>"
+      }
+    ],
+    "executions": [
+      {
+        "id": "run-g002-c001",
+        "command": "npm test -- --criterion G002-final/C001",
+        "exitCode": 0,
+        "criterionRefs": ["G002-final/C001"],
+        "artifactRefs": ["artifact-g002-c001"]
+      }
+    ]
+  },
+  "gateReview": {
+    "by": "lazycodex-gate-reviewer",
+    "recommendation": "APPROVE",
+    "reportPath": ".omo/ulw-loop/qa/gate-review.md",
+    "reportSha256": "<sha256 of gate-review.md>",
+    "evidence": "Plan, task, source, execution, and artifact bindings rechecked.",
+    "blockers": []
+  },
+  "iteration": {
+    "fullRerun": true,
+    "status": "passed",
+    "rerunCommands": ["npm test -- --criterion G002-final/C001"],
+    "evidence": "Every recorded command reran successfully."
+  },
+  "criteriaCoverage": {
+    "totalCriteria": 1,
+    "passCount": 1,
+    "criterionRefs": ["G002-final/C001"],
+    "originalIntent": "Ship the requested plan.",
+    "desiredOutcome": "Every actual criterion has current proof.",
+    "userOutcomeReview": "The observed result matches the requested outcome.",
+    "adversarialClassesCovered": ["malformed_input"]
+  }
+}

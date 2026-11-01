@@ -12,7 +12,7 @@ Labs; all credit for the underlying harness belongs to the OmO maintainers.
 ZCode 3.14.3, not a runtime probe; see [ZCode-native 0.11](docs/zcode-native-0.11.md).
 
 <!-- lazyz-resource-counts:start -->
-> Generated inventory: **13 agents · 20 hooks across 6 events · 6 MCP servers · 5 command documents**
+> Generated inventory: **29 skills · 13 agents · 23 hooks across 6 events · 6 MCP servers · 7 command documents**
 <!-- lazyz-resource-counts:end -->
 
 ---
@@ -21,7 +21,7 @@ ZCode 3.14.3, not a runtime probe; see [ZCode-native 0.11](docs/zcode-native-0.1
 
 | Resource | What it does |
 | --- | --- |
-| **Commands** | `/init-deep`, `/ulw-plan`, `/ulw-execute` (canonical plan execution; `/start-work` alias), and `/ulw-loop` |
+| **Commands** | `/init-deep`, `/ulw-plan`, `/ulw-execute` (canonical plan execution; `/start-work` deprecated alias), `/ulw-loop`, `/doctor` (install health), `/status` (work status) |
 | **Skills** | Core workflow, review, debugging, programming, frontend, code intelligence, research, and contributor skills under `skills/` |
 | **Hooks** | Session bootstrap/status, rules and loop steering, tool guidance, diagnostics, executor verification, and work continuation |
 | **MCP servers** | `grep_app`, `context7` (remote) plus `codegraph`, `git_bash`, `lsp`, and `ast_grep` (local) |

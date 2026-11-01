@@ -9,6 +9,9 @@ export function codexGoalMode(plan) {
 function isResolvedStatus(status) {
     return status === "complete";
 }
+export function isMemberResolved(goal, plan) {
+    return isResolvedStatus(goal.status) || isSupersededResolved(goal, plan);
+}
 function isSupersededResolved(goal, plan) {
     if (goal.steeringStatus !== "superseded")
         return false;
